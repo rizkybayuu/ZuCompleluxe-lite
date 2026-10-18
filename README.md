@@ -66,7 +66,11 @@ Legacy patches rely on brittle hardcoded virtual addresses that break across bin
   - Verifies the status of all 7 sidecar modules inside `modules\` (`[OK] Required`, `[OK] Present`, `[MISSING]`) with `Run` and `Quit` controls.
 - **1-Click Direct Installation Folder Patcher (`build_lite.bat`)**:
   - Opens a modern Windows Explorer folder selection dialog (`builder/select_folder.ps1`) featuring a custom **"Patch Folder"** button (or accepts a target directory via CLI `build_lite.bat "<path>" /yes`).
-  - Automatically backs up vanilla files (`Zuma.exe`, `resources.xml`, `levels.xml`, `baDotz.gif`) into `modules\bak\`.
+  - **Universal Multi-Binary Adaptivity**:
+    - **Adaptive Executable Discovery**: Scans target folder for Zuma Deluxe executables (`*.exe` >= 300 KB with PopCap/Zuma `.rsrc` VersionInfo / `.rdata` signatures) if `Zuma.exe` is renamed (e.g. `Zuma800x600.exe`), with interactive choice dialog for multiple candidates.
+    - **Automated UPX Decompression (`builder/ensure_unpacked.py`)**: Transparently detects UPX-compressed executables (`UPX0`/`UPX1`/`UPX!`), automatically bootstraps official pinned UPX v5.2.1 win64 (`builder/tools/upx.exe`) with SHA-256 verification, and decompresses to a clean vanilla baseline PE. *(Note: Antivirus software may occasionally flag UPX decompressor binaries as heuristic false positives; `upx.exe` is fetched directly from official UPX releases with cryptographically validated SHA-256).*
+    - **Dual-Backup Idempotency Architecture**: Automatically creates an untouched byte-exact backup (`modules\bak\<target>.orig`, strictly immutable and never overwritten) and plain baseline (`modules\bak\Zuma.base.exe`). Prevents corruption if the target binary is already patched, and migrates legacy backups (`Zuma.exe.bak` / `modules\bak\Zuma.exe`) automatically.
+  - Automatically backs up vanilla files (`resources.xml`, `levels.xml`, `baDotz.gif`) into `modules\bak\`.
   - Automatically synthesizes all 30 extra ball/powerup GIF assets, extends `baDotz.gif` to 11 dots, generates locked button textures, deploys Secret Temple 5 (`advtemple5.jpg`, `_advtemple5.gif`, `advdoor5.jpg`) and DevTester HelpScreen media, and patches `resources.xml` and `levels.xml` via `builder/patch_assets.py`.
 - **Gauntlet Custom Map Subsystem (`zumacustommap.dll` & `.zcm`)**:
   - Automatically discovers custom maps defined in `levels/levels.xml` outside of Adventure `StageProgression` (up to 256 custom maps) and adds them to the Gauntlet carousel.

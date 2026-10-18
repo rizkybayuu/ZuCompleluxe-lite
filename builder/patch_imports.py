@@ -440,7 +440,12 @@ if __name__ == "__main__":
         print(f" Detail: {e}")
         print("=" * 67)
         print(" [WARNING]")
-        print(" The provided executable does not have the expected structure or attributes.")
+        if "Section .text not found" in str(e):
+            print(" The binary appears to be packed, compressed, or heavily obfuscated.")
+            print(" Note: ZuCompleluxe automatically decompresses standard UPX-packed binaries.")
+            print(" If this is a packed binary, ensure builder\\ensure_unpacked.py ran properly.")
+        else:
+            print(" The provided executable does not have the expected structure or attributes.")
         print(" Please provide a compatible Zuma.exe binary.")
         print(" (RECOMMENDED: Zuma Deluxe v1.0.0.1 GameHouse / PopCap Retail)")
         print("=" * 67 + "\n")

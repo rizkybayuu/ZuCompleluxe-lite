@@ -59,6 +59,7 @@ REM =======================================================================
 REM [PRIORITY 0] Target Zuma Deluxe Folder Selection
 REM =======================================================================
 set "TARGET_ZUMA_DIR="
+set "CLI_TARGET_EXE="
 
 REM Check CLI argument first
 if not "!CLI_ZUMA_DIR!"=="" (
@@ -67,7 +68,10 @@ if not "!CLI_ZUMA_DIR!"=="" (
     ) else if exist "!CLI_ZUMA_DIR!\*" (
         set "TARGET_ZUMA_DIR=!CLI_ZUMA_DIR!"
     ) else if exist "!CLI_ZUMA_DIR!" (
-        for %%F in ("!CLI_ZUMA_DIR!") do set "TARGET_ZUMA_DIR=%%~dpF"
+        for %%F in ("!CLI_ZUMA_DIR!") do (
+            set "TARGET_ZUMA_DIR=%%~dpF"
+            set "CLI_TARGET_EXE=%%~nxF"
+        )
     )
 )
 
@@ -125,42 +129,9 @@ if not exist "!TARGET_ZUMA_DIR!\*" (
 echo [OK] Target Folder : "!TARGET_ZUMA_DIR!"
 echo.
 
-REM Validate or create original Zuma.exe backup in modules\bak\Zuma.exe
-set "BAK_DIR=!TARGET_ZUMA_DIR!\modules\bak"
-if not exist "!BAK_DIR!" mkdir "!BAK_DIR!"
-
-REM Migrate legacy Zuma.exe.bak if present
-if exist "!TARGET_ZUMA_DIR!\Zuma.exe.bak" (
-    if not exist "!BAK_DIR!\Zuma.exe" move /y "!TARGET_ZUMA_DIR!\Zuma.exe.bak" "!BAK_DIR!\Zuma.exe" >nul
-    if exist "!TARGET_ZUMA_DIR!\Zuma.exe.bak" del /f /q "!TARGET_ZUMA_DIR!\Zuma.exe.bak" >nul
-)
-
-set "SRC_VANILLA="
-if exist "!BAK_DIR!\Zuma.exe" (
-    echo [BACKUP] Using existing original backup: modules\bak\Zuma.exe
-    set "SRC_VANILLA=!BAK_DIR!\Zuma.exe"
-) else if exist "!TARGET_ZUMA_DIR!\Zuma.exe" (
-    echo [BACKUP] Creating original backup: Zuma.exe -^> modules\bak\Zuma.exe ...
-    copy /y "!TARGET_ZUMA_DIR!\Zuma.exe" "!BAK_DIR!\Zuma.exe" >nul
-    set "SRC_VANILLA=!BAK_DIR!\Zuma.exe"
-) else (
-    echo.
-    echo ===================================================================
-    echo  [ERROR] Zuma.exe not found in folder:
-    echo  "!TARGET_ZUMA_DIR!"
-    echo ===================================================================
-    echo.
-    if "!NON_INTERACTIVE!"=="0" pause
-    exit /b 1
-)
-
-for %%A in ("!SRC_VANILLA!") do set "ZUMA_SIZE=%%~zA"
-echo [INFO] Original executable confirmed: !ZUMA_SIZE! bytes.
-echo.
-
 REM =======================================================================
 REM [PRIORITY 1] Adaptive Python Environment & Dependencies Setup
-REM Reordered: Python & wheels checked FIRST before compiler detection
+REM Bootstrapped early so executable discovery & unpack tools can execute
 REM =======================================================================
 set "BUILD_TMP=.build"
 if not exist "!BUILD_TMP!" mkdir "!BUILD_TMP!" >nul 2>&1
@@ -181,7 +152,121 @@ if errorlevel 1 (
 echo.
 
 REM =======================================================================
-REM [PRIORITY 2] Adaptive 32-bit Compiler Detection
+REM [PRIORITY 2] Discover Target Executable (Option C Adaptive Discovery)
+REM =======================================================================
+set "TARGET_EXE_NAME="
+if not "!CLI_TARGET_EXE!"=="" (
+    if exist "!TARGET_ZUMA_DIR!\!CLI_TARGET_EXE!" set "TARGET_EXE_NAME=!CLI_TARGET_EXE!"
+)
+
+if "!TARGET_EXE_NAME!"=="" (
+    set "FIND_ARGS="!TARGET_ZUMA_DIR!""
+    if "!NON_INTERACTIVE!"=="1" set "FIND_ARGS=!FIND_ARGS! --non-interactive"
+    del /f /q "!BUILD_TMP!\target_exe.txt" >nul 2>&1
+    "!PYTHON_BIN!" "builder\find_target_exe.py" !FIND_ARGS! > "!BUILD_TMP!\target_exe.txt"
+    if exist "!BUILD_TMP!\target_exe.txt" (
+        set /p TARGET_EXE_NAME=<"!BUILD_TMP!\target_exe.txt"
+        del /f /q "!BUILD_TMP!\target_exe.txt" >nul 2>&1
+    )
+)
+
+if "!TARGET_EXE_NAME!"=="" (
+    echo.
+    echo ===================================================================
+    echo  [ERROR] No valid Zuma Deluxe executable found in:
+    echo  "!TARGET_ZUMA_DIR!"
+    echo ===================================================================
+    echo.
+    if "!NON_INTERACTIVE!"=="0" pause
+    exit /b 1
+)
+
+taskkill /f /im "!TARGET_EXE_NAME!" >nul 2>&1
+echo [OK] Target Executable : "!TARGET_EXE_NAME!"
+echo.
+
+REM =======================================================================
+REM [PRIORITY 3] Dual-Backup Architecture & Idempotency Management
+REM =======================================================================
+set "BAK_DIR=!TARGET_ZUMA_DIR!\modules\bak"
+if not exist "!BAK_DIR!" mkdir "!BAK_DIR!" >nul 2>&1
+
+REM Migrate legacy backups if present
+if exist "!TARGET_ZUMA_DIR!\Zuma.exe.bak" (
+    if not exist "!BAK_DIR!\Zuma.exe.orig" move /y "!TARGET_ZUMA_DIR!\Zuma.exe.bak" "!BAK_DIR!\Zuma.exe.orig" >nul
+    if exist "!TARGET_ZUMA_DIR!\Zuma.exe.bak" del /f /q "!TARGET_ZUMA_DIR!\Zuma.exe.bak" >nul
+)
+if exist "!BAK_DIR!\Zuma.exe" (
+    if not exist "!BAK_DIR!\Zuma.exe.orig" move /y "!BAK_DIR!\Zuma.exe" "!BAK_DIR!\Zuma.exe.orig" >nul
+    if exist "!BAK_DIR!\Zuma.exe" del /f /q "!BAK_DIR!\Zuma.exe" >nul
+)
+
+set "BAK_ORIG=!BAK_DIR!\!TARGET_EXE_NAME!.orig"
+if not exist "!BAK_ORIG!" if exist "!BAK_DIR!\Zuma.exe.orig" set "BAK_ORIG=!BAK_DIR!\Zuma.exe.orig"
+
+REM Check if .orig already exists
+if exist "!BAK_ORIG!" (
+    echo [BACKUP] Using existing original backup: "!BAK_ORIG!"
+) else (
+    REM Check if target is already patched with ZuCompleluxe sections
+    "!PYTHON_BIN!" -c "import pefile,sys; pe=pefile.PE(sys.argv[1], fast_load=True); names=[s.Name.rstrip(b'\0').decode('latin1', 'ignore') for s in pe.sections]; pe.close(); sys.exit(0 if any(n in names for n in ('.zldr','.zdata','.zcol','.zcm','.zcc','.ztk')) else 1)" "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" >nul 2>&1
+    if not errorlevel 1 (
+        echo.
+        echo ===================================================================
+        echo  [ERROR] Target executable '!TARGET_EXE_NAME!' is already patched with
+        echo         ZuCompleluxe sections ^(.zldr/.zdata^), and no clean backup
+        echo         ^(.orig^) was found in modules\bak\.
+        echo.
+        echo         Cannot create vanilla baseline from an already patched binary.
+        echo         Please restore your original game executable and retry.
+        echo ===================================================================
+        echo.
+        if "!NON_INTERACTIVE!"=="0" pause
+        exit /b 1
+    )
+
+    echo [BACKUP] Creating original backup: !TARGET_EXE_NAME! -^> "!BAK_ORIG!" ...
+    copy /y "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" "!BAK_ORIG!" >nul
+)
+
+REM Ensure uncompressed/plain baseline exists: modules\bak\Zuma.base.exe
+set "BAK_BASE=!BAK_DIR!\Zuma.base.exe"
+echo [BASELINE] Verifying plain baseline executable...
+"!PYTHON_BIN!" "builder\ensure_unpacked.py" "!BAK_ORIG!" --out "!BAK_BASE!"
+set "UNPACK_CODE=!ERRORLEVEL!"
+
+if !UNPACK_CODE! EQU 2 (
+    echo [INFO] UPX compressed binary detected. Bootstrapping UPX tool...
+    call builder\bootstrap.bat ensure_upx
+    if errorlevel 1 (
+        echo [ERROR] Failed to obtain UPX tool.
+        if "!NON_INTERACTIVE!"=="0" pause
+        exit /b 1
+    )
+    echo [RETRY] Decompressing baseline executable...
+    "!PYTHON_BIN!" "builder\ensure_unpacked.py" "!BAK_ORIG!" --out "!BAK_BASE!"
+    set "UNPACK_CODE=!ERRORLEVEL!"
+)
+
+if !UNPACK_CODE! NEQ 0 (
+    echo.
+    echo ===================================================================
+    echo  [ERROR] Failed to establish clean baseline executable ^(code: !UNPACK_CODE!^).
+    if !UNPACK_CODE! EQU 2 echo  UPX decompression failed ^(header may be modified or scrubbed^).
+    if !UNPACK_CODE! EQU 3 echo  Unsupported packer or invalid post-unpack structure.
+    echo ===================================================================
+    echo.
+    if "!NON_INTERACTIVE!"=="0" pause
+    exit /b 1
+)
+
+set "SRC_VANILLA=!BAK_BASE!"
+for %%A in ("!SRC_VANILLA!") do set "ZUMA_SIZE=%%~zA"
+echo [INFO] Vanilla baseline confirmed: !ZUMA_SIZE! bytes.
+echo.
+
+REM =======================================================================
+REM [PRIORITY 4] Adaptive 32-bit Compiler Detection
 REM Probes GCC 32-bit -> Zig CC fallback -> w64devkit i686 portable
 REM =======================================================================
 call builder\bootstrap.bat detect_compiler
@@ -286,10 +371,10 @@ echo [LITE] Skipping zumaextracolor.dll - Omitted in Lite Edition
 echo.
 
 REM =======================================================================
-REM [PRIORITY 5] Synthesizing and Patching Zuma.exe
+REM [PRIORITY 5] Synthesizing and Patching Executable
 REM =======================================================================
 echo -------------------------------------------------------
-echo  Patching Zuma.exe into "!TARGET_ZUMA_DIR!\Zuma.exe" ...
+echo  Patching !TARGET_EXE_NAME! into "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" ...
 echo -------------------------------------------------------
 set "PATCH_LOG=!BUILD_TMP!\patch.log"
 del /f /q "!PATCH_LOG!" >nul 2>&1
@@ -368,12 +453,12 @@ if errorlevel 1 (
 echo [OK] Developer Testing Kit support applied.
 
 REM Deploy patched executable to target folder
-copy /y "!BUILD_TMP!\Zuma.exe" "!TARGET_ZUMA_DIR!\Zuma.exe" >nul
+copy /y "!BUILD_TMP!\Zuma.exe" "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" >nul
 if errorlevel 1 (
-    set "FAILED_PATCH_STEP=copy Zuma.exe to !TARGET_ZUMA_DIR!\Zuma.exe"
+    set "FAILED_PATCH_STEP=copy Zuma.exe to !TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!"
     goto PatchFailed
 )
-echo [OK] Patched Zuma.exe successfully deployed to "!TARGET_ZUMA_DIR!\Zuma.exe"
+echo [OK] Patched !TARGET_EXE_NAME! successfully deployed to "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!"
 echo.
 goto PatchAssets
 
@@ -422,10 +507,10 @@ REM =======================================================================
 :BuildSummary
 call builder\bootstrap.bat print_summary
 
-if exist "!TARGET_ZUMA_DIR!\Zuma.exe" if exist "builder\verify_pe.py" (
+if exist "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" if exist "builder\verify_pe.py" (
     echo.
     echo [INFO] Running PE structural verification...
-    "!PYTHON_BIN!" "builder\verify_pe.py" "!TARGET_ZUMA_DIR!\Zuma.exe" "!SRC_VANILLA!" "!TARGET_ZUMA_DIR!" --lite
+    "!PYTHON_BIN!" "builder\verify_pe.py" "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" "!SRC_VANILLA!" "!TARGET_ZUMA_DIR!" --lite
     if errorlevel 1 set "ALL_OK=0"
 )
 

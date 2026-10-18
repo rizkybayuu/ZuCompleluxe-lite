@@ -12,6 +12,7 @@ if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" set "PS_E
 
 if "%~1"=="ensure_python" goto EnsurePython
 if "%~1"=="ensure_pydeps" goto EnsurePyDeps
+if "%~1"=="ensure_upx" goto EnsureUpx
 if "%~1"=="detect_compiler" goto DetectCompiler
 if "%~1"=="probe_webp" goto ProbeWebp
 if "%~1"=="compile_dll" goto CompileDll
@@ -197,6 +198,73 @@ exit /b 0
 exit /b 0
 
 REM =======================================================================
+REM 2.5 UPX Decompressor Detection & Bootstrap
+REM =======================================================================
+:EnsureUpx
+set "UPX_DIR=builder\tools"
+set "UPX_BIN=!UPX_DIR!\upx.exe"
+if not exist "!UPX_DIR!" mkdir "!UPX_DIR!" >nul 2>&1
+
+REM 1. Check existing builder\tools\upx.exe
+if exist "!UPX_BIN!" (
+    "!UPX_BIN!" -V >nul 2>&1
+    if not errorlevel 1 (
+        echo [FOUND] UPX Decompressor : "!UPX_BIN!"
+        exit /b 0
+    )
+)
+
+REM 2. Check system PATH
+for /f "delims=" %%u in ('where upx.exe 2^>nul') do (
+    "%%u" -V >nul 2>&1
+    if not errorlevel 1 (
+        copy /y "%%u" "!UPX_BIN!" >nul 2>&1
+        echo [FOUND] UPX Decompressor : "!UPX_BIN!" ^(copied from system PATH^)
+        exit /b 0
+    )
+)
+
+echo [DOWNLOAD] Fetching official UPX v5.2.1 ^(win64^)...
+set "UPX_ZIP=!BUILD_TMP!\upx-5.2.1-win64.zip"
+set "UPX_URL=https://github.com/upx/upx/releases/download/v5.2.1/upx-5.2.1-win64.zip"
+set "UPX_SHA256=eabc6792a347d45e945be7748423e7868fd01b0d2bcaa2f4b1031fd71ff69bda"
+
+if exist "%SystemRoot%\System32\curl.exe" (
+    "%SystemRoot%\System32\curl.exe" -L --fail --retry 3 -# -o "!UPX_ZIP!" "!UPX_URL!"
+) else (
+    "%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '!UPX_URL!' -OutFile '!UPX_ZIP!'"
+)
+
+if exist "!UPX_ZIP!" (
+    certutil -hashfile "!UPX_ZIP!" SHA256 | findstr /i "!UPX_SHA256!" >nul
+    if errorlevel 1 (
+        echo [ERROR] SHA-256 verification failed for UPX package!
+        del /f /q "!UPX_ZIP!" >nul 2>&1
+        echo         You can manually place a clean upx.exe into builder\tools\
+        exit /b 1
+    )
+    echo [OK] SHA-256 verified for UPX package.
+    echo [EXTRACT] Extracting upx.exe to !UPX_DIR!\...
+    if not "!PYTHON_BIN!"=="" (
+        "!PYTHON_BIN!" -c "import zipfile; z = zipfile.ZipFile(r'!UPX_ZIP!'); open(r'!UPX_BIN!', 'wb').write(next(z.read(n) for n in z.namelist() if n.lower().endswith('upx.exe')))" >nul 2>&1
+    ) else (
+        "%PS_EXE%" -NoProfile -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead('!UPX_ZIP!'); $entry = $zip.Entries | Where-Object { $_.Name -eq 'upx.exe' }; [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, '!UPX_BIN!', $true); $zip.Dispose()" >nul 2>&1
+    )
+    del /f /q "!UPX_ZIP!" >nul 2>&1
+)
+
+if exist "!UPX_BIN!" (
+    echo [OK] UPX Decompressor ready: "!UPX_BIN!"
+    exit /b 0
+)
+
+echo [ERROR] Failed to obtain upx.exe.
+echo         Offline usage: Please download UPX win64 manually from:
+echo         https://github.com/upx/upx/releases/latest
+echo         and place upx.exe inside builder\tools\upx.exe
+exit /b 1
+
+REM =======================================================================
 REM 3. Compiler Detection (Probe Native GCC 32-bit, Zig, Portable Fallback)
 REM =======================================================================
 :ProbeGcc32
@@ -342,10 +410,12 @@ echo.
 echo =======================================================
 echo    BUILD VERIFICATION SUMMARY
 echo =======================================================
-if exist "!TARGET_ZUMA_DIR!\Zuma.exe" (
-    for %%A in ("!TARGET_ZUMA_DIR!\Zuma.exe") do echo  [OK] Zuma.exe                  - %%~zA bytes
+set "SUMMARY_EXE=!TARGET_EXE_NAME!"
+if "!SUMMARY_EXE!"=="" set "SUMMARY_EXE=Zuma.exe"
+if exist "!TARGET_ZUMA_DIR!\!SUMMARY_EXE!" (
+    for %%A in ("!TARGET_ZUMA_DIR!\!SUMMARY_EXE!") do echo  [OK] !SUMMARY_EXE!                  - %%~zA bytes
 ) else (
-    echo  [MISSING] Zuma.exe
+    echo  [MISSING] !SUMMARY_EXE!
 )
 
 for %%D in (zumadllchecker.dll zumawebp.dll zumaextrapath.dll zumaextracolor.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll) do (

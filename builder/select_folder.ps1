@@ -106,11 +106,14 @@ if (-not (Test-Path $selectedPath)) {
 $zumaExe = Join-Path $selectedPath "Zuma.exe"
 $zumaBak = Join-Path $selectedPath "Zuma.exe.bak"
 $zumaModBak = Join-Path $selectedPath "modules\bak\Zuma.exe"
+$zumaModOrig = Join-Path $selectedPath "modules\bak\Zuma.exe.orig"
+$zumaModBase = Join-Path $selectedPath "modules\bak\Zuma.base.exe"
+$otherExes = Get-ChildItem -Path $selectedPath -Filter "*.exe" -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -ge 300KB }
 
-if (-not (Test-Path $zumaExe) -and -not (Test-Path $zumaBak) -and -not (Test-Path $zumaModBak)) {
+if (-not (Test-Path $zumaExe) -and -not (Test-Path $zumaBak) -and -not (Test-Path $zumaModBak) -and -not (Test-Path $zumaModOrig) -and -not (Test-Path $zumaModBase) -and (-not $otherExes)) {
     Add-Type -AssemblyName System.Windows.Forms
     $res = [System.Windows.Forms.MessageBox]::Show(
-        "Zuma.exe tidak ditemukan di folder:`n$selectedPath`n`nApakah Anda yakin ingin tetap mem-patch folder ini?",
+        "Executable Zuma Deluxe tidak ditemukan di folder:`n$selectedPath`n`nApakah Anda yakin ingin tetap mem-patch folder ini?",
         "Konfirmasi Folder Zuma",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Warning
