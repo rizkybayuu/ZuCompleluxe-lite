@@ -1,0 +1,5 @@
+capstone==5.0.9
+numpy==2.4.6
+pefile==2024.8.26
+pillow==13.0.0
+ziglang==0.16.0

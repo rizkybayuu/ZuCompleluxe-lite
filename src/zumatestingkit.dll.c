@@ -554,6 +554,13 @@ static int is_current_user_dev_tester(void)
 
 typedef void (__thiscall *fn_DrawImage)(void *g, void *img, int x, int y);
 typedef void (__thiscall *fn_DrawImageCel)(void *g, void *img, int x, int y, int cel);
+typedef struct {
+    int mX;
+    int mY;
+    int mWidth;
+    int mHeight;
+} PopCapRect;
+typedef void (__thiscall *fn_DrawImageRotatedF)(void *g, void *img, float x, float y, double rot, const PopCapRect *srcRect);
 typedef void (__thiscall *fn_SetColorizeImages)(void *g, int colorize);
 typedef void (__thiscall *fn_SetColor)(void *g, const PopCapColor *color);
 typedef void (__thiscall *fn_SetFont)(void *g, void *font);
@@ -562,6 +569,7 @@ typedef int (__thiscall *fn_StringWidth)(void *font, void *str);
 
 static void *g_fn_DrawImage = NULL;
 static void *g_fn_DrawImageCel = NULL;
+static void *g_fn_DrawImageRotatedF = (void*)0x00450740;
 static void *g_fn_SetFont = NULL;
 static void *g_fn_SetColor = NULL;
 static void *g_fn_DrawString = NULL;
@@ -720,16 +728,26 @@ static void ztk_resolve_help_signatures(void)
         }
     }
 
+    /* 5. DrawImageRotatedF (Graphics::DrawImageRotatedF at 0x00450740) */
+    const unsigned char pat_rot[] = { 0x55, 0x8B, 0xEC, 0x56, 0x8B, 0xF1, 0x8B, 0x4D, 0x1C };
+    if (text_ptr && ((uintptr_t)0x00450740 >= (uintptr_t)text_ptr) &&
+        ((uintptr_t)0x00450740 + sizeof(pat_rot) <= (uintptr_t)text_ptr + text_size)) {
+        if (memcmp((void*)0x00450740, pat_rot, sizeof(pat_rot)) == 0) {
+            g_fn_DrawImageRotatedF = (void*)0x00450740;
+        }
+    }
+
     ztk_log("Help Signatures Resolved (zero hardcoded addresses):");
-    ztk_log("  DrawImage      = %p", g_fn_DrawImage);
-    ztk_log("  DrawImageCel   = %p", g_fn_DrawImageCel);
-    ztk_log("  SetFont        = %p", g_fn_SetFont);
-    ztk_log("  SetColor       = %p", g_fn_SetColor);
-    ztk_log("  DrawString     = %p", g_fn_DrawString);
-    ztk_log("  FontBrownTitle = %p (%p)", g_ppFontBrownTitle, g_ppFontBrownTitle ? *g_ppFontBrownTitle : NULL);
-    ztk_log("  FontDialog     = %p (%p)", g_ppFontDialog, g_ppFontDialog ? *g_ppFontDialog : NULL);
-    ztk_log("  FontPlain      = %p (%p)", g_ppFontPlain, g_ppFontPlain ? *g_ppFontPlain : NULL);
-    ztk_log("  ImageHelpBack  = %p (%p)", g_ppImageHelpBack, g_ppImageHelpBack ? *g_ppImageHelpBack : NULL);
+    ztk_log("  DrawImage          = %p", g_fn_DrawImage);
+    ztk_log("  DrawImageCel       = %p", g_fn_DrawImageCel);
+    ztk_log("  DrawImageRotatedF  = %p", g_fn_DrawImageRotatedF);
+    ztk_log("  SetFont            = %p", g_fn_SetFont);
+    ztk_log("  SetColor           = %p", g_fn_SetColor);
+    ztk_log("  DrawString         = %p", g_fn_DrawString);
+    ztk_log("  FontBrownTitle     = %p (%p)", g_ppFontBrownTitle, g_ppFontBrownTitle ? *g_ppFontBrownTitle : NULL);
+    ztk_log("  FontDialog         = %p (%p)", g_ppFontDialog, g_ppFontDialog ? *g_ppFontDialog : NULL);
+    ztk_log("  FontPlain          = %p (%p)", g_ppFontPlain, g_ppFontPlain ? *g_ppFontPlain : NULL);
+    ztk_log("  ImageHelpBack      = %p (%p)", g_ppImageHelpBack, g_ppImageHelpBack ? *g_ppImageHelpBack : NULL);
 }
 
 static void ztk_draw_text_centered(void *g, void *font, const char *text, int center_x, int y, const PopCapColor *color)
@@ -1243,17 +1261,18 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     void *imgTutMouseM    = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_MOUSE_M");
     void *imgTutTemple5   = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_TEMPLE5");
 
-    void *imgTutBallRed    = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_BALL_RED");
-    void *imgTutBallYellow = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_BALL_YELLOW");
-    void *imgTutBallGreen  = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_BALL_GREEN");
-    void *imgTutBallBlue   = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_BALL_BLUE");
-    void *imgTutBallPurple = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_BALL_PURPLE");
+    /* Bola tutorial diambil langsung dari gambar bola baBall PopCap */
+    void *imgBallRed    = ztk_get_res_image(g_ResMgr, "IMAGE_RED_BALL");
+    void *imgBallYellow = ztk_get_res_image(g_ResMgr, "IMAGE_YELLOW_BALL");
+    void *imgBallGreen  = ztk_get_res_image(g_ResMgr, "IMAGE_GREEN_BALL");
+    void *imgBallBlue   = ztk_get_res_image(g_ResMgr, "IMAGE_BLUE_BALL");
+    void *imgBallPurple = ztk_get_res_image(g_ResMgr, "IMAGE_PURPLE_BALL");
 
-    if (!imgTutBallRed)    imgTutBallRed    = ztk_get_res_image(g_ResMgr, "IMAGE_RED_BALL");
-    if (!imgTutBallYellow) imgTutBallYellow = ztk_get_res_image(g_ResMgr, "IMAGE_YELLOW_BALL");
-    if (!imgTutBallGreen)  imgTutBallGreen  = ztk_get_res_image(g_ResMgr, "IMAGE_GREEN_BALL");
-    if (!imgTutBallBlue)   imgTutBallBlue   = ztk_get_res_image(g_ResMgr, "IMAGE_BLUE_BALL");
-    if (!imgTutBallPurple) imgTutBallPurple = ztk_get_res_image(g_ResMgr, "IMAGE_PURPLE_BALL");
+    if (!imgBallRed)    imgBallRed    = *(void**)0x00547FF8;
+    if (!imgBallYellow) imgBallYellow = *(void**)0x00547ED8;
+    if (!imgBallGreen)  imgBallGreen  = *(void**)0x00547E48;
+    if (!imgBallBlue)   imgBallBlue   = *(void**)0x00547F08;
+    if (!imgBallPurple) imgBallPurple = *(void**)0x00547FE4;
     if (!g_ImageExplosion) g_ImageExplosion  = ztk_get_res_image(g_ResMgr, "IMAGE_EXPLOSION");
 
     if (!imgHelpBackDev && g_ppImageHelpBack) {
@@ -1373,18 +1392,31 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     int ball_cel = (50 - ((update_cnt / 3) % 50)) % 50;
 
     void *ball_imgs[5] = {
-        imgTutBallRed,
-        imgTutBallYellow,
-        imgTutBallGreen,
-        imgTutBallBlue,
-        imgTutBallPurple
+        imgBallRed,
+        imgBallYellow,
+        imgBallGreen,
+        imgBallBlue,
+        imgBallPurple
     };
 
     if (cycle < 100) {
-        /* FASE 1: 5 Bola berputar */
+        /* FASE 1: 5 Bola berputar ke arah kanan dengan orientasi diputar 90 derajat CCW (-PI/2) */
         for (int i = 0; i < 5; i++) {
             if (ball_imgs[i]) {
-                drawImageCel(graphics, ball_imgs[i], ball_x[i], ball_y, ball_cel);
+                int rows = *(int*)((char*)ball_imgs[i] + 0xC);
+                if (rows <= 0) rows = 50;
+                int cel = (update_cnt / 3) % rows;
+                if (g_fn_DrawImageRotatedF) {
+                    PopCapRect rc;
+                    rc.mX = 0;
+                    rc.mY = cel * 32;
+                    rc.mWidth = 32;
+                    rc.mHeight = 32;
+                    ((fn_DrawImageRotatedF)g_fn_DrawImageRotatedF)(graphics, ball_imgs[i],
+                        (float)ball_x[i], (float)ball_y, -1.5707963267948966, &rc);
+                } else {
+                    drawImageCel(graphics, ball_imgs[i], ball_x[i], ball_y, cel);
+                }
             }
         }
     } else if (cycle <= 145) {

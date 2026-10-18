@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.1] - 2026-10-19
+
+### Added
+- **Zero-Dependency Toolchain Bootstrap (`builder/bootstrap.bat`)**:
+  - Unified toolchain engine shared across Full and Lite editions.
+  - Automatic detection and portable fallback to embedded Python 3.11.9 amd64 with built-in cryptographic SHA-256 integrity verification.
+  - Automated pip bootstrapping and package pinning (`requirements.txt`: capstone, numpy, packaging, pefile, pillow, ziglang).
+  - Multi-tier 32-bit compiler probing (`builder/probe_compiler.py`) with kernel-level GUI error dialog suppression (`SetErrorMode(0x8003)`).
+  - Universal Zig cross-compiler fallback targeting `x86-windows-gnu` for clean machines without native MinGW.
+- **Git CRLF Line Ending Enforcement (`.gitattributes`)**:
+  - Mandated `eol=crlf` for all `.bat` and `.cmd` files to ensure stability across git checkouts and zip releases.
+
+### Fixed
+- **Missing Python Module Crashes**:
+  - Resolved `ModuleNotFoundError: No module named 'numpy'` by enforcing prioritized dependency verification before asset generation.
+- **Batch Parenthesis Syntax Error**:
+  - Eliminated cmd.exe parenthesized block parse crashes (`. was unexpected at this time`).
+- **Export Symbol Name Preservation**:
+  - Added strict PE export verification via `pefile` to validate exact undecorated symbols across all sidecar DLLs.
+- **Testing Kit Tutorial Screen Optimization (`src/zumatestingkit.dll.c`)**:
+  - Bound tutorial screen ball display directly to vanilla PopCap ball pointers.
+
 ## [0.4.0.1] - 2026-10-18
 
 ### Fixed

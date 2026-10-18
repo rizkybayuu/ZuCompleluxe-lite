@@ -259,7 +259,7 @@ def patch_resources_file(zuma_dir):
             text = new_text
             changed = True
 
-    # 4. Register HELP_FRONT_DEV, HELP_BACK_DEV, TUT_MOUSE_M, TUT_TEMPLE5, and 0.75x scaled titles
+    # 4. Register HELP_FRONT_DEV, HELP_BACK_DEV, TUT_MOUSE_M, and TUT_TEMPLE5
     if 'HELP_FRONT_DEV' not in text:
         def insert_help_dev(m):
             return (
@@ -267,46 +267,18 @@ def patch_resources_file(zuma_dir):
                 '<Image id="HELP_FRONT_DEV"\t\t\t\t\tpath="helpfront_dev" />\n'
                 '<Image id="HELP_BACK_DEV"\t\t\t\t\tpath="helpback_dev" />\n'
                 '<Image id="TUT_MOUSE_M"\t\t\t\t\t\tpath="tut_mouse_m" cols="2" />\n'
-                '<Image id="TUT_TEMPLE5"\t\t\t\t\tpath="advtemple5_tut" />\n'
-                '<Image id="TUT_TITLE_ADV"\t\t\t\t\tpath="tut_title_adv" />\n'
-                '<Image id="TUT_TITLE_GAUNT"\t\t\t\tpath="tut_title_gaunt" />\n'
-                '<Image id="TUT_TITLE_MMB"\t\t\t\t\tpath="tut_title_mmb" />'
+                '<Image id="TUT_TEMPLE5"\t\t\t\t\tpath="advtemple5_tut" />'
             )
         new_text = re.sub(r'<Image\s+id="HELP_BACK"[^>]*/>', insert_help_dev, text)
         if new_text != text:
             text = new_text
             changed = True
-    elif 'TUT_TITLE_ADV' not in text:
-        def insert_tut_titles(m):
-            return (
-                m.group(0) + '\n'
-                '<Image id="TUT_TITLE_ADV"\t\t\t\t\tpath="tut_title_adv" />\n'
-                '<Image id="TUT_TITLE_GAUNT"\t\t\t\tpath="tut_title_gaunt" />\n'
-                '<Image id="TUT_TITLE_MMB"\t\t\t\t\tpath="tut_title_mmb" />'
-            )
-        new_text = re.sub(r'<Image\s+id="TUT_TEMPLE5"[^>]*/>', insert_tut_titles, text)
-        if new_text != text:
-            text = new_text
-            changed = True
 
-    if 'TUT_BALL_RED' not in text:
-        def insert_tut_balls(m):
-            return (
-                m.group(0) + '\n'
-                '<Image id="TUT_BALL_RED"\t\t\t\t\tpath="tut_ball_red" alphagrid="_ballalpha" rows="50" />\n'
-                '<Image id="TUT_BALL_YELLOW"\t\t\t\tpath="tut_ball_yellow" alphagrid="_ballalpha" rows="50" />\n'
-                '<Image id="TUT_BALL_GREEN"\t\t\t\tpath="tut_ball_green" alphagrid="_ballalpha" rows="50" />\n'
-                '<Image id="TUT_BALL_BLUE"\t\t\t\tpath="tut_ball_blue" alphagrid="_ballalpha" rows="47" />\n'
-                '<Image id="TUT_BALL_PURPLE"\t\t\t\tpath="tut_ball_purple" alphagrid="_ballalpha" rows="51" />'
-            )
-        anchor_match = re.search(r'<Image\s+id="TUT_TITLE_MMB"[^>]*/>', text)
-        if not anchor_match:
-            anchor_match = re.search(r'<Image\s+id="TUT_TEMPLE5"[^>]*/>', text)
-        if anchor_match:
-            new_text = re.sub(re.escape(anchor_match.group(0)), insert_tut_balls, text)
-            if new_text != text:
-                text = new_text
-                changed = True
+    # Clean up any obsolete TUT_TITLE and TUT_BALL entries from resources.xml
+    text_cleaned = re.sub(r'[ \t]*<Image\s+id="TUT_(?:TITLE|BALL)_[^>]*/>\r?\n?', '', text)
+    if text_cleaned != text:
+        text = text_cleaned
+        changed = True
 
     if 'cols=2' in text:
         text = text.replace('cols=2', 'cols="2"')
@@ -555,130 +527,24 @@ def patch_dev_media(zuma_dir):
         resized.convert('RGB').save(dst_tut_temple, format='JPEG', quality=95)
         print("  [OK] Generated and saved advtemple5_tut.jpg (190x75) with green glow to images/")
 
-    # 5. Scaled 0.75x Section Titles generated from CancunFloat14 (tut_title_adv, tut_title_gaunt, tut_title_mmb)
-    fonts_dir = os.path.join(zuma_dir, 'fonts')
-    txt_path = os.path.join(fonts_dir, 'CancunFloat14.txt')
-    f_gif_path = os.path.join(fonts_dir, 'CancunFloat14.gif')
-    mask_path = os.path.join(fonts_dir, '_CancunFloat14.gif')
-
-    if os.path.exists(txt_path) and os.path.exists(f_gif_path) and os.path.exists(mask_path):
-        with open(txt_path, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
-
-        char_m = re.search(r'Define CharList\s*\((.*?)\);', content, re.DOTALL)
-        chars = [c.strip().strip("'") for c in char_m.group(1).split(',')]
-
-        width_m = re.search(r'Define WidthList\s*\((.*?)\);', content, re.DOTALL)
-        widths = [int(w.strip()) for w in width_m.group(1).split(',')]
-
-        rect_m = re.search(r'Define RectList\s*\((.*?)\);', content, re.DOTALL)
-        rects = [tuple(map(int, r.strip(' ()').split(','))) for r in re.findall(r'\(\s*\d+,\s*\d+,\s*\d+,\s*\d+\s*\)', rect_m.group(1))]
-
-        off_m = re.search(r'Define OffsetList\s*\((.*?)\);', content, re.DOTALL)
-        offsets = [tuple(map(int, r.strip(' ()').split(','))) for r in re.findall(r'\(\s*-?\d+,\s*-?\d+\s*\)', off_m.group(1))]
-
-        char_data = {}
-        for i, c in enumerate(chars):
-            char_data[c] = {
-                'width': widths[i],
-                'rect': rects[i],
-                'offset': offsets[i]
-            }
-        char_data[' '] = {'width': 6, 'rect': (0,0,0,0), 'offset': (0,0)}
-
-        pairs_m = re.search(r'Define KerningPairs\s*\((.*?)\);', content, re.DOTALL)
-        kern_dict = {}
-        if pairs_m:
-            pairs = [p.strip().strip('"') for p in pairs_m.group(1).split(',')]
-            vals_m = re.search(r'Define KerningValues\s*\((.*?)\);', content, re.DOTALL)
-            vals = [int(v.strip()) for v in vals_m.group(1).split(',')]
-            kern_dict = dict(zip(pairs, vals))
-
-        rgb_im = Image.open(f_gif_path).convert('RGB')
-        mask_im = Image.open(mask_path).convert('L')
-        font_rgba = Image.merge('RGBA', (*rgb_im.split(), mask_im))
-
-        def render_text(text, color_rgb):
-            total_w = 0
-            for i, c in enumerate(text):
-                if c in char_data:
-                    total_w += char_data[c]['width']
-                    if i + 1 < len(text):
-                        pair = text[i:i+2]
-                        total_w += kern_dict.get(pair, 0)
-                else:
-                    total_w += 6
-            h = 24
-            out_img = Image.new('RGBA', (total_w + 10, h), (0, 0, 0, 0))
-            cur_x = 0
-            for i, c in enumerate(text):
-                if c in char_data and c != ' ':
-                    cd = char_data[c]
-                    rx, ry, rw, rh = cd['rect']
-                    ox, oy = cd['offset']
-                    glyph = font_rgba.crop((rx, ry, rx + rw, ry + rh))
-                    r, g, b, a = glyph.split()
-                    colored = Image.new('RGBA', (rw, rh), color_rgb)
-                    colored.putalpha(a)
-                    out_img.paste(colored, (cur_x + ox, oy), colored)
-                    cur_x += cd['width']
-                else:
-                    cur_x += char_data.get(c, {}).get('width', 6)
-                if i + 1 < len(text):
-                    pair = text[i:i+2]
-                    cur_x += kern_dict.get(pair, 0)
-
-            bbox = out_img.getbbox()
-            if bbox:
-                out_img = out_img.crop((0, 0, bbox[2] + 2, h))
-            return out_img
-
-        titles = [
-            ("tut_title_adv", "ADVENTURE MODE", (255, 234, 1)),
-            ("tut_title_gaunt", "GAUNTLET MODE", (255, 234, 1)),
-            ("tut_title_mmb", "MIDDLE MOUSE BUTTON - INSTANT WIN", (0, 229, 255))
-        ]
-
-        for filename, text, color in titles:
-            raw_img = render_text(text, color)
-            scaled_w = int(round(raw_img.width * 0.75))
-            scaled_h = int(round(raw_img.height * 0.75))
-            scaled_rgba = raw_img.resize((scaled_w, scaled_h), Image.Resampling.LANCZOS)
-
-            rgb = scaled_rgba.convert('RGB')
-            gif_out = rgb.convert('P', palette=Image.ADAPTIVE, colors=256)
-            gif_dst = os.path.join(img_dir, f"{filename}.gif")
-            gif_out.save(gif_dst, format='GIF')
-
-            alpha = scaled_rgba.split()[3]
-            mask_dst = os.path.join(img_dir, f"_{filename}.gif")
-            alpha.save(mask_dst, format='GIF')
-            print(f"  [OK] Generated and saved {filename}.gif and _{filename}.gif ({scaled_w}x{scaled_h})")
-
-    # 6. Rotated 90-degree CCW balls for tutorial display
-    balls = [
-        ('baBallRed.gif', 'tut_ball_red.gif'),
-        ('baBallYellow.gif', 'tut_ball_yellow.gif'),
-        ('baBallGreen.gif', 'tut_ball_green.gif'),
-        ('baBallBlue.gif', 'tut_ball_blue.gif'),
-        ('baBallPurple.gif', 'tut_ball_purple.gif')
+    # 5. Clean up obsolete tutorial title and ball files if present
+    obsolete_files = [
+        'tut_title_adv.gif', '_tut_title_adv.gif',
+        'tut_title_gaunt.gif', '_tut_title_gaunt.gif',
+        'tut_title_mmb.gif', '_tut_title_mmb.gif',
+        'tut_ball_red.gif', 'tut_ball_yellow.gif',
+        'tut_ball_green.gif', 'tut_ball_blue.gif',
+        'tut_ball_purple.gif'
     ]
-    for src_name, dst_name in balls:
-        src_p = os.path.join(img_dir, src_name)
-        dst_p = os.path.join(img_dir, dst_name)
-        if os.path.exists(src_p):
-            im = Image.open(src_p)
-            w, h = im.size
-            frames = h // 32
-            out_im = Image.new(im.mode, (w, h))
-            if im.mode == 'P':
-                out_im.putpalette(im.getpalette())
-            for f in range(frames):
-                cr = im.crop((0, f * 32, 32, (f + 1) * 32))
-                rot = cr.transpose(Image.Transpose.ROTATE_90)
-                out_im.paste(rot, (0, f * 32))
-            out_im.save(dst_p, format='GIF')
-            print(f"  [OK] Generated and saved rotated ball {dst_name} ({w}x{h})")
+    for obs in obsolete_files:
+        for folder in (img_dir, os.path.join(zuma_dir, 'images800x600')):
+            fp = os.path.join(folder, obs)
+            if os.path.exists(fp):
+                try:
+                    os.remove(fp)
+                    print(f"  [CLEANUP] Removed obsolete {obs} from {os.path.basename(folder)}/")
+                except Exception:
+                    pass
 
 
 

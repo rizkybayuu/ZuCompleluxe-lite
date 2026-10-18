@@ -37,6 +37,7 @@ base/
 # Decompiled source dumps & raw vanilla dumps (kept local for analysis, not distributed)
 .*
 !.gitignore
+!.gitattributes
 Zuma.exe.c
 Zuma.exe.h
 bass.dll.c
