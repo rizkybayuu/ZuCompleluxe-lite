@@ -289,7 +289,7 @@ def patch_resources_file(zuma_dir):
     print("  [OK] resources.xml patched successfully.")
 
 
-def patch_levels_file(zuma_dir):
+def patch_levels_file(zuma_dir, is_lite=False):
     p_lvl = os.path.join(zuma_dir, 'levels', 'levels.xml')
     if not os.path.isfile(p_lvl):
         print(f"[WARN] levels.xml not found at: {p_lvl}")
@@ -313,7 +313,8 @@ def patch_levels_file(zuma_dir):
         print("[WARN] <StageProgression /> block not found in levels.xml")
         return
 
-    print(f"[XML] Patching levels.xml: {p_lvl}")
+    mode_label = "Lite (max 6 colors)" if is_lite else "Full (up to 11 colors)"
+    print(f"[XML] Patching levels.xml [{mode_label}]: {p_lvl}")
     sp_body = sp_match.group(1)
     target_colors = {}
     
@@ -321,16 +322,24 @@ def patch_levels_file(zuma_dir):
         m = re.search(rf'diffi{s_num}\s*=\s*"([^"]+)"', sp_body)
         if m:
             sids = [s.strip() for s in m.group(1).split(',')]
-            if 1 <= s_num <= 3:
-                c_val = 4
-            elif 4 <= s_num <= 6:
-                c_val = 6
-            elif 7 <= s_num <= 9:
-                c_val = 8
-            elif 10 <= s_num <= 12:
-                c_val = 10
-            elif s_num == 13:
-                c_val = 11
+            if is_lite:
+                if 1 <= s_num <= 3:
+                    c_val = 4
+                elif 4 <= s_num <= 6:
+                    c_val = 5
+                elif 7 <= s_num <= 13:
+                    c_val = 6
+            else:
+                if 1 <= s_num <= 3:
+                    c_val = 4
+                elif 4 <= s_num <= 6:
+                    c_val = 6
+                elif 7 <= s_num <= 9:
+                    c_val = 8
+                elif 10 <= s_num <= 12:
+                    c_val = 10
+                elif s_num == 13:
+                    c_val = 11
             for sid in sids:
                 target_colors[sid] = c_val
 
@@ -531,18 +540,21 @@ def patch_dev_media(zuma_dir):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Usage: patch_assets.py <zuma_directory>")
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    flags = [a.lower() for a in sys.argv[1:] if a.startswith('--')]
+    if not args:
+        print("Usage: patch_assets.py <zuma_directory> [--lite]")
         sys.exit(1)
         
-    z_dir = os.path.abspath(sys.argv[1])
+    z_dir = os.path.abspath(args[0])
     if not os.path.isdir(z_dir):
         print(f"[ERROR] Directory does not exist: {z_dir}")
         sys.exit(1)
         
+    is_lite = '--lite' in flags or os.path.basename(os.path.abspath('.')).lower().endswith('-lite')
     tbls = load_tables()
     patch_resources_file(z_dir)
-    patch_levels_file(z_dir)
+    patch_levels_file(z_dir, is_lite=is_lite)
     patch_images(z_dir, tbls)
     patch_dialog_button(z_dir, tbls)
     patch_temple5_media(z_dir)

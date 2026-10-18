@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.1.1] - 2026-10-19
+
+### Fixed
+- **`levels.xml` Stage Color Progression Differentiation**:
+  - Differentiated stage color progression logic in `builder/patch_assets.py` between Full and Lite editions.
+  - **Lite Edition Progression**: Adjusted stages 4–13 to adhere strictly to the vanilla PopCap 6-color engine boundary (Stage 1–3: 4 colors; Stage 4–6: 5 colors; Stage 7–13: 6 colors), preventing out-of-bounds palette crashes caused by attempts to spawn colors beyond vanilla limits without `zumaextracolor.dll`.
+  - **Full Edition Progression**: Preserved custom 11-color palette progression powered by `zumaextracolor.dll` (Stage 1–3: 4 colors; Stage 4–6: 6 colors; Stage 7–9: 8 colors; Stage 10–12: 10 colors; Stage 13: 11 colors).
+  - Updated `build_lite.bat` to pass `--lite` flag to `builder/patch_assets.py`, and added directory name suffix matching (`-lite`) for automated workspace detection.
+- **Diagnostic Checker & Script Version Alignment**:
+  - Synchronized `ZUCOMPLELUXE_VERSION` define and diagnostic window titles to `v0.4.1.1` in `src/zumadllchecker.dll.c`.
+  - Updated builder banners and logging messages in `build_lite.bat`.
+
 ## [0.4.1] - 2026-10-19
 
 ### Added
