@@ -1,0 +1,71 @@
+# Logs
+*.log
+build_*.log
+
+# Temporary and backup directories
+.backup/
+.testing/
+.build/
+.test/
+build_tmp/
+
+# Raw intermediate decompiler dumps and local tools
+.functions/
+.tools/
+.levels_path_json/
+.userdata_json/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+thumbs.af
+*.swp
+*.bak
+
+# Compiled output directory
+binary/
+
+# Local vanilla game assets (never commit commercial game binaries)
+vanilla/
+base/
+.base/
+
+# Decompiled source dumps & raw vanilla dumps (kept local for analysis, not distributed)
+.*
+!.gitignore
+Zuma.exe.c
+Zuma.exe.h
+bass.dll.c
+zumares.dll.c
+src/.*
+# Local tools cache
+tools/
+.tools/
+*.imports.txt
+*.strings.txt
+.imports.txt
+.strings.txt
+
+# Scratch investigation & one-off audit scripts
+builder/audit_*.py
+builder/tugas_*.py
+builder/analyze_*.py
+builder/find_*.py
+builder/test_new_ball_ops.py
+*.tmp
+err.txt
+
+# Build intermediate objects and debug symbols
+*.obj
+*.lib
+*.exp
+*.pdb
+src/*.obj
+src/*.lib
+src/*.exp
+src/*.pdb
+
