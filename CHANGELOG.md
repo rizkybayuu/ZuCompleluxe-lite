@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Zero-Dependency Toolchain Bootstrap (`builder/bootstrap.bat`)**:
   - Unified toolchain engine shared across Full and Lite editions.
   - Automatic detection and portable fallback to embedded Python 3.11.9 amd64 with built-in cryptographic SHA-256 integrity verification.
-  - Automated pip bootstrapping and package pinning (`requirements.txt`: capstone, numpy, packaging, pefile, pillow, ziglang).
+  - Automated pip bootstrapping and package pinning (`builder/requirements.txt`: capstone, numpy, packaging, pefile, pillow, ziglang).
   - Multi-tier 32-bit compiler probing (`builder/probe_compiler.py`) with kernel-level GUI error dialog suppression (`SetErrorMode(0x8003)`).
   - Universal Zig cross-compiler fallback targeting `x86-windows-gnu` for clean machines without native MinGW.
 - **Git CRLF Line Ending Enforcement (`.gitattributes`)**:

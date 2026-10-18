@@ -166,12 +166,15 @@ if errorlevel 1 (
 )
 
 echo [AUTO-SETUP] Installing build dependencies: capstone, pefile, pillow, numpy, ziglang...
-if exist "requirements.txt" (
-    "!PYTHON_BIN!" -m pip install !PIP_OPTS! -r requirements.txt
-    if errorlevel 1 "!PYTHON_BIN!" -m pip install --user !PIP_OPTS! -r requirements.txt
+if exist "builder\requirements.txt" (
+    "!PYTHON_BIN!" -m pip install !PIP_OPTS! -r "builder\requirements.txt"
+    if errorlevel 1 "!PYTHON_BIN!" -m pip install --user !PIP_OPTS! -r "builder\requirements.txt"
+) else if exist "requirements.txt" (
+    "!PYTHON_BIN!" -m pip install !PIP_OPTS! -r "requirements.txt"
+    if errorlevel 1 "!PYTHON_BIN!" -m pip install --user !PIP_OPTS! -r "requirements.txt"
 ) else (
-    "!PYTHON_BIN!" -m pip install !PIP_OPTS! capstone pefile pillow numpy ziglang
-    if errorlevel 1 "!PYTHON_BIN!" -m pip install --user !PIP_OPTS! capstone pefile pillow numpy ziglang
+    "!PYTHON_BIN!" -m pip install !PIP_OPTS! capstone==5.0.9 pefile==2024.8.26 pillow==13.0.0 numpy==2.4.6 ziglang==0.16.0
+    if errorlevel 1 "!PYTHON_BIN!" -m pip install --user !PIP_OPTS! capstone==5.0.9 pefile==2024.8.26 pillow==13.0.0 numpy==2.4.6 ziglang==0.16.0
 )
 
 set "DEPS_FAIL=0"

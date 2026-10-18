@@ -132,7 +132,11 @@ Legacy patches rely on brittle hardcoded virtual addresses that break across bin
 ```text
 ZuCompleluxe-lite/
 ├── builder/                     # Byte-level PE patchers, code cave generators, and asset tools
-│   ├── color_tables.json         # Exact RGB palette lookup tables for 11-color GIF synthesis
+│   ├── bootstrap.bat            # Multi-tier zero-dependency toolchain bootstrap engine
+│   ├── requirements.txt         # Pinned Python package dependencies for automated bootstrap
+│   ├── probe_compiler.py        # 32-bit compiler detector and runtime GUI dialog suppressor
+│   ├── prepare_embed.py         # Isolated-mode .pth patcher for embedded Python
+│   ├── color_tables.json        # Exact RGB palette lookup tables for 11-color GIF synthesis
 │   ├── patch_anim_hook.py        # WebP drawing hooks (PreDraw and LoadImage in .anim)
 │   ├── patch_assets.py           # Automated asset synthesizer, Temple 5 & Dev Help media patcher
 │   ├── patch_custommap.py        # Gauntlet Custom Map hooks (.zcm RX section)
@@ -164,6 +168,7 @@ ZuCompleluxe-lite/
 │   ├── zumacustommap.dll.c       # Gauntlet Custom Map discovery, carousel & progression
 │   └── zumatestingkit.dll.c      # Virtual DevTester profile, Temple 5, MMB cheat & DevTester Guide
 ├── build_lite.bat                # 1-Click Direct Installation Folder Patcher & Builder (Lite Edition)
+├── .gitattributes                # Line ending normalizations (*.bat eol=crlf)
 ├── .gitignore                    # Git exclusion rules
 ├── LICENSE.md                    # Legal notices and MIT license
 ├── CHANGELOG.md                  # Version release history
@@ -180,6 +185,7 @@ ZuCompleluxe-lite/
 3. **Zero-Dependency Automated Toolchain**:
    - **Zero Manual Setup Required**: The pipeline automatically provisions all necessary build tools in an isolated directory (`tools\`) without polluting system PATH.
    - **Python 3.11+ / Embedded Fallback**: Automatically discovers host Python 3.11+ or downloads self-contained portable embedded Python 3.11.9 amd64 with SHA-256 verification and automated `pip` bootstrapping.
+   - **Pinned Build Dependencies (`builder/requirements.txt`)**: Build dependencies are strictly pinned to tested, deterministic versions (`capstone==5.0.9`, `numpy==2.4.6`, `pefile==2024.8.26`, `pillow==13.0.0`, `ziglang==0.16.0`) to avoid upstream package incompatibilities.
    - **C Compiler / Zig Cross-Compiler Tier**: Discovers local 32-bit GCC/Clang or automatically leverages the bundled Python Zig cross-compiler (`ziglang cc -target x86-windows-gnu`).
 
 ### 1-Click Lite Edition Patching (`build_lite.bat`)
