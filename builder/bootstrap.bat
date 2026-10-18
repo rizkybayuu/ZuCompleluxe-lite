@@ -15,7 +15,6 @@ if "%~1"=="ensure_pydeps" goto EnsurePyDeps
 if "%~1"=="detect_compiler" goto DetectCompiler
 if "%~1"=="probe_webp" goto ProbeWebp
 if "%~1"=="compile_dll" goto CompileDll
-if "%~1"=="deploy_prebuilt" goto DeployPrebuiltDll
 if "%~1"=="print_summary" goto PrintBuildSummary
 
 echo [ERROR] Unknown bootstrap command: %~1
@@ -336,34 +335,7 @@ for %%S in ("!OUT!") do echo [OK] !OUT! deployed successfully [!DLL_STATUS_%%~S!
 exit /b 0
 
 REM =======================================================================
-REM 5. Prebuilt DLL Fallback Deployer
-REM Variables: OUT, EXPORT, PREBUILT_PATH
-REM =======================================================================
-:DeployPrebuiltDll
-set "DLL_STATUS_!OUT!=missing"
-if exist "!PREBUILT_PATH!" (
-    if exist "prebuilt\zumawebp.sha256" (
-        "!PYTHON_BIN!" -c "import hashlib,sys; h1=hashlib.sha256(open('src/zumawebp.dll.c','rb').read()).hexdigest(); h2=hashlib.sha256(open('src/zumawebp_player.c','rb').read()).hexdigest(); sys.exit(0 if h1=='873a43f500f049e1679c1b67479c2b2ef33ba2f2ca2df2efc21bb60c431cd9b8' and h2=='40fb2e35ebe3423052306ad07e328a812f7c4a7bdb33de7cac0746a0adb703ea' else 1)" >nul 2>&1
-        if errorlevel 1 echo [WARNING] Source files for zumawebp have changed! Prebuilt DLL may be stale.
-    )
-    echo [INFO] Deploying prebuilt !OUT! from !PREBUILT_PATH!...
-    copy /y "!PREBUILT_PATH!" "!BUILD_TMP!\!OUT!" >nul
-    "!PYTHON_BIN!" -c "import pefile,sys;p=pefile.PE(sys.argv[1]);n=[e.name.decode() for e in p.DIRECTORY_ENTRY_EXPORT.symbols if e.name];sys.exit(0 if sys.argv[2] in n else 1)" "!BUILD_TMP!\!OUT!" "!EXPORT!"
-    if not errorlevel 1 (
-        copy /y "!BUILD_TMP!\!OUT!" "!TARGET_ZUMA_DIR!\modules\!OUT!" >nul
-        set "DLL_STATUS_!OUT!=prebuilt"
-        echo [OK] !OUT! deployed successfully [prebuilt], export !EXPORT! verified.
-        exit /b 0
-    ) else (
-        echo [WARNING] Prebuilt !OUT! failed export check for !EXPORT!
-    )
-)
-echo [SKIP] !OUT! omitted - compiler missing webp libraries and prebuilt not found.
-set "DLL_STATUS_!OUT!=skipped (no libwebp)"
-exit /b 0
-
-REM =======================================================================
-REM 6. Build Summary Table
+REM 5. Build Summary Table
 REM =======================================================================
 :PrintBuildSummary
 echo.

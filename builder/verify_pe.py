@@ -70,6 +70,9 @@ def verify_pe(target_exe_path, vanilla_exe_path, binary_dir, is_lite=False):
         if not os.path.exists(dll_path):
             dll_path = os.path.join(binary_dir, dll_name)
         if not os.path.exists(dll_path):
+            if dll_name == "zumawebp.dll":
+                print(f"  [INFO] Optional sidecar zumawebp.dll not present (clean fallback to vanilla ImageLib).")
+                continue
             errors.append(f"Required sidecar DLL not found: {dll_path}")
             continue
 
