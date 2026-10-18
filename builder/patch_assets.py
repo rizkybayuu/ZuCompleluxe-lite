@@ -118,51 +118,60 @@ def patch_images(zuma_dir, tables):
     bak_dotz = get_backup_path(zuma_dir, 'baDotz.gif')
     migrate_legacy_backup(dotz_path + '.bak', bak_dotz)
 
-    if os.path.exists(dotz_path):
-        im_dotz = Image.open(dotz_path).convert('RGBA')
-        w, h = im_dotz.size
-        # Dynamic dot calculation: clean dotz has 6 dots
-        # If already 11 dots (165px), do not duplicate again!
-        if w % 11 == 0 and w // 11 == h:
-            print("  [SKIP] baDotz.gif already extended (11 dots).")
+    # Determine pristine 6-dot original source
+    src_dotz_path = None
+    if os.path.exists(bak_dotz):
+        src_dotz_path = bak_dotz
+    elif os.path.exists(dotz_path):
+        im_check = Image.open(dotz_path)
+        w, h = im_check.size
+        # Only backup if not already an 11-dot version
+        if not (w % 11 == 0 and w // 11 == h):
+            shutil.copyfile(dotz_path, bak_dotz)
+            src_dotz_path = bak_dotz
         else:
-            w_dot = w // 6  # Dynamic dot width
-            arr_c = np.array(im_dotz)
+            src_dotz_path = dotz_path
+
+    if src_dotz_path and os.path.exists(src_dotz_path):
+        im_dotz = Image.open(src_dotz_path).convert('RGBA')
+        w, h = im_dotz.size
+        w_dot = h  # Vanilla dot size is square (w_dot == h)
+        arr_c = np.array(im_dotz)
+        
+        dot_map_keys = [
+            (0, 'baDotz_Dot1_to_Dot7_Orange', 'Orange'),
+            (1, 'baDotz_Dot2_to_Dot8_Navy', 'Navy'),
+            (2, 'baDotz_Dot3_to_Dot9_Cyan', 'Cyan'),
+            (3, 'baDotz_Dot4_to_Dot10_Black', 'Black'),
+            (5, 'baDotz_Dot6_to_Dot11_Cream', 'Cream')
+        ]
+        
+        new_dots = []
+        for s_idx, tbl_key, dst_col in dot_map_keys:
+            s_slice = arr_c[:, s_idx*w_dot : (s_idx+1)*w_dot, :3]
+            lut = tables.get(tbl_key, {})
+            out_dot = np.zeros_like(s_slice)
+            for y in range(h):
+                for x in range(w_dot):
+                    st = s_slice[y, x]
+                    sk = f"{st[0]},{st[1]},{st[2]}"
+                    if sk in lut:
+                        out_dot[y, x] = lut[sk]
+                    else:
+                        out_dot[y, x] = transform_fallback_affine(st[None, :], dst_col)[0]
+            new_dots.append(out_dot)
             
-            dot_map_keys = [
-                (0, 'baDotz_Dot1_to_Dot7_Orange', 'Orange'),
-                (1, 'baDotz_Dot2_to_Dot8_Navy', 'Navy'),
-                (2, 'baDotz_Dot3_to_Dot9_Cyan', 'Cyan'),
-                (3, 'baDotz_Dot4_to_Dot10_Black', 'Black'),
-                (5, 'baDotz_Dot6_to_Dot11_Cream', 'Cream')
-            ]
+        dotz_new_rgb = np.hstack([arr_c[:, :6*w_dot, :3]] + new_dots)
+        dotz_new_rgba = np.dstack([dotz_new_rgb, np.full((h, w_dot * 11), 255, dtype=np.uint8)])
+        
+        # Backup pristine original if not already backed up
+        if not os.path.exists(bak_dotz) and not (w % 11 == 0 and w // 11 == h):
+            shutil.copyfile(dotz_path, bak_dotz)
             
-            new_dots = []
-            for s_idx, tbl_key, dst_col in dot_map_keys:
-                s_slice = arr_c[:, s_idx*w_dot : (s_idx+1)*w_dot, :3]
-                lut = tables.get(tbl_key, {})
-                out_dot = np.zeros_like(s_slice)
-                for y in range(h):
-                    for x in range(w_dot):
-                        st = s_slice[y, x]
-                        sk = f"{st[0]},{st[1]},{st[2]}"
-                        if sk in lut:
-                            out_dot[y, x] = lut[sk]
-                        else:
-                            out_dot[y, x] = transform_fallback_affine(st[None, :], dst_col)[0]
-                new_dots.append(out_dot)
-                
-            dotz_new_rgb = np.hstack([arr_c[:, :6*w_dot, :3]] + new_dots)
-            dotz_new_rgba = np.dstack([dotz_new_rgb, np.full((h, w_dot * 11), 255, dtype=np.uint8)])
-            
-            # Backup original
-            if not os.path.exists(bak_dotz):
-                shutil.copyfile(dotz_path, bak_dotz)
-                
-            out_im = Image.fromarray(dotz_new_rgba, mode='RGBA')
-            out_gif = out_im.convert('P', palette=Image.ADAPTIVE, colors=256)
-            out_gif.save(dotz_path, format='GIF')
-            print(f"  [OK] baDotz.gif extended ({w}x{h} -> {w_dot*11}x{h})")
+        out_im = Image.fromarray(dotz_new_rgba, mode='RGBA')
+        out_gif = out_im.convert('P', palette=Image.ADAPTIVE, colors=256)
+        out_gif.save(dotz_path, format='GIF')
+        print(f"  [OK] baDotz.gif extended ({w_dot*6}x{h} -> {w_dot*11}x{h})")
 
 
 def patch_resources_file(zuma_dir):
@@ -174,8 +183,15 @@ def patch_resources_file(zuma_dir):
     bak_res = get_backup_path(zuma_dir, 'resources.xml')
     migrate_legacy_backup(p_res + '.bak', bak_res)
 
-    with open(p_res, 'r', encoding='utf-8', errors='ignore') as f:
+    # Use clean vanilla backup as base source if available
+    base_file = bak_res if os.path.exists(bak_res) else p_res
+    with open(base_file, 'r', encoding='utf-8', errors='ignore') as f:
         orig_text = f.read()
+
+    # If backup doesn't exist yet, save original vanilla before modifying
+    if not os.path.exists(bak_res):
+        with open(bak_res, 'w', encoding='utf-8') as f:
+            f.write(orig_text)
 
     text = orig_text
     changed = False
@@ -296,15 +312,9 @@ def patch_resources_file(zuma_dir):
         text = text.replace('cols=2', 'cols="2"')
         changed = True
 
-    if changed:
-        if not os.path.exists(bak_res):
-            with open(bak_res, 'w', encoding='utf-8') as f:
-                f.write(orig_text)
-        with open(p_res, 'w', encoding='utf-8') as f:
-            f.write(text)
-        print("  [OK] resources.xml patched successfully.")
-    else:
-        print("  [SKIP] resources.xml already up to date.")
+    with open(p_res, 'w', encoding='utf-8') as f:
+        f.write(text)
+    print("  [OK] resources.xml patched successfully.")
 
 
 def patch_levels_file(zuma_dir):
@@ -316,19 +326,21 @@ def patch_levels_file(zuma_dir):
     bak_lvl = get_backup_path(zuma_dir, 'levels.xml')
     migrate_legacy_backup(p_lvl + '.bak', bak_lvl)
 
-    with open(p_lvl, 'r', encoding='utf-8', errors='ignore') as f:
+    # Use clean vanilla backup as base source if available
+    base_lvl = bak_lvl if os.path.exists(bak_lvl) else p_lvl
+    with open(base_lvl, 'r', encoding='utf-8', errors='ignore') as f:
         text = f.read()
-        
-    sp_match = re.search(r'<StageProgression\s+([^>]+)/>', text, re.DOTALL)
-    if not sp_match:
-        print("[WARN] <StageProgression /> block not found in levels.xml")
-        return
-        
-    # Backup
+
+    # Backup if not yet backed up
     if not os.path.exists(bak_lvl):
         with open(bak_lvl, 'w', encoding='utf-8') as f:
             f.write(text)
             
+    sp_match = re.search(r'<StageProgression\s+([^>]+)/>', text, re.DOTALL)
+    if not sp_match:
+        print("[WARN] <StageProgression /> block not found in levels.xml")
+        return
+
     print(f"[XML] Patching levels.xml: {p_lvl}")
     sp_body = sp_match.group(1)
     target_colors = {}
@@ -390,9 +402,8 @@ def patch_dialog_button(zuma_dir, tables):
         os.remove(bak_gif)
         print("  [RESTORE] Restored vanilla _Dialogbutton.gif from backup.")
 
-    # 2. Ensure DialogButtonLocked.jpg exists (using LUT / affine tone adjustment)
-    if not os.path.exists(locked_jpg) and os.path.exists(jpg_path):
-        print(f"  [GEN] Generating {locked_jpg} via tone adjustment LUT...")
+    # 2. Always generate DialogButtonLocked.jpg from DialogButton.jpg
+    if os.path.exists(jpg_path):
         im_src = Image.open(jpg_path).convert('RGB')
         arr_s = np.array(im_src)
         h, w, _ = arr_s.shape
@@ -412,15 +423,11 @@ def patch_dialog_button(zuma_dir, tables):
         out_im = Image.fromarray(arr_out, mode='RGB')
         out_im.save(locked_jpg, format='JPEG', quality=95)
         print(f"  [OK] DialogButtonLocked.jpg generated ({w}x{h}).")
-    elif os.path.exists(locked_jpg):
-        print(f"  [SKIP] DialogButtonLocked.jpg already exists.")
 
-    # 3. Ensure _Dialogbuttonlocked.gif exists (copied from _Dialogbutton.gif)
-    if not os.path.exists(locked_gif) and os.path.exists(gif_path):
+    # 3. Always refresh _Dialogbuttonlocked.gif from _Dialogbutton.gif
+    if os.path.exists(gif_path):
         shutil.copyfile(gif_path, locked_gif)
         print(f"  [OK] _Dialogbuttonlocked.gif created from {gif_path}.")
-    elif os.path.exists(locked_gif):
-        print(f"  [SKIP] _Dialogbuttonlocked.gif already exists.")
 
 
 def patch_temple5_media(zuma_dir):
