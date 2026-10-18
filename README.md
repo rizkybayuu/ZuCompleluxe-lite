@@ -12,6 +12,10 @@
 
 This framework represents the foundational engine layer (**v0.4.0**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
 
+> [!NOTE]
+> **Full Edition Status & Availability:**  
+> The complete framework with full capabilities—including multi-path (up to 10 curves), 11-ball colors, and animated WebP rendering—is hosted at [ZuCompleluxe](https://github.com/rizkybayuu/ZuCompleluxe). The Full Edition is currently in private development and will be made **public** simultaneously with the official release of the **Zuma Compleluxe** mod.
+
 ---
 
 ## Core Architecture & Engineering Philosophy
@@ -195,8 +199,7 @@ The builder pipeline will automatically:
 - **4 Core Modules Deployed**: Compiles strictly `zumadllchecker.dll` (Lite Edition), `zumacustommap.dll`, `zumacplxcredit.dll`, and `zumatestingkit.dll`.
 - **Excluded Sidecars Omitted**: `zumawebp.dll`, `zumaextrapath.dll`, and `zumaextracolor.dll` are omitted from `modules\`.
 - **Pure Vanilla Gameplay Fallbacks**: Zuma Deluxe operates using PopCap's authentic vanilla image decoding, 3 native curves, and 6 original ball colors with zero crashes.
-- **Enforced Neutralization in Checker**: `zumadllchecker.dll` displays `ZuCompleluxe v0.4 Lite`, labels omitted sidecars as `[DISABLED]`, and actively neutralizes them in memory so they are never executed even if manually copied into `modules\`.
-- **Full Edition Available**: If you require multi-path (up to 10 curves), 11-ball colors, and animated WebP decoding, see the main [ZuCompleluxe](https://github.com/rizkybayuu/ZuCompleluxe) repository.
+- **Full Edition (Private Development)**: If you require multi-path (up to 10 curves), 11-ball colors, and animated WebP decoding, the Full Edition is hosted at [ZuCompleluxe](https://github.com/rizkybayuu/ZuCompleluxe). It is currently private and will be released publicly alongside the launch of the **Zuma Compleluxe** mod.
 
 
 ### Activating Developer Testing Mode (`DevTester`)
