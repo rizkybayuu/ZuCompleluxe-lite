@@ -1,6 +1,6 @@
-# ZuCompleluxe Lite (v0.4.0)
+# ZuCompleluxe Lite (v0.4.0.1)
 
-> **Version:** 0.4.0 (Lite Edition)  
+> **Version:** 0.4.0.1 (Lite Edition)  
 > **Target Game:** *Zuma Deluxe* v1.0.0.1 (GameHouse / PopCap / Regional PE Builds)  
 > **Project Scope:** Lightweight Core Engine Framework for Zuma Deluxe Modding  
 > **Developer:** [Rizky Bayuu](https://github.com/rizkybayuu)  
@@ -10,7 +10,7 @@
 
 **ZuCompleluxe Lite** is a lightweight edition of the ZuCompleluxe reverse-engineering framework for *Zuma Deluxe* (v1.0.0.1). It provides the core pre-launch integrity gatekeeper (`zumadllchecker.dll`), Gauntlet custom map carousel (`zumacustommap.dll`), developer credits (`zumacplxcredit.dll`), and developer testing kit (`zumatestingkit.dll`), while omitting experimental multi-path, 11-ball colors, and animated WebP sidecars.
 
-This framework represents the foundational engine layer (**v0.4.0**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
+This framework represents the foundational engine layer (**v0.4.0.1**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
 
 > [!NOTE]
 > **Full Edition Status & Availability:**  
@@ -32,7 +32,7 @@ Modifications are isolated cleanly from vanilla game files:
 Unlike the 6 feature sidecars, `modules\zumadllchecker.dll` is a **strictly binding dependency**:
 - **Hard Gatekeeper Enforcement in `.zldr` (`0x0058C000`)**: Before loading any optional feature modules or executing game code, `.zldr` enforces `modules\zumadllchecker.dll`. If `zumadllchecker.dll` is missing or fails to load, `Zuma.exe` displays a modal error dialog and immediately terminates via `ExitProcess(1)`.
 - **Dynamic PE Version Metadata Extraction**: Reads `ProductName`, `CompanyName`, `FileVersion`, `SpecialBuild`, and `FileName` dynamically from `Zuma.exe`'s Win32 PE Version Resource (`VS_FIXEDFILEINFO` and `\VarFileInfo\Translation`) with zero hardcoded game strings.
-- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.4`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), and real-time presence checks for all 7 modules in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
+- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.4.0.1`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), and real-time presence checks for all 7 modules in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
 
 ### 3. 100% Independent & Optional Feature Sidecars (Zero-Dependency Graceful Degradation)
 Every feature sidecar DLL in ZuCompleluxe is completely optional and independent:
@@ -62,10 +62,10 @@ Legacy patches rely on brittle hardcoded virtual addresses that break across bin
 
 - **Pre-Launch Module & Dependency Checker (`zumadllchecker.dll`)**:
   - Mandatory gatekeeper dialog executed prior to engine initialization.
-  - Dynamically queries PE version resources (`Product`, `Publisher`, `Version`, `Special Build`, `Target File`) alongside `ZuCompleluxe v0.4` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
+  - Dynamically queries PE version resources (`Product`, `Publisher`, `Version`, `Special Build`, `Target File`) alongside `ZuCompleluxe v0.4.0.1` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
   - Verifies the status of all 7 sidecar modules inside `modules\` (`[OK] Required`, `[OK] Present`, `[MISSING]`) with `Run` and `Quit` controls.
-- **1-Click Direct Installation Folder Patcher (`build_full.bat` & `build_lite.bat`)**:
-  - Opens a modern Windows Explorer folder selection dialog (`builder/select_folder.ps1`) featuring a custom **"Patch Folder"** button (or accepts a target directory via CLI `build_full.bat "<path>" /yes`).
+- **1-Click Direct Installation Folder Patcher (`build_lite.bat`)**:
+  - Opens a modern Windows Explorer folder selection dialog (`builder/select_folder.ps1`) featuring a custom **"Patch Folder"** button (or accepts a target directory via CLI `build_lite.bat "<path>" /yes`).
   - Automatically backs up vanilla files (`Zuma.exe`, `resources.xml`, `levels.xml`, `baDotz.gif`) into `modules\bak\`.
   - Automatically synthesizes all 30 extra ball/powerup GIF assets, extends `baDotz.gif` to 11 dots, generates locked button textures, deploys Secret Temple 5 (`advtemple5.jpg`, `_advtemple5.gif`, `advdoor5.jpg`) and DevTester HelpScreen media, and patches `resources.xml` and `levels.xml` via `builder/patch_assets.py`.
 - **Gauntlet Custom Map Subsystem (`zumacustommap.dll` & `.zcm`)**:
@@ -104,9 +104,9 @@ Legacy patches rely on brittle hardcoded virtual addresses that break across bin
 
 ---
 
-## Resolved Critical Bugs (from v0.2.0 to v0.4.0)
+## Resolved Critical Bugs (from v0.2.0 to v0.4.0.1)
 
-### 1. Independent Sidecar Fallback & Displacement Bugs (Resolved in v0.4.0)
+### 1. Independent Sidecar Fallback & Displacement Bugs (Resolved in v0.4.0.1)
 - **`.zcol` Image Getter Thunk Displacement Crash (`0x0058D083`)**: Replaced an off-by-3 hardcoded jump (`\x75\x0B`) in `make_getter` with `\x75\x05` (skipping the 5-byte `mov eax, [va_default]` cleanly to `ret`), preventing mid-instruction execution (`0x58` / `pop eax`) and stack pointer misalignment when `zumaextracolor.dll` is removed.
 - **`.zcol` Adventure Color Clamp Displacement**: Replaced an off-by-1 jump (`\x7E\x07` -> dynamic `+6` bytes over `mov dword ptr [edi], 6`) in `builder/patch_extracolor.py` when clamping Adventure curves without `zumaextracolor.dll`.
 - **`.zcc` Credits Table Fallback Displacement**: Replaced an off-by-1 jump (`\x74\x06` -> dynamic `+7` bytes over `call [ZCC_GetCreditsTable]` + `ret`) in `builder/patch_zccredit.py` so `mov eax, orig_table` executes properly when `zumacplxcredit.dll` is missing.

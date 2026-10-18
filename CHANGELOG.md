@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.0] - 2026-10-18
+## [0.4.0.1] - 2026-10-18
 
 ### Added
 - **7-Sidecar Modular Architecture & `modules\` Subdirectory Isolation**:
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Lite Edition 1-Click Builder (`build_lite.bat`) & Dynamic Neutralization**:
   - Added dedicated `build_lite.bat` pipeline for users desiring core gameplay additions without heavy sidecars (`zumawebp.dll`, `zumaextrapath.dll`, `zumaextracolor.dll`).
   - Automatically compiles and deploys the 4 core modules (`zumadllchecker.dll` with `-DZUCOMPLELUXE_LITE=1`, `zumacustommap.dll`, `zumacplxcredit.dll`, `zumatestingkit.dll`), while purging excluded sidecars from `modules\`.
-  - In Lite Edition, `zumadllchecker.dll` displays `ZuCompleluxe v0.4 Lite`, informs users of the limited core mod scope via bottom notes, and marks omitted sidecars as `[DISABLED]`.
+  - In Lite Edition, `zumadllchecker.dll` displays `ZuCompleluxe v0.4.0.1 Lite`, informs users of the limited core mod scope via bottom notes, and marks omitted sidecars as `[DISABLED]`.
   - Added `DisableLiteExcludedModules()` inside `src/zumadllchecker.dll.c`: upon pressing **Run**, actively neutralizes excluded DLL paths in `.zldr` memory so that `LoadLibraryA` is never invoked and excluded DLLs are completely ignored even if manually copied into `modules\`.
 - **Mandatory Pre-Launch Gatekeeper & Dependency Checker (`zumadllchecker.dll` & `builder/patch_imports.py`)**:
   - **Hard Gatekeeper Enforcement in `.zldr` (`0x0058C000`)**:
@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Dynamic PE Version Resource Metadata Extraction**:
     - Queries `Zuma.exe`'s Win32 Version Resource (`GetFileVersionInfoA` / `VerQueryValueA` across `VS_FIXEDFILEINFO` and `\VarFileInfo\Translation`) with zero hardcoded game strings, dynamically displaying `Product` (`ProductName`), `Publisher` (`CompanyName`), `Version` (`FileVersion`), `Special Build` (`SpecialBuild`), and `Target File` (`Zuma.exe`).
   - **Patch & Author Attribution with Interactive GitHub Hyperlink**:
-    - Displays `Patch: ZuCompleluxe v0.4`, `License: MIT License`, and `Developer: Rizky Bayuu`.
+    - Displays `Patch: ZuCompleluxe v0.4.0.1`, `License: MIT License`, and `Developer: Rizky Bayuu`.
     - Renders `Rizky Bayuu` as an interactive hyperlink (underlined GitHub accent blue `#58A6FF` in Dark Mode / `#0969DA` in Light Mode, hover highlight `#79C0FF`, instant `IDC_HAND` / `IDC_ARROW` cursor state management across `WM_MOUSEMOVE`, `WM_SETCURSOR`, and `WM_MOUSELEAVE`, and `ShellExecuteA` click handler opening `https://github.com/rizkybayuu`).
   - **Classic Adaptive Win32 Dialog & Dependency Table**:
     - Inspects all 7 modules in `modules\` and renders a compact status table (`[OK] Required`, `[OK] Present`, or `[MISSING]`).
