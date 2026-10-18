@@ -527,24 +527,6 @@ def patch_dev_media(zuma_dir):
         resized.convert('RGB').save(dst_tut_temple, format='JPEG', quality=95)
         print("  [OK] Generated and saved advtemple5_tut.jpg (190x75) with green glow to images/")
 
-    # 5. Clean up obsolete tutorial title and ball files if present
-    obsolete_files = [
-        'tut_title_adv.gif', '_tut_title_adv.gif',
-        'tut_title_gaunt.gif', '_tut_title_gaunt.gif',
-        'tut_title_mmb.gif', '_tut_title_mmb.gif',
-        'tut_ball_red.gif', 'tut_ball_yellow.gif',
-        'tut_ball_green.gif', 'tut_ball_blue.gif',
-        'tut_ball_purple.gif'
-    ]
-    for obs in obsolete_files:
-        for folder in (img_dir, os.path.join(zuma_dir, 'images800x600')):
-            fp = os.path.join(folder, obs)
-            if os.path.exists(fp):
-                try:
-                    os.remove(fp)
-                    print(f"  [CLEANUP] Removed obsolete {obs} from {os.path.basename(folder)}/")
-                except Exception:
-                    pass
 
 
 

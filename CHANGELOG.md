@@ -26,8 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminated cmd.exe parenthesized block parse crashes (`. was unexpected at this time`).
 - **Export Symbol Name Preservation**:
   - Added strict PE export verification via `pefile` to validate exact undecorated symbols across all sidecar DLLs.
-- **Testing Kit Tutorial Screen Optimization (`src/zumatestingkit.dll.c`)**:
-  - Bound tutorial screen ball display directly to vanilla PopCap ball pointers.
+- **Testing Kit Tutorial Screen & Asset Optimization (`src/zumatestingkit.dll.c` & `builder/patch_assets.py`)**:
+  - Bound tutorial screen ball display directly to vanilla PopCap ball textures (`IMAGE_RED_BALL` .. `IMAGE_PURPLE_BALL`) via `ResourceManager` with global engine pointer fallbacks, rendered dynamically with 90° CCW rotation via native `Graphics::DrawImageRotatedF` (`0x00450740`).
+  - Rendered mode titles (`ADVENTURE MODE`, `GAUNTLET MODE`, `MAIN MENU`) dynamically using native `CancunFloat14` font, eliminating obsolete `tut_ball_*.gif` and `tut_title_*.gif` bitmap dependencies.
+  - Removed all `os.remove` file deletions from `builder/patch_assets.py`, ensuring zero-touch non-destructive behavior across game directories.
 
 ## [0.4.0.1] - 2026-10-18
 
