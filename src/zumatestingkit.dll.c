@@ -154,24 +154,77 @@ __declspec(dllexport) int __cdecl ZTK_IsActive(void)
 typedef int (__thiscall *fn_AddLine)(void *this_ptr, const StdString *str, int bSort);
 typedef void (__thiscall *fn_SelectLine)(void *this_ptr, int line);
 
-static void *g_UserDialog = NULL;
-static void *g_UserListBox = NULL;
-static void *g_RenameBtn = NULL;
-static void *g_DeleteBtn = NULL;
+static inline int ztk_is_valid_ptr(const void *p, size_t size)
+{
+    if (!p || (uintptr_t)p < 0x10000 || (uintptr_t)p >= 0x7FFE0000) return 0;
+    MEMORY_BASIC_INFORMATION mbi;
+    if (VirtualQuery(p, &mbi, sizeof(mbi)) != sizeof(mbi)) return 0;
+    if (mbi.State != MEM_COMMIT) return 0;
+    if (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD)) return 0;
+    return 1;
+}
+
+static int ztk_validate_user_dialog_button(void *btn, int *out_is_dev)
+{
+    if (!ztk_is_valid_ptr(btn, 0x110)) return 0;
+
+    /* 1. Fast hot-path check: Button ID must be 0 (Rename) or 1 (Delete) */
+    int btn_id = *(int*)((char*)btn + 0x58);
+    if (btn_id != 0 && btn_id != 1) return 0;
+
+    /* 2. Retrieve listener pointer from btn + 0xC0 */
+    void *listener = *(void**)((char*)btn + 0xC0);
+    if (!ztk_is_valid_ptr(listener, sizeof(void*))) return 0;
+
+    /* 3. Compute dialog = listener - 0x58 */
+    char *dialog = (char*)listener - 0x58;
+    if (!ztk_is_valid_ptr(dialog, 0x130)) return 0;
+
+    /* 4. Strongest & cheapest check: verify button is registered child of dialog */
+    void *registered_btn = (btn_id == 0) ? *(void**)(dialog + 0x120) : *(void**)(dialog + 0x124);
+    if (registered_btn != btn) return 0;
+
+    /* 5. Check dialog ID: must be 7 (POPCAP_DIALOG_USER) */
+    if (*(int*)(dialog + 0x100) != 7) return 0;
+
+    /* 6. Check dialog visibility */
+    if (*(char*)(dialog + 0x18) == 0) return 0;
+
+    /* 7. Check ListBox and retrieve selected item name */
+    void *listbox = *(void**)(dialog + 0x11C);
+    if (!ztk_is_valid_ptr(listbox, 0xB0)) return 0;
+
+    int sel_idx = *(int*)((char*)listbox + 0xA4);
+    if (sel_idx < 0) return 0;
+
+    /* Check if selected line in ListBox is "DevTester" */
+    int is_dev = 0;
+    StdString *entries = *(StdString**)((char*)listbox + 0x70);
+    StdString *entries_end = *(StdString**)((char*)listbox + 0x74);
+    if (entries && entries_end && ztk_is_valid_ptr(entries, sizeof(StdString))) {
+        size_t count = (size_t)(entries_end - entries);
+        if ((size_t)sel_idx < count) {
+            StdString *item = &entries[sel_idx];
+            const char *item_name = (item->capacity >= 16) ? *(const char**)item->buf : item->buf;
+            if (item_name && ztk_is_valid_ptr(item_name, 9) && strcmp(item_name, "DevTester") == 0) {
+                is_dev = 1;
+            }
+        }
+    }
+    if (!is_dev && sel_idx == 1) {
+        is_dev = 1;
+    }
+
+    if (out_is_dev) *out_is_dev = is_dev;
+    return 1;
+}
 
 __declspec(dllexport) void __cdecl ZTK_OnUserDialogInit(void *listbox, void *user_dialog)
 {
     if (!ZTK_IsActive()) return;
     if (!listbox) return;
 
-    g_UserListBox = listbox;
-    g_UserDialog = user_dialog;
-    if (user_dialog) {
-        g_RenameBtn = *(void**)((char*)user_dialog + 0x120);
-        g_DeleteBtn = *(void**)((char*)user_dialog + 0x124);
-        ztk_log("OnUserDialogInit: user_dialog=%p, listbox=%p, rename=%p, delete=%p",
-                user_dialog, listbox, g_RenameBtn, g_DeleteBtn);
-    }
+    ztk_log("OnUserDialogInit: user_dialog=%p, listbox=%p", user_dialog, listbox);
 
     ztk_init_dev_profile();
 
@@ -210,9 +263,18 @@ __declspec(dllexport) int __cdecl ZTK_CheckCurUserSkip(void *curUser)
 __declspec(dllexport) PopCapColor * __cdecl ZTK_GetItemColor(PopCapColor *in_color, void *listbox, int item_idx)
 {
     if (!ZTK_IsActive() || !listbox) return in_color;
-    /* Strictly virtual DevTester at index 1 of UserDialog ListBox */
-    if (listbox == g_UserListBox && item_idx == 1) {
-        return &g_glow_blue;
+    /* Check if item at item_idx is DevTester */
+    StdString *entries = *(StdString**)((char*)listbox + 0x70);
+    StdString *entries_end = *(StdString**)((char*)listbox + 0x74);
+    if (entries && entries_end && ztk_is_valid_ptr(entries, sizeof(StdString))) {
+        size_t count = (size_t)(entries_end - entries);
+        if ((size_t)item_idx < count) {
+            StdString *item = &entries[item_idx];
+            const char *item_name = (item->capacity >= 16) ? *(const char**)item->buf : item->buf;
+            if (item_name && ztk_is_valid_ptr(item_name, 9) && strcmp(item_name, "DevTester") == 0) {
+                return &g_glow_blue;
+            }
+        }
     }
     return in_color;
 }
@@ -325,12 +387,12 @@ typedef void* (__thiscall *fn_OrigGetProfile)(void *profileMgr, const StdString 
 __declspec(dllexport) void * __cdecl ZTK_GetProfile(void *profileMgr, const StdString *name_str, fn_OrigGetProfile orig_fn)
 {
     if (!name_str) return orig_fn(profileMgr, name_str);
-    /* Strictly when index 1 is selected in UserDialog ListBox */
-    if (ZTK_IsActive() && g_UserListBox && *(int*)((char*)g_UserListBox + 0xA4) == 1) {
+    const char *name = (name_str->capacity >= 16) ? *(const char**)name_str->buf : name_str->buf;
+    if (ZTK_IsActive() && name && ztk_is_valid_ptr(name, 9) && strcmp(name, "DevTester") == 0) {
         ztk_init_dev_profile();
         g_DevTesterProfile.mSelectedStage = 0; /* Default Gauntlet map: Random */
         g_DevTesterProfile.mField28 = 0;       /* Default Gauntlet mode: Practice */
-        ztk_log("Virtual profile DevTester selected (ListBox index 1)");
+        ztk_log("Virtual profile DevTester selected (%s)", name);
         ztk_show_dev_access_dialog();
         return &g_DevTesterProfile;
     }
@@ -430,48 +492,49 @@ __declspec(dllexport) void __cdecl ZTK_OnRegisterResources(void *res_mgr, void *
     }
 }
 
-__declspec(dllexport) void __cdecl ZTK_PreButtonDraw(void *btn)
+typedef void (__thiscall *fn_OrigButtonDraw)(void *this_ptr, void *g);
+
+__declspec(dllexport) void __cdecl ZTK_PreButtonDraw(void *btn, void *g, fn_OrigButtonDraw orig_draw)
 {
-    if (!ZTK_IsActive() || !btn || !g_UserListBox) return;
-    if (btn != g_RenameBtn && btn != g_DeleteBtn) return;
-
-    int sel_idx = *(int*)((char*)g_UserListBox + 0xA4);
-    int is_dev = (sel_idx == 1);
-
-    void **btn_img_ptr = (void**)((char*)btn + 0xE0); /* mButtonImage */
-    void *vanilla_img = *(void**)0x0054802c;           /* IMAGE_DIALOG_BUTTON */
-    PopCapColor *colors = *(PopCapColor**)((char*)btn + 0x2C); /* std::vector<PopCapColor> */
-
-    static int s_logged_dev = -1;
-    if (s_logged_dev != is_dev) {
-        s_logged_dev = is_dev;
-        ztk_log("PreButtonDraw: button visual switched (is_dev=%d, sel_idx=%d, btn=%p)",
-                is_dev, sel_idx, btn);
+    if (!ZTK_IsActive() || !btn || !orig_draw) {
+        if (orig_draw && btn) orig_draw(btn, g);
+        return;
     }
 
-    /* Never activate finger pulse overlay on Rename/Delete (prevents green-to-purple animation loop) */
-    *(char*)((char*)btn + 0x10d) = 0;
+    int is_dev = 0;
+    int is_target = ztk_validate_user_dialog_button(btn, &is_dev);
 
-    if (is_dev) {
-        /* Swap button image to locked image if available */
+    void **btn_img_ptr = (void**)((char*)btn + 0xE0); /* mButtonImage */
+    void *saved_img = *btn_img_ptr;
+    PopCapColor *colors = *(PopCapColor**)((char*)btn + 0x2C); /* std::vector<PopCapColor> */
+    PopCapColor saved_c0, saved_c1;
+    int colors_saved = 0;
+
+    if (is_target && is_dev) {
+        /* Temporarily swap button image to locked image during draw */
         if (g_ImageDialogButtonLocked) {
             *btn_img_ptr = g_ImageDialogButtonLocked;
         }
-        /* Disabled label text color: dimmed gray */
-        if (colors && !IsBadReadPtr(colors, sizeof(PopCapColor) * 2)) {
+        /* Temporarily change text color to dimmed gray */
+        if (colors && ztk_is_valid_ptr(colors, sizeof(PopCapColor) * 2)) {
+            saved_c0 = colors[0];
+            saved_c1 = colors[1];
+            colors_saved = 1;
             colors[0].mRed = 128; colors[0].mGreen = 128; colors[0].mBlue = 128; colors[0].mAlpha = 255;
             colors[1].mRed = 128; colors[1].mGreen = 128; colors[1].mBlue = 128; colors[1].mAlpha = 255;
         }
-    } else {
-        /* Restore vanilla button image */
-        if (vanilla_img) {
-            *btn_img_ptr = vanilla_img;
-        }
-        /* Normal label text colors: gold and white */
-        if (colors && !IsBadReadPtr(colors, sizeof(PopCapColor) * 2)) {
-            colors[0].mRed = 0xD5; colors[0].mGreen = 0xE5; colors[0].mBlue = 0x20; colors[0].mAlpha = 255;
-            colors[1].mRed = 0xFF; colors[1].mGreen = 0xFF; colors[1].mBlue = 0xFF; colors[1].mAlpha = 255;
-        }
+        /* Never activate finger pulse overlay on Rename/Delete (prevents green-to-purple animation loop) */
+        *(char*)((char*)btn + 0x10d) = 0;
+    }
+
+    /* Execute original ButtonWidget::Draw */
+    orig_draw(btn, g);
+
+    /* RAII Scope Restoration: unconditionally restore original texture and colors! */
+    *btn_img_ptr = saved_img;
+    if (colors_saved) {
+        colors[0] = saved_c0;
+        colors[1] = saved_c1;
     }
 }
 
@@ -479,10 +542,13 @@ __declspec(dllexport) int __cdecl ZTK_CheckUserDialogAction(const StdString *nam
 {
     if (!ZTK_IsActive()) return 1;
 
-    /* Check if currently selected line in UserDialog ListBox is index 1 (virtual DevTester) */
+    /* Check if currently targeted profile is DevTester */
     int is_virtual_dev = 0;
-    if (g_UserListBox && *(int*)((char*)g_UserListBox + 0xA4) == 1) {
-        is_virtual_dev = 1;
+    if (name_str) {
+        const char *name = (name_str->capacity >= 16) ? *(const char**)name_str->buf : name_str->buf;
+        if (name && ztk_is_valid_ptr(name, 9) && strcmp(name, "DevTester") == 0) {
+            is_virtual_dev = 1;
+        }
     }
 
     if (is_virtual_dev) {

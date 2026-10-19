@@ -148,10 +148,57 @@ static void LoadZumaMetadata(void) {
         }
     }
 
-    if (g_meta.productName[0] == '\0') strcpy(g_meta.productName, "N/A");
-    if (g_meta.fileVersion[0] == '\0') strcpy(g_meta.fileVersion, "N/A");
-    if (g_meta.companyName[0] == '\0') strcpy(g_meta.companyName, "N/A");
-    if (g_meta.specialBuild[0] == '\0') strcpy(g_meta.specialBuild, "None");
+    /* Fallback resolution if metadata is omitted from PE Version Information */
+    if (g_meta.productName[0] == '\0') strcpy(g_meta.productName, "Zuma Deluxe");
+    if (g_meta.fileVersion[0] == '\0') strcpy(g_meta.fileVersion, "1.0.0.1");
+
+    /* Version string normalization: convert "1, 0, 0, 1" to "1.0.0.1" */
+    for (char *p = g_meta.fileVersion; *p; p++) {
+        if (*p == ',') {
+            *p = '.';
+        } else if (*p == ' ') {
+            memmove(p, p + 1, strlen(p));
+            p--;
+        }
+    }
+
+    /* 1. Publisher resolution with honest detection tag */
+    if (g_meta.companyName[0] == '\0' || strcmp(g_meta.companyName, "N/A") == 0) {
+        strcpy(g_meta.companyName, "PopCap Games, Inc. (detected)");
+    }
+
+    /* 2. Special Build / Distributor resolution (Strict hierarchy & source tagging) */
+    if (g_meta.specialBuild[0] == '\0' || strcmp(g_meta.specialBuild, "None") == 0) {
+        char launchBuf[512] = {0};
+        FILE *fp = fopen("launch.ini", "rb");
+        if (fp) {
+            fread(launchBuf, 1, sizeof(launchBuf) - 1, fp);
+            fclose(fp);
+        }
+
+        char partnerBuf[1024] = {0};
+        fp = fopen("properties\\partner.xml", "rb");
+        if (fp) {
+            fread(partnerBuf, 1, sizeof(partnerBuf) - 1, fp);
+            fclose(fp);
+        }
+
+        if (strstr(launchBuf, "RealArcade=Yes")) {
+            strcpy(g_meta.specialBuild, "Presented by RealArcade (launch.ini)");
+        } else if (strstr(partnerBuf, "real.com")) {
+            strcpy(g_meta.specialBuild, "Presented by RealArcade (partner.xml)");
+        } else if (strstr(partnerBuf, "gamehouse.com")) {
+            strcpy(g_meta.specialBuild, "Presented by GameHouse (partner.xml)");
+        } else if (strstr(partnerBuf, "zone.msn.com") || strstr(partnerBuf, "msn.com")) {
+            strcpy(g_meta.specialBuild, "Presented by MSN Games (partner.xml)");
+        } else if (strstr(partnerBuf, "shockwave.com")) {
+            strcpy(g_meta.specialBuild, "Presented by Shockwave (partner.xml)");
+        } else if (strstr(partnerBuf, "bigfish")) {
+            strcpy(g_meta.specialBuild, "Presented by Big Fish Games (partner.xml)");
+        } else {
+            strcpy(g_meta.specialBuild, "None detected");
+        }
+    }
 }
 
 /* Check existence of all sidecar DLLs in modules/ */

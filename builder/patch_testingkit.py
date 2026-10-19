@@ -574,27 +574,27 @@ def patch_testingkit(src_path, dst_path):
     emit(a)
 
     # Cave I: va_cave_i (Hooked from Site I @ 0x0043386C)
-    # Pre-draw hook for DialogButton: locks Rename and Delete when DevTester is selected
+    # Scope-based wrapper hook for DialogButton::Draw
     # At entry: esi = DialogButton*, [esp] = ret_addr (0x00433871), [esp+4] = Graphics* g
-    # If IAT slot is NULL, skips ZTK_PreButtonDraw and jumps to orig_btn_draw
+    # If IAT slot is NULL, falls back to direct ButtonWidget::Draw
     a = Asm(); va_cave_i = a.start
-    call_predraw_block = bytearray()
-    call_predraw_block += b"\x50"                                      # push eax
-    call_predraw_block += b"\x51"                                      # push ecx
-    call_predraw_block += b"\x52"                                      # push edx
-    call_predraw_block += b"\x56"                                      # push esi (DialogButton*)
-    call_predraw_block += b"\xFF\x15" + struct.pack("<I", iat['ZTK_PreButtonDraw']) # call [ZTK_PreButtonDraw]
-    call_predraw_block += b"\x83\xC4\x04"                              # add esp, 4
-    call_predraw_block += b"\x5A"                                      # pop edx
-    call_predraw_block += b"\x59"                                      # pop ecx
-    call_predraw_block += b"\x58"                                      # pop eax
+
+    # Build wrapper call block:
+    # ZTK_PreButtonDraw(btn = esi, g = [esp+4], orig_draw_fn = orig_btn_draw)
+    call_wrapper_block = bytearray()
+    call_wrapper_block += b"\x68" + struct.pack("<I", sites['orig_btn_draw']) # push orig_btn_draw (arg 3)
+    call_wrapper_block += b"\xFF\x74\x24\x08"                                  # push dword ptr [esp + 8] (arg 2: Graphics* g)
+    call_wrapper_block += b"\x56"                                              # push esi (arg 1: DialogButton* btn)
+    call_wrapper_block += b"\xFF\x15" + struct.pack("<I", iat['ZTK_PreButtonDraw']) # call [ZTK_PreButtonDraw]
+    call_wrapper_block += b"\x83\xC4\x0C"                                      # add esp, 12
+    call_wrapper_block += b"\xC2\x04\x00"                                      # ret 4 (pops Graphics* g and returns to 0x00433871)
 
     # cmp dword ptr [iat['ZTK_PreButtonDraw']], 0
     a.raw(b"\x83\x3D" + struct.pack("<I", iat['ZTK_PreButtonDraw']) + b"\x00")
-    # jz skip_pre_draw
-    a.raw(b"\x74" + bytes([len(call_predraw_block)]))
-    a.raw(call_predraw_block)
-    # skip_pre_draw:
+    # jz fallback_draw (skips wrapper block)
+    a.raw(b"\x74" + bytes([len(call_wrapper_block)]))
+    a.raw(call_wrapper_block)
+    # fallback_draw:
     a.raw(b"\x8B\xCE")                                  # mov ecx, esi (this = DialogButton*)
     a.jmp(sites['orig_btn_draw'])                       # jmp ButtonWidget::Draw (tail call with ret 4)
     emit(a)
