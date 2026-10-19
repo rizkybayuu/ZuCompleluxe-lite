@@ -843,6 +843,32 @@ static void ztk_draw_text_sandy_glow(void *g, void *font, const char *text, int 
     ztk_draw_text_centered(g, font, text, center_x, y, &coreCol);
 }
 
+static inline int ztk_sx(int x) {
+    void ***app_ptr = (void***)0x0057EF00;
+    if (!app_ptr || !*app_ptr) return x;
+    int app_w = *(int*)((char*)*app_ptr + 0x5C);
+    int app_h = *(int*)((char*)*app_ptr + 0x60);
+    float sw = (float)app_w / 640.0f;
+    float sh = (float)app_h / 480.0f;
+    float s = sw < sh ? sw : sh;
+    int cw = (int)(640.0f * s + 0.5f);
+    int xo = (app_w - cw) / 2;
+    return (int)((float)x * s + 0.5f) + xo;
+}
+
+static inline int ztk_sy(int y) {
+    void ***app_ptr = (void***)0x0057EF00;
+    if (!app_ptr || !*app_ptr) return y;
+    int app_w = *(int*)((char*)*app_ptr + 0x5C);
+    int app_h = *(int*)((char*)*app_ptr + 0x60);
+    float sw = (float)app_w / 640.0f;
+    float sh = (float)app_h / 480.0f;
+    float s = sw < sh ? sw : sh;
+    int ch = (int)(480.0f * s + 0.5f);
+    int yo = (app_h - ch) / 2;
+    return (int)((float)y * s + 0.5f) + yo;
+}
+
 __declspec(dllexport) int __cdecl ZTK_CheckDoor5Hit(void *mapScreen, int mouseX, int mouseY, int vanilla_hit)
 {
     (void)mapScreen;
@@ -854,7 +880,9 @@ __declspec(dllexport) int __cdecl ZTK_CheckDoor5Hit(void *mapScreen, int mouseX,
     }
 
     /* advdoor5: center(x=323, y=201), frame size=64x50 -> x=[291, 355), y=[176, 226) */
-    if (mouseX >= 291 && mouseX < 355 && mouseY >= 176 && mouseY < 226) {
+    int d5_x1 = ztk_sx(291), d5_x2 = ztk_sx(355);
+    int d5_y1 = ztk_sy(176), d5_y2 = ztk_sy(226);
+    if (mouseX >= d5_x1 && mouseX < d5_x2 && mouseY >= d5_y1 && mouseY < d5_y2) {
         g_Door5Hover = 1;
         return 12; /* Hand cursor trigger in Zuma MapScreen */
     }
@@ -868,7 +896,9 @@ __declspec(dllexport) int __cdecl ZTK_CheckDoor5Click(void *mapScreen, int mouse
     if (!is_current_user_dev_tester()) return 0;
 
     /* advdoor5 bounding box: x in [291, 355), y in [176, 226) */
-    if (mouseX >= 291 && mouseX < 355 && mouseY >= 176 && mouseY < 226) {
+    int d5_x1 = ztk_sx(291), d5_x2 = ztk_sx(355);
+    int d5_y1 = ztk_sy(176), d5_y2 = ztk_sy(226);
+    if (mouseX >= d5_x1 && mouseX < d5_x2 && mouseY >= d5_y1 && mouseY < d5_y2) {
         if (!g_Door5Selected) {
             /* First click: select Door 5 */
             g_Door5Selected = 1;
@@ -945,7 +975,7 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
     fn_SetColor setColor = (fn_SetColor)0x00447850;
 
     /* 1. Render advtemple5 at center(321, 198), size(391, 100) -> top-left (126, 148) */
-    drawImage(graphics, g_ImageAdvTemple5, 126, 148);
+    drawImage(graphics, g_ImageAdvTemple5, ztk_sx(126), ztk_sy(148));
 
     /* 2. Render advdoor5 at center(323, 201), size(64, 50) -> top-left (291, 176) */
     int door_cel = 0; /* Frame 0: Open (Hitam) */
@@ -954,7 +984,7 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
     } else if (g_Door5Hover) {
         door_cel = 1; /* Frame 1: Hover (Hijau) */
     }
-    drawImageCel(graphics, g_ImageAdvDoor5, 291, 176, door_cel);
+    drawImageCel(graphics, g_ImageAdvDoor5, ztk_sx(291), ztk_sy(176), door_cel);
 
     /* 3. Re-apply 50% Fog (1/2 pengaruh kabut) via IMAGE_ADVMIDDLE overlay */
     void *advmiddle = *(void**)0x00547EB4;
@@ -962,7 +992,7 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
         setColorize(graphics, 1);
         PopCapColor fogColor = { 255, 255, 255, 128 }; /* 50% opacity */
         setColor(graphics, &fogColor);
-        drawImage(graphics, advmiddle, 0, 72);
+        drawImage(graphics, advmiddle, ztk_sx(0), ztk_sy(72));
         setColorize(graphics, 0);
     }
 }
@@ -987,7 +1017,7 @@ __declspec(dllexport) void __cdecl ZTK_DrawStage13Banner(void *mapScreen, void *
 
     /* 1. Stage Badge: IMAGE_ADVSTAGE at (289, 382) -> (0x121, 0x17E) */
     if (stageBadge) {
-        drawImage(graphics, stageBadge, 0x121, 0x17E);
+        drawImage(graphics, stageBadge, ztk_sx(289), ztk_sy(382));
     }
 
     /* 2. Stage number "13" beside STAGE badge at (344, 396) -> (0x158, 0x18C) */
@@ -996,18 +1026,18 @@ __declspec(dllexport) void __cdecl ZTK_DrawStage13Banner(void *mapScreen, void *
         ztk_init_string(str_num, "13");
         setFont(graphics, fontMain14);
         setColor(graphics, &colorWhite);
-        drawStr(graphics, str_num, 0x158, 0x18C);
+        drawStr(graphics, str_num, ztk_sx(344), ztk_sy(396));
         ztk_free_string(str_num);
     }
 
     /* 3. Temple Title: "THE VOID" centered at (326, 422) in white (matches vanilla Title style) */
     if (fontTitle32) {
-        ztk_draw_text_centered(graphics, fontTitle32, "THE VOID", 326, 422, &colorWhite);
+        ztk_draw_text_centered(graphics, fontTitle32, "THE VOID", ztk_sx(326), ztk_sy(422), &colorWhite);
     }
 
     /* 4. Door Description: "THE PLACE OF NO ENDING" centered at (326, 456) in gold 0xFFEA01 */
     if (fontBrowser) {
-        ztk_draw_text_centered(graphics, fontBrowser, "THE PLACE OF NO ENDING", 326, 456, &colorGold);
+        ztk_draw_text_centered(graphics, fontBrowser, "THE PLACE OF NO ENDING", ztk_sx(326), ztk_sy(456), &colorGold);
     }
 }
 
@@ -1170,7 +1200,7 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
             char text_buf[32];
             sprintf(text_buf, "+%d", diff);
 
-            char str_obj[28];
+            char str_obj[32];
             ztk_init_string(str_obj, text_buf);
 
             /* 16-byte std::vector for FloatingText */

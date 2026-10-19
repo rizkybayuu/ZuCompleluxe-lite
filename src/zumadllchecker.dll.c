@@ -621,6 +621,13 @@ static void DisableLiteExcludedModules(void) {
 
 /* Exported main entry point called by Zuma's module loader (.zldr) */
 __declspec(dllexport) int __cdecl ZDC_RunChecker(void) {
+    if (getenv("ZUMA_NO_CHECKER") || strstr(GetCommandLineA(), "--no-checker") || strstr(GetCommandLineA(), "-fast")) {
+#ifdef ZUCOMPLELUXE_LITE
+        DisableLiteExcludedModules();
+#endif
+        return 1;
+    }
+
     g_dialogResult = 0;
 
     LoadZumaMetadata();
@@ -678,11 +685,9 @@ __declspec(dllexport) int __cdecl ZDC_RunChecker(void) {
             if (msg.wParam == VK_RETURN) {
                 g_dialogResult = 1;
                 DestroyWindow(hwnd);
-                break;
             } else if (msg.wParam == VK_ESCAPE) {
                 g_dialogResult = 0;
                 DestroyWindow(hwnd);
-                break;
             }
         }
         TranslateMessage(&msg);

@@ -116,6 +116,28 @@ def patch_imports(src_path, dst_path):
 
     print(f"[OK] Found {len(old_descs)} existing import descriptors.")
 
+    # Calculate bounds of original IAT
+    orig_iat_rvas = []
+    for d in old_descs:
+        oft, ts, fc, name_rva, ft = struct.unpack_from('<IIIII', d)
+        if ft != 0:
+            orig_iat_rvas.append(ft)
+            ft_off = pe.rva_to_offset(ft)
+            if ft_off is not None:
+                cur_off = ft_off
+                while True:
+                    entry = struct.unpack_from('<I', pe.data, cur_off)[0]
+                    cur_off += 4
+                    if entry == 0:
+                        break
+                orig_iat_rvas.append(ft + (cur_off - ft_off))
+
+    if orig_iat_rvas:
+        orig_iat_rva = min(orig_iat_rvas)
+        orig_iat_size = max(orig_iat_rvas) - orig_iat_rva
+    else:
+        orig_iat_rva, orig_iat_size = 0, 0
+
     # 2. Determine new section RVA
     last_sec = max(pe.sections, key=lambda s: s.virtual_address)
     new_rva = align(last_sec.virtual_address + max(last_sec.virtual_size, last_sec.raw_size), pe.section_alignment)
@@ -251,6 +273,12 @@ def patch_imports(src_path, dst_path):
     pe.set_data_directory(1, new_rva, (len(old_descs) + 1) * 20)
     if len(pe.data_directories) > 11:
         pe.set_data_directory(11, 0, 0)  # Bound Import Directory
+    if len(pe.data_directories) > 12 and orig_iat_size > 0:
+        # Crucial for UPX-unpacked executables (e.g. Aizad): UPX zeroes DataDirectory[12].
+        # When Import Directory is relocated to .zdata, the Windows loader requires
+        # DataDirectory[12] (IAT) to be set so it temporarily unprotects the original IAT pages during loading.
+        pe.set_data_directory(12, orig_iat_rva, orig_iat_size)
+        print(f"[OK] Ensured DataDirectory[12] (IAT): RVA=0x{orig_iat_rva:08X}, Size=0x{orig_iat_size:X}")
 
     # 6. Build section .zldr for dynamic loading from modules/
     iat_loadlib = pe.find_iat('kernel32.dll', 'LoadLibraryA')
