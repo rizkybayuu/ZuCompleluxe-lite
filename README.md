@@ -1,6 +1,6 @@
-# ZuCompleluxe Lite (v0.4.1.1)
+# ZuCompleluxe Lite (v0.4.2)
 
-> **Version:** 0.4.1.1 (Lite Edition)  
+> **Version:** 0.4.2 (Lite Edition)  
 > **Target Game:** *Zuma Deluxe* v1.0.0.1 (GameHouse / PopCap / Regional PE Builds)  
 > **Project Scope:** Lightweight Core Engine Framework for Zuma Deluxe Modding  
 > **Developer:** [Rizky Bayuu](https://github.com/rizkybayuu)  
@@ -10,7 +10,7 @@
 
 **ZuCompleluxe Lite** is a lightweight edition of the ZuCompleluxe reverse-engineering framework for *Zuma Deluxe* (v1.0.0.1). It provides the core pre-launch integrity gatekeeper (`zumadllchecker.dll`), Gauntlet custom map carousel (`zumacustommap.dll`), developer credits (`zumacplxcredit.dll`), and developer testing kit (`zumatestingkit.dll`), while omitting experimental multi-path, 11-ball colors, and animated WebP sidecars.
 
-This framework represents the foundational engine layer (**v0.4.1.1**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
+This framework represents the foundational engine layer (**v0.4.2**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
 
 > [!NOTE]
 > **Full Edition Status & Availability:**  
@@ -32,7 +32,7 @@ Modifications are isolated cleanly from vanilla game files:
 Unlike the 6 feature sidecars, `modules\zumadllchecker.dll` is a **strictly binding dependency**:
 - **Hard Gatekeeper Enforcement in `.zldr` (`0x0058C000`)**: Before loading any optional feature modules or executing game code, `.zldr` enforces `modules\zumadllchecker.dll`. If `zumadllchecker.dll` is missing or fails to load, `Zuma.exe` displays a modal error dialog and immediately terminates via `ExitProcess(1)`.
 - **Dynamic PE Version Metadata Extraction**: Reads `ProductName`, `CompanyName`, `FileVersion`, `SpecialBuild`, and `FileName` dynamically from `Zuma.exe`'s Win32 PE Version Resource (`VS_FIXEDFILEINFO` and `\VarFileInfo\Translation`) with zero hardcoded game strings.
-- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.4.1.1`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), and real-time presence checks for all 7 modules in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
+- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.4.2`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), and real-time presence checks for all 7 modules in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
 
 ### 3. 100% Independent & Optional Feature Sidecars (Zero-Dependency Graceful Degradation)
 Every feature sidecar DLL in ZuCompleluxe is completely optional and independent:
@@ -62,13 +62,13 @@ Legacy patches rely on brittle hardcoded virtual addresses that break across bin
 
 - **Pre-Launch Module & Dependency Checker (`zumadllchecker.dll`)**:
   - Mandatory gatekeeper dialog executed prior to engine initialization.
-  - Dynamically queries PE version resources (`Product`, `Publisher`, `Version`, `Special Build`, `Target File`) alongside `ZuCompleluxe v0.4.1.1` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
+  - Dynamically queries PE version resources (`Product`, `Publisher`, `Version`, `Special Build`, `Target File`) alongside `ZuCompleluxe v0.4.2` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
   - Verifies the status of all 7 sidecar modules inside `modules\` (`[OK] Required`, `[OK] Present`, `[MISSING]`) with `Run` and `Quit` controls.
 - **1-Click Direct Installation Folder Patcher (`build_lite.bat`)**:
   - Opens a modern Windows Explorer folder selection dialog (`builder/select_folder.ps1`) featuring a custom **"Patch Folder"** button (or accepts a target directory via CLI `build_lite.bat "<path>" /yes`).
   - **Universal Multi-Binary Adaptivity**:
     - **Adaptive Executable Discovery**: Scans target folder for Zuma Deluxe executables (`*.exe` >= 300 KB with PopCap/Zuma `.rsrc` VersionInfo / `.rdata` signatures) if `Zuma.exe` is renamed (e.g. `Zuma800x600.exe`), with interactive choice dialog for multiple candidates.
-    - **Automated UPX Decompression (`builder/ensure_unpacked.py`)**: Transparently detects UPX-compressed executables (`UPX0`/`UPX1`/`UPX!`), automatically bootstraps official pinned UPX v5.2.1 win64 (`builder/tools/upx.exe`) with SHA-256 verification, and decompresses to a clean vanilla baseline PE. *(Note: Antivirus software may occasionally flag UPX decompressor binaries as heuristic false positives; `upx.exe` is fetched directly from official UPX releases with cryptographically validated SHA-256).*
+    - **Automated UPX Decompression (`builder/ensure_unpacked.py`)**: Transparently detects UPX-compressed executables (`UPX0`/`UPX1`/`UPX!`), automatically bootstraps official pinned UPX v5.2.1 win64 (`builder/.tools/upx.exe`) with SHA-256 verification, and decompresses to a clean vanilla baseline PE. *(Note: Antivirus software may occasionally flag UPX decompressor binaries as heuristic false positives; `upx.exe` is fetched directly from official UPX releases with cryptographically validated SHA-256).*
     - **Dual-Backup Idempotency Architecture**: Automatically creates an untouched byte-exact backup (`modules\bak\<target>.orig`, strictly immutable and never overwritten) and plain baseline (`modules\bak\Zuma.base.exe`). Prevents corruption if the target binary is already patched, and migrates legacy backups (`Zuma.exe.bak` / `modules\bak\Zuma.exe`) automatically.
   - Automatically backs up vanilla files (`resources.xml`, `levels.xml`, `baDotz.gif`) into `modules\bak\`.
   - Automatically synthesizes all 30 extra ball/powerup GIF assets, extends `baDotz.gif` to 11 dots, generates locked button textures, deploys Secret Temple 5 (`advtemple5.jpg`, `_advtemple5.gif`, `advdoor5.jpg`) and DevTester HelpScreen media, and patches `resources.xml` and `levels.xml` via `builder/patch_assets.py`.
@@ -108,9 +108,16 @@ Legacy patches rely on brittle hardcoded virtual addresses that break across bin
 
 ---
 
-## Resolved Critical Bugs (from v0.2.0 to v0.4.1.1)
+## Resolved Critical Bugs (from v0.2.0 to v0.4.2)
 
-### 1. Lite Edition Color Progression Hotfix (Resolved in v0.4.1.1)
+### 1. GameHouse Retail DRM, Engine Spatial Hash & Survival Cheat (Resolved in v0.4.2)
+- **Safe Section-Bound IAT Directory**: Fixed `DataDirectory[12]` (IAT) calculation in `builder/patch_imports.py` to preserve original IAT bounds (`RVA=0xFE000, Size=0x398`) and restrict fallback calculations to `.rdata`, preventing Windows PE Loader from marking the GameHouse DRM `GARR` section as read-only and eliminating the fatal `0xC0000005` crash in `zumares.dll` (`xor byte ptr [eax], 0x83`).
+- **Engine Spatial Hash Priority Overflow Fix (`0x00401EEA`)**: Injected in-place assembly clamping (`cmp eax, 4; jbe .ok; push 4; pop eax`) into `0x00401EA0` and `0x00401ED0`, preventing memory corruption when balls approach the skull pit on multi-path maps (`tripleserpent-3.dat`).
+- **Survival Mode Middle-Click Cheat (`CurveMgr::DestroyAll`)**: Dynamically resolved `0x00411310` via AOB signature scanning to destroy all curve chains instantly in Survival mode.
+- **Score Floating Text Color**: Set middle-click floating score text color in `zumatestingkit.dll` to authentic combo yellow (`0xFFFF00`).
+- **Scope-Based UI Button Draw Wrapper**: Replaced permanent button texture mutations with a clean wrapper around `ButtonWidget::Draw`, removing static buffer reliance (`0x0054802c`).
+
+### 2. Lite Edition Color Progression Hotfix (Resolved in v0.4.1.1)
 - **`levels.xml` Stage Color Differentiation**: Differentiated stage color progression logic in `builder/patch_assets.py` between Full and Lite editions. Lite edition strictly respects vanilla engine limits (Stage 1–3: 4 colors; Stage 4–6: 5 colors; Stage 7–13: 6 colors), while Full edition retains up to 11 custom colors powered by `zumaextracolor.dll` (Stage 1–3: 4 colors; Stage 4–6: 6 colors; Stage 7–9: 8 colors; Stage 10–12: 10 colors; Stage 13: 11 colors).
 - **Automated `--lite` Flag & Workspace Detection**: Added automatic detection in `builder/patch_assets.py` via `--lite` CLI argument and repository folder name inspection (`-lite`).
 
@@ -221,7 +228,7 @@ The builder pipeline will automatically:
 - **4 Core Modules Deployed**: Compiles strictly `zumadllchecker.dll` (Lite Edition), `zumacustommap.dll`, `zumacplxcredit.dll`, and `zumatestingkit.dll`.
 - **Excluded Sidecars Omitted**: `zumawebp.dll`, `zumaextrapath.dll`, and `zumaextracolor.dll` are omitted from `modules\`.
 - **Pure Vanilla Gameplay Fallbacks**: Zuma Deluxe operates using PopCap's authentic vanilla image decoding, 3 native curves, and 6 original ball colors with zero crashes.
-- **Enforced Neutralization in Checker**: `zumadllchecker.dll` displays `ZuCompleluxe v0.4.1.1 Lite`, labels omitted sidecars as `[DISABLED]`, and actively neutralizes them in memory so they are never executed even if manually copied into `modules\`.
+- **Enforced Neutralization in Checker**: `zumadllchecker.dll` displays `ZuCompleluxe v0.4.2 Lite`, labels omitted sidecars as `[DISABLED]`, and actively neutralizes them in memory so they are never executed even if manually copied into `modules\`.
 - **Full Edition (Private Development)**: If you require multi-path (up to 10 curves), 11-ball colors, and animated WebP decoding, the Full Edition is hosted at [ZuCompleluxe](https://github.com/rizkybayuu/ZuCompleluxe). It is currently private and will be released publicly alongside the launch of the **Zuma Compleluxe** mod.
 
 

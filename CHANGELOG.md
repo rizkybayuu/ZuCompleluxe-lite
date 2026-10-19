@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.2] - 2026-10-19
+
+### Added
+- **1-Click Universal Target Folder Patcher & Adaptive Game Discovery**:
+  - Patcher now accepts any target Zuma Deluxe installation directory directly (via CLI argument, drag-and-drop, or native Windows folder picker).
+  - Implemented `builder/find_target_exe.py` to adaptively discover valid game executables across various distributor packagings (`Zuma.exe`, `popcapgame1.exe`, etc.) with zero hardcoded paths.
+  - Implemented `builder/ensure_unpacked.py` with automatic, ephemeral UPX decompression during build time, creating a clean baseline for analysis while leaving zero clutter.
+  - Implemented Single-Backup Architecture (`modules\bak\Zuma.exe`) guaranteeing strict idempotency and zero duplicate backup proliferation across repeated patch runs.
+  - Unified local tooling convention: isolated internal helper binaries under `builder/.tools/` with automatic ignore patterns.
+
+### Fixed
+- **PE Import Directory & GameHouse Retail DRM Protection (`builder/patch_imports.py`)**:
+  - Fixed `DataDirectory[12]` (IAT) bounds calculation that previously spanned 570 KB across `.rdata`, `.data`, `.rsrc`, and `GARR` sections.
+  - Preserved original IAT bounds when present (`RVA=0xFE000, Size=0x398`) and strictly confined dynamic fallback calculations within `.rdata`.
+  - Prevented Windows PE Loader from marking the GameHouse DRM `GARR` section as `PAGE_READONLY`, eliminating the fatal `0xC0000005` Access Violation crash in `zumares.dll` (`0x100032B0: xor byte ptr [eax], 0x83`).
+- **Engine Spatial Hash Priority Overflow Crash (`0x00401EEA`)**:
+  - Injected in-place assembly clamping (`cmp eax, 4; jbe .ok; push 4; pop eax`) into engine subroutines `STAGE2_SPATIAL_ADD1` (`0x00401EA0`) and `STAGE2_SPATIAL_ADD2` (`0x00401ED0`).
+  - Clamped track waypoints with `priority >= 5` in `builder/patch_extrapath_stage2.py`, preventing out-of-bounds layer bucket indexing and fatal memory corruption when balls approach the skull pit on multi-path maps (e.g. `tripleserpent-3.dat`).
+- **Developer Middle-Click Cheat in Survival Mode (`src/zumatestingkit.dll.c`)**:
+  - Dynamically resolved `CurveMgr::DestroyAll` (`0x00411310`) via runtime AOB signature scanning (`53 8B D9 8B 43 30 85 C0 57 75 04 33 FF EB 02 8B 38 3B 7B 30`).
+  - Added an active curve iteration loop specifically for Survival mode (`mIsSurvival != 0`), bypassing vanilla engine jumps to detonate all balls instantly on middle-click.
+- **Floating Score Text Color (`src/zumatestingkit.dll.c`)**:
+  - Updated middle-click floating score text color in `ZTK_UpdateDevCheat` from dev cyan (`0x00E5FF`) to authentic combo yellow (`0xFFFF00` / RGB 255, 255, 0).
+- **Scope-Based Button Draw Wrapper & State Integrity (`src/zumatestingkit.dll.c`)**:
+  - Replaced persistent image swapping with a non-destructive scope-based wrapper around `ButtonWidget::Draw`.
+  - Removed reliance on global dialog pointers and hardcoded buffer addresses (`0x0054802c`), using dynamic button validation (`*(dialog+0x120/0x124) == btn`) and safe virtual memory queries.
+- **Honest Distributor & Mod Metadata Detection (`src/zumadllchecker.dll.c`)**:
+  - Prioritized explicit `launch.ini [Main] RealArcade=Yes` and `partner.xml` markers over guessed substrings.
+  - Clearly separated distributor claims from mod expansion labels, displaying `(detected)` tags for inferred data.
+
 ## [0.4.1.1] - 2026-10-19
 
 ### Fixed

@@ -64,9 +64,13 @@ def main():
     ap = argparse.ArgumentParser(description="Ensure unpacked baseline executable for ZuCompleluxe.")
     ap.add_argument("exe", help="Path to input executable")
     ap.add_argument("--out", required=True, help="Destination path for plain uncompressed executable")
+    default_upx = os.path.join(os.path.dirname(__file__), ".tools", "upx.exe")
+    if not os.path.isfile(default_upx) and os.path.isfile(os.path.join(os.path.dirname(__file__), "tools", "upx.exe")):
+        default_upx = os.path.join(os.path.dirname(__file__), "tools", "upx.exe")
+
     ap.add_argument(
         "--upx",
-        default=os.path.join(os.path.dirname(__file__), "tools", "upx.exe"),
+        default=default_upx,
         help="Path to upx.exe binary",
     )
     a = ap.parse_args()

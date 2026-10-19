@@ -201,11 +201,12 @@ REM =======================================================================
 REM 2.5 UPX Decompressor Detection & Bootstrap
 REM =======================================================================
 :EnsureUpx
-set "UPX_DIR=builder\tools"
+set "UPX_DIR=builder\.tools"
 set "UPX_BIN=!UPX_DIR!\upx.exe"
 if not exist "!UPX_DIR!" mkdir "!UPX_DIR!" >nul 2>&1
 
-REM 1. Check existing builder\tools\upx.exe
+REM 1. Check existing builder\.tools\upx.exe or builder\tools\upx.exe
+if not exist "!UPX_BIN!" if exist "builder\tools\upx.exe" copy /y "builder\tools\upx.exe" "!UPX_BIN!" >nul 2>&1
 if exist "!UPX_BIN!" (
     "!UPX_BIN!" -V >nul 2>&1
     if not errorlevel 1 (
@@ -240,7 +241,7 @@ if exist "!UPX_ZIP!" (
     if errorlevel 1 (
         echo [ERROR] SHA-256 verification failed for UPX package!
         del /f /q "!UPX_ZIP!" >nul 2>&1
-        echo         You can manually place a clean upx.exe into builder\tools\
+        echo         You can manually place a clean upx.exe into builder\.tools\
         exit /b 1
     )
     echo [OK] SHA-256 verified for UPX package.
@@ -261,7 +262,7 @@ if exist "!UPX_BIN!" (
 echo [ERROR] Failed to obtain upx.exe.
 echo         Offline usage: Please download UPX win64 manually from:
 echo         https://github.com/upx/upx/releases/latest
-echo         and place upx.exe inside builder\tools\upx.exe
+echo         and place upx.exe inside builder\.tools\upx.exe
 exit /b 1
 
 REM =======================================================================
