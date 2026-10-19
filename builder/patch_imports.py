@@ -116,27 +116,46 @@ def patch_imports(src_path, dst_path):
 
     print(f"[OK] Found {len(old_descs)} existing import descriptors.")
 
-    # Calculate bounds of original IAT
-    orig_iat_rvas = []
-    for d in old_descs:
-        oft, ts, fc, name_rva, ft = struct.unpack_from('<IIIII', d)
-        if ft != 0:
-            orig_iat_rvas.append(ft)
-            ft_off = pe.rva_to_offset(ft)
-            if ft_off is not None:
-                cur_off = ft_off
-                while True:
-                    entry = struct.unpack_from('<I', pe.data, cur_off)[0]
-                    cur_off += 4
-                    if entry == 0:
-                        break
-                orig_iat_rvas.append(ft + (cur_off - ft_off))
-
-    if orig_iat_rvas:
-        orig_iat_rva = min(orig_iat_rvas)
-        orig_iat_size = max(orig_iat_rvas) - orig_iat_rva
+    # Calculate bounds of original primary IAT (preserving existing DataDirectory[12] if valid)
+    existing_iat = pe.data_directories[12] if len(pe.data_directories) > 12 else None
+    if existing_iat and existing_iat['rva'] != 0 and existing_iat['size'] != 0:
+        orig_iat_rva = existing_iat['rva']
+        orig_iat_size = existing_iat['size']
     else:
-        orig_iat_rva, orig_iat_size = 0, 0
+        # Fallback: calculate IAT bounds strictly within the primary IAT section (e.g. .rdata)
+        # to prevent spanning across intermediate writable sections (like .data or GARR).
+        primary_sec = None
+        for d in old_descs:
+            oft, ts, fc, name_rva, ft = struct.unpack_from('<IIIII', d)
+            if ft != 0:
+                for s in pe.sections:
+                    if s.virtual_address <= ft < s.virtual_address + max(s.virtual_size, s.raw_size):
+                        primary_sec = s
+                        break
+                if primary_sec:
+                    break
+
+        orig_iat_rvas = []
+        for d in old_descs:
+            oft, ts, fc, name_rva, ft = struct.unpack_from('<IIIII', d)
+            if ft != 0 and primary_sec:
+                if primary_sec.virtual_address <= ft < primary_sec.virtual_address + max(primary_sec.virtual_size, primary_sec.raw_size):
+                    orig_iat_rvas.append(ft)
+                    ft_off = pe.rva_to_offset(ft)
+                    if ft_off is not None:
+                        cur_off = ft_off
+                        while True:
+                            entry = struct.unpack_from('<I', pe.data, cur_off)[0]
+                            cur_off += 4
+                            if entry == 0:
+                                break
+                        orig_iat_rvas.append(ft + (cur_off - ft_off))
+
+        if orig_iat_rvas:
+            orig_iat_rva = min(orig_iat_rvas)
+            orig_iat_size = max(orig_iat_rvas) - orig_iat_rva
+        else:
+            orig_iat_rva, orig_iat_size = 0, 0
 
     # 2. Determine new section RVA
     last_sec = max(pe.sections, key=lambda s: s.virtual_address)
