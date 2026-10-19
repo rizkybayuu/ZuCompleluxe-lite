@@ -309,8 +309,9 @@ def patch_imports(src_path, dst_path):
     struct.pack_into('<i', raw_zldr, 1, code_start_offset - 5)
 
     code_b = bytearray()
-    # pushad
+    # pushad (0x60), pushfd (0x9C) - Preserve all registers and flags
     code_b.append(0x60)
+    code_b.append(0x9C)
 
     # 1. Call SetDllDirectoryA("modules")
     code_b += b"\x68" + struct.pack("<I", str_kernel32)
@@ -385,6 +386,7 @@ def patch_imports(src_path, dst_path):
 
     # .done target
     code_b[jz_done + 1] = len(code_b) - (jz_done + 2)
+    code_b += b"\x9D"  # popfd
     code_b += b"\x61"  # popad
     code_b += disp_ep_bytes  # execute displaced instruction from Entry Point
     # jmp ep_va + 5:

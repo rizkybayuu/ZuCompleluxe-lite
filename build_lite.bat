@@ -25,6 +25,11 @@ if /i "%~1"=="/y" (
     shift
     goto ParseArgs
 )
+if /i "%~1"=="--non-interactive" (
+    set "NON_INTERACTIVE=1"
+    shift
+    goto ParseArgs
+)
 if "!CLI_ZUMA_DIR!"=="" (
     set "CLI_ZUMA_DIR=%~f1"
     shift
@@ -186,27 +191,34 @@ echo [OK] Target Executable : "!TARGET_EXE_NAME!"
 echo.
 
 REM =======================================================================
-REM [PRIORITY 3] Dual-Backup Architecture & Idempotency Management
+REM [PRIORITY 3] Single-Backup Architecture & Idempotency Management
+REM modules\bak\ contains strictly ONE backup file: modules\bak\Zuma.exe
+REM Decompression to uncompressed baseline is strictly an ephemeral
+REM build-time step in .build\temp_unpacked.exe, purged upon build completion.
 REM =======================================================================
 set "BAK_DIR=!TARGET_ZUMA_DIR!\modules\bak"
 if not exist "!BAK_DIR!" mkdir "!BAK_DIR!" >nul 2>&1
 
-REM Migrate legacy backups if present
+REM Migrate legacy backups if present to single-backup standard
 if exist "!TARGET_ZUMA_DIR!\Zuma.exe.bak" (
-    if not exist "!BAK_DIR!\Zuma.exe.orig" move /y "!TARGET_ZUMA_DIR!\Zuma.exe.bak" "!BAK_DIR!\Zuma.exe.orig" >nul
+    if not exist "!BAK_DIR!\Zuma.exe" move /y "!TARGET_ZUMA_DIR!\Zuma.exe.bak" "!BAK_DIR!\Zuma.exe" >nul
     if exist "!TARGET_ZUMA_DIR!\Zuma.exe.bak" del /f /q "!TARGET_ZUMA_DIR!\Zuma.exe.bak" >nul
 )
-if exist "!BAK_DIR!\Zuma.exe" (
-    if not exist "!BAK_DIR!\Zuma.exe.orig" move /y "!BAK_DIR!\Zuma.exe" "!BAK_DIR!\Zuma.exe.orig" >nul
-    if exist "!BAK_DIR!\Zuma.exe" del /f /q "!BAK_DIR!\Zuma.exe" >nul
+if exist "!BAK_DIR!\Zuma.exe.orig" (
+    if not exist "!BAK_DIR!\Zuma.exe" move /y "!BAK_DIR!\Zuma.exe.orig" "!BAK_DIR!\Zuma.exe" >nul
+    if exist "!BAK_DIR!\Zuma.exe.orig" del /f /q "!BAK_DIR!\Zuma.exe.orig" >nul
 )
+if exist "!BAK_DIR!\!TARGET_EXE_NAME!.orig" (
+    if not exist "!BAK_DIR!\Zuma.exe" move /y "!BAK_DIR!\!TARGET_EXE_NAME!.orig" "!BAK_DIR!\Zuma.exe" >nul
+    if exist "!BAK_DIR!\!TARGET_EXE_NAME!.orig" del /f /q "!BAK_DIR!\!TARGET_EXE_NAME!.orig" >nul
+)
+if exist "!BAK_DIR!\Zuma.base.exe" del /f /q "!BAK_DIR!\Zuma.base.exe" >nul
 
-set "BAK_ORIG=!BAK_DIR!\!TARGET_EXE_NAME!.orig"
-if not exist "!BAK_ORIG!" if exist "!BAK_DIR!\Zuma.exe.orig" set "BAK_ORIG=!BAK_DIR!\Zuma.exe.orig"
+set "BAK_ORIG=!BAK_DIR!\Zuma.exe"
 
-REM Check if .orig already exists
+REM Check if single backup already exists
 if exist "!BAK_ORIG!" (
-    echo [BACKUP] Using existing original backup: "!BAK_ORIG!"
+    echo [BACKUP] Using existing immutable backup: "!BAK_ORIG!"
 ) else (
     REM Check if target is already patched with ZuCompleluxe sections
     "!PYTHON_BIN!" -c "import pefile,sys; pe=pefile.PE(sys.argv[1], fast_load=True); names=[s.Name.rstrip(b'\0').decode('latin1', 'ignore') for s in pe.sections]; pe.close(); sys.exit(0 if any(n in names for n in ('.zldr','.zdata','.zcol','.zcm','.zcc','.ztk')) else 1)" "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" >nul 2>&1
@@ -215,7 +227,7 @@ if exist "!BAK_ORIG!" (
         echo ===================================================================
         echo  [ERROR] Target executable '!TARGET_EXE_NAME!' is already patched with
         echo         ZuCompleluxe sections ^(.zldr/.zdata^), and no clean backup
-        echo         ^(.orig^) was found in modules\bak\.
+        echo         was found in modules\bak\Zuma.exe.
         echo.
         echo         Cannot create vanilla baseline from an already patched binary.
         echo         Please restore your original game executable and retry.
@@ -225,14 +237,14 @@ if exist "!BAK_ORIG!" (
         exit /b 1
     )
 
-    echo [BACKUP] Creating original backup: !TARGET_EXE_NAME! -^> "!BAK_ORIG!" ...
+    echo [BACKUP] Creating single original backup: !TARGET_EXE_NAME! -^> "!BAK_ORIG!" ...
     copy /y "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" "!BAK_ORIG!" >nul
 )
 
-REM Ensure uncompressed/plain baseline exists: modules\bak\Zuma.base.exe
-set "BAK_BASE=!BAK_DIR!\Zuma.base.exe"
-echo [BASELINE] Verifying plain baseline executable...
-"!PYTHON_BIN!" "builder\ensure_unpacked.py" "!BAK_ORIG!" --out "!BAK_BASE!"
+REM Ephemeral uncompressed baseline in .build: !BUILD_TMP!\temp_unpacked.exe
+set "SRC_VANILLA=!BUILD_TMP!\temp_unpacked.exe"
+echo [BASELINE] Establishing ephemeral uncompressed baseline...
+"!PYTHON_BIN!" "builder\ensure_unpacked.py" "!BAK_ORIG!" --out "!SRC_VANILLA!"
 set "UNPACK_CODE=!ERRORLEVEL!"
 
 if !UNPACK_CODE! EQU 2 (
@@ -244,7 +256,7 @@ if !UNPACK_CODE! EQU 2 (
         exit /b 1
     )
     echo [RETRY] Decompressing baseline executable...
-    "!PYTHON_BIN!" "builder\ensure_unpacked.py" "!BAK_ORIG!" --out "!BAK_BASE!"
+    "!PYTHON_BIN!" "builder\ensure_unpacked.py" "!BAK_ORIG!" --out "!SRC_VANILLA!"
     set "UNPACK_CODE=!ERRORLEVEL!"
 )
 
@@ -260,7 +272,6 @@ if !UNPACK_CODE! NEQ 0 (
     exit /b 1
 )
 
-set "SRC_VANILLA=!BAK_BASE!"
 for %%A in ("!SRC_VANILLA!") do set "ZUMA_SIZE=%%~zA"
 echo [INFO] Vanilla baseline confirmed: !ZUMA_SIZE! bytes.
 echo.
