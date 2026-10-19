@@ -492,39 +492,49 @@ __declspec(dllexport) void __cdecl ZTK_OnRegisterResources(void *res_mgr, void *
     }
 }
 
-__declspec(dllexport) void __cdecl ZTK_PreButtonDraw(void *btn)
+typedef void (__thiscall *fn_OrigButtonDraw)(void *this_ptr, void *g);
+
+__declspec(dllexport) void __cdecl ZTK_PreButtonDraw(void *btn, void *g, fn_OrigButtonDraw orig_draw)
 {
-    if (!ZTK_IsActive() || !btn) return;
+    if (!ZTK_IsActive() || !btn || !orig_draw) {
+        if (orig_draw && btn) orig_draw(btn, g);
+        return;
+    }
 
     int is_dev = 0;
     int is_target = ztk_validate_user_dialog_button(btn, &is_dev);
 
     void **btn_img_ptr = (void**)((char*)btn + 0xE0); /* mButtonImage */
-    void *vanilla_img = *(void**)0x0054802c;           /* IMAGE_DIALOG_BUTTON */
+    void *saved_img = *btn_img_ptr;
     PopCapColor *colors = *(PopCapColor**)((char*)btn + 0x2C); /* std::vector<PopCapColor> */
+    PopCapColor saved_c0, saved_c1;
+    int colors_saved = 0;
 
     if (is_target && is_dev) {
-        /* Swap button image to locked image if available */
+        /* Temporarily swap button image to locked image during draw */
         if (g_ImageDialogButtonLocked) {
             *btn_img_ptr = g_ImageDialogButtonLocked;
         }
-        /* Disabled label text color: dimmed gray */
+        /* Temporarily change text color to dimmed gray */
         if (colors && ztk_is_valid_ptr(colors, sizeof(PopCapColor) * 2)) {
+            saved_c0 = colors[0];
+            saved_c1 = colors[1];
+            colors_saved = 1;
             colors[0].mRed = 128; colors[0].mGreen = 128; colors[0].mBlue = 128; colors[0].mAlpha = 255;
             colors[1].mRed = 128; colors[1].mGreen = 128; colors[1].mBlue = 128; colors[1].mAlpha = 255;
         }
         /* Never activate finger pulse overlay on Rename/Delete (prevents green-to-purple animation loop) */
         *(char*)((char*)btn + 0x10d) = 0;
-    } else if (is_target) {
-        /* Restore vanilla button image */
-        if (vanilla_img) {
-            *btn_img_ptr = vanilla_img;
-        }
-        /* Normal label text colors: gold and white */
-        if (colors && ztk_is_valid_ptr(colors, sizeof(PopCapColor) * 2)) {
-            colors[0].mRed = 0xD5; colors[0].mGreen = 0xE5; colors[0].mBlue = 0x20; colors[0].mAlpha = 255;
-            colors[1].mRed = 0xFF; colors[1].mGreen = 0xFF; colors[1].mBlue = 0xFF; colors[1].mAlpha = 255;
-        }
+    }
+
+    /* Execute original ButtonWidget::Draw */
+    orig_draw(btn, g);
+
+    /* RAII Scope Restoration: unconditionally restore original texture and colors! */
+    *btn_img_ptr = saved_img;
+    if (colors_saved) {
+        colors[0] = saved_c0;
+        colors[1] = saved_c1;
     }
 }
 
