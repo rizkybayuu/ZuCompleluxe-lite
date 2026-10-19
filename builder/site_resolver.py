@@ -89,6 +89,8 @@ def resolve_all_sites(pe_or_path, enforce_hash=False):
         'STAGE2_HOLE_HOOK3': ('55 8B EC D9 45 14 56 8B 35 ?? ?? ?? ?? D8 15 ?? ?? ?? ?? 8B 46 04', 0),
         'STAGE2_BALL_SET_WAYPOINT': ('55 8B EC 8B 45 0C 8B 55 08 89 84 91 9C 00 00 00 5D C2 08 00 90 90 90 90 90 90 90 90 90 90 90 90', 0),
         'STAGE2_BALL_GET_WAYPOINT': ('55 8B EC 8B 45 08 8B 84 81 9C 00 00 00 5D C2 04 00 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90', 0),
+        'STAGE2_SPATIAL_ADD1':      ('55 8B EC 8B 45 0C 8B 14 81 56 8D 72 01 89 34 81 C1 E0 0A 03 C2 8B 55 08 89 54 81 28 5E 5D C2 08 00', 0),
+        'STAGE2_SPATIAL_ADD2':      ('55 8B EC 8B 45 0C 8B 54 81 14 56 8D 72 01 89 74 81 14 C1 E0 0A 03 C2 8B 55 08 89 94 81 28 50 00 00 5E 5D C2 08 00', 0),
         'STAGE2_OVERLAY_DRAW':      ('55 8B EC 8B 45 0C 8D 04 40 8D 54 81 04 8B 45 08 52 50 E8', 0),
         'STAGE2_HOLE_BG_END':       ('8B 47 74 33 DB 85 C0 7E 72 8D 8F 9C 00 00 00 89 4D 08 8B FF 53 56 8B CF E8', 0),
         'STAGE2_HOLE_DRAW_LOOP':    ('8B 47 74 33 DB 85 C0 7E 72 8D 8F 9C 00 00 00 89 4D 08 8B FF 53 56 8B CF E8', 20),
@@ -459,8 +461,8 @@ def resolve_all_sites(pe_or_path, enforce_hash=False):
                 raise RuntimeError(f"Instruction after STAGE2_DESCRESET_CLAMP_B ({next_db.mnemonic}) does not overwrite flags")
             resolved['STAGE2_DESCRESET_CLAMP_B'] = insn_db.address
 
-    if len(resolved) != 79:
-        raise RuntimeError(f"Resolved {len(resolved)} sites (expected exactly 79)")
+    if len(resolved) != 81:
+        raise RuntimeError(f"Resolved {len(resolved)} sites (expected exactly 81)")
 
     return resolved
 
@@ -470,7 +472,7 @@ if __name__ == '__main__':
     if not os.path.isfile(default_base):
         default_base = os.path.join(os.path.dirname(__file__), "..", "base", "Zuma.exe")
     target = sys.argv[1] if len(sys.argv) > 1 else default_base
-    print(f"Resolving all 79 sites from: {target}")
+    print(f"Resolving all 81 sites from: {target}")
     res = resolve_all_sites(target, enforce_hash=False)
     print(f"[OK] Successfully resolved {len(res)} sites:\n")
     for k, v in sorted(res.items(), key=lambda x: x[1]):

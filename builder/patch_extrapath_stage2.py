@@ -42,6 +42,12 @@ BALL_SET_PATCH  = bytes.fromhex("558BEC8B550883FA03730A8B450C8984919C0000005DC20
 BALL_GET_EXPECT = bytes.fromhex("558BEC8B45088B84819C0000005DC20400909090909090909090909090909090")
 BALL_GET_PATCH  = bytes.fromhex("558BEC8B450883F803730B8B84819C0000005DC2040031C05DC2040090909090")
 
+SPATIAL_ADD1_EXPECT = bytes.fromhex("558BEC8B450C8B1481568D7201893481C1E00A03C28B5508895481285E5DC20800") + b"\x90" * 15
+SPATIAL_ADD1_PATCH  = bytes.fromhex("558BEC8B450C83F80476036A04588B1481568D7201893481C1E00A03C28B5508895481285E5DC20800") + b"\x90" * 7
+
+SPATIAL_ADD2_EXPECT = bytes.fromhex("558BEC8B450C8B548114568D720189748114C1E00A03C28B5508899481285000005E5DC20800") + b"\x90" * 10
+SPATIAL_ADD2_PATCH  = bytes.fromhex("558BEC8B450C83F80476036A04588B548114568D720189748114C1E00A03C28B5508899481285000005E5DC20800") + b"\x90" * 2
+
 OVERLAY_DRAW_EXPECT = bytes.fromhex("558BEC8B450C")
 HOLE_BG_END_EXPECT  = bytes.fromhex("8B477433DB")
 HOLE_LOOP_PREFIX    = bytes.fromhex("53568BCFE8")
@@ -93,6 +99,8 @@ def patch_extrapath_stage2(src, dst, base_exe=None):
     hole_hook3      = sites['STAGE2_HOLE_HOOK3']
     ball_set_va     = sites['STAGE2_BALL_SET_WAYPOINT']
     ball_get_va     = sites['STAGE2_BALL_GET_WAYPOINT']
+    spatial_add1_va = sites['STAGE2_SPATIAL_ADD1']
+    spatial_add2_va = sites['STAGE2_SPATIAL_ADD2']
     overlay_draw_va = sites['STAGE2_OVERLAY_DRAW']
     hole_bg_end_va  = sites['STAGE2_HOLE_BG_END']
     hole_loop_va    = sites['STAGE2_HOLE_DRAW_LOOP']
@@ -548,6 +556,10 @@ def patch_extrapath_stage2(src, dst, base_exe=None):
     write_site('STAGE2_BALL_SET_WAYPOINT', ball_set_va, BALL_SET_EXPECT, BALL_SET_PATCH)
     write_site('STAGE2_BALL_GET_WAYPOINT', ball_get_va, BALL_GET_EXPECT, BALL_GET_PATCH)
 
+    # Spatial Hash priority layer bounds clamps (clamp eax <= 4 to prevent out-of-bounds bucket corruption)
+    write_site('STAGE2_SPATIAL_ADD1', spatial_add1_va, SPATIAL_ADD1_EXPECT, SPATIAL_ADD1_PATCH)
+    write_site('STAGE2_SPATIAL_ADD2', spatial_add2_va, SPATIAL_ADD2_EXPECT, SPATIAL_ADD2_PATCH)
+
     # Priority-Aware Skull (Hole) Rendering sites
     write_site('STAGE2_OVERLAY_DRAW', overlay_draw_va, OVERLAY_DRAW_EXPECT,
                b"\xE9" + struct.pack("<i", va_draw_prio_layer - (overlay_draw_va + 5)) + b"\x90")
@@ -558,8 +570,8 @@ def patch_extrapath_stage2(src, dst, base_exe=None):
     write_site('STAGE2_STATIC_BOARD_DRAW', static_board_va, static_board_expect,
                b"\xE9" + struct.pack("<i", va_draw_static_board - (static_board_va + 5)))
 
-    assert len(write_log) == 19, f"Expected 19 sites written in Stage 2, got {len(write_log)}"
-    print(f"[OK] All 19 Stage 2 sites written and logged cleanly.")
+    assert len(write_log) == 21, f"Expected 21 sites written in Stage 2, got {len(write_log)}"
+    print(f"[OK] All 21 Stage 2 sites written and logged cleanly.")
 
     pe.save(dst)
     print(f"[DONE] Stage 2 applied cleanly -> {dst} (.zep2 @0x{new_sec.virtual_address + pe.image_base:08X})")

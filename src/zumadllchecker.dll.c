@@ -623,6 +623,7 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
     default:
         return DefWindowProcA(hwnd, uMsg, wParam, lParam);
     }
+    return DefWindowProcA(hwnd, uMsg, wParam, lParam);
 }
 
 #ifdef ZUCOMPLELUXE_LITE

@@ -492,49 +492,39 @@ __declspec(dllexport) void __cdecl ZTK_OnRegisterResources(void *res_mgr, void *
     }
 }
 
-typedef void (__thiscall *fn_OrigButtonDraw)(void *this_ptr, void *g);
-
-__declspec(dllexport) void __cdecl ZTK_PreButtonDraw(void *btn, void *g, fn_OrigButtonDraw orig_draw)
+__declspec(dllexport) void __cdecl ZTK_PreButtonDraw(void *btn)
 {
-    if (!ZTK_IsActive() || !btn || !orig_draw) {
-        if (orig_draw && btn) orig_draw(btn, g);
-        return;
-    }
+    if (!ZTK_IsActive() || !btn) return;
 
     int is_dev = 0;
     int is_target = ztk_validate_user_dialog_button(btn, &is_dev);
 
     void **btn_img_ptr = (void**)((char*)btn + 0xE0); /* mButtonImage */
-    void *saved_img = *btn_img_ptr;
+    void *vanilla_img = *(void**)0x0054802c;           /* IMAGE_DIALOG_BUTTON */
     PopCapColor *colors = *(PopCapColor**)((char*)btn + 0x2C); /* std::vector<PopCapColor> */
-    PopCapColor saved_c0, saved_c1;
-    int colors_saved = 0;
 
     if (is_target && is_dev) {
-        /* Temporarily swap button image to locked image during draw */
+        /* Swap button image to locked image if available */
         if (g_ImageDialogButtonLocked) {
             *btn_img_ptr = g_ImageDialogButtonLocked;
         }
-        /* Temporarily change text color to dimmed gray */
+        /* Disabled label text color: dimmed gray */
         if (colors && ztk_is_valid_ptr(colors, sizeof(PopCapColor) * 2)) {
-            saved_c0 = colors[0];
-            saved_c1 = colors[1];
-            colors_saved = 1;
             colors[0].mRed = 128; colors[0].mGreen = 128; colors[0].mBlue = 128; colors[0].mAlpha = 255;
             colors[1].mRed = 128; colors[1].mGreen = 128; colors[1].mBlue = 128; colors[1].mAlpha = 255;
         }
         /* Never activate finger pulse overlay on Rename/Delete (prevents green-to-purple animation loop) */
         *(char*)((char*)btn + 0x10d) = 0;
-    }
-
-    /* Execute original ButtonWidget::Draw */
-    orig_draw(btn, g);
-
-    /* RAII Scope Restoration: unconditionally restore original texture and colors! */
-    *btn_img_ptr = saved_img;
-    if (colors_saved) {
-        colors[0] = saved_c0;
-        colors[1] = saved_c1;
+    } else if (is_target) {
+        /* Restore vanilla button image */
+        if (vanilla_img) {
+            *btn_img_ptr = vanilla_img;
+        }
+        /* Normal label text colors: gold and white */
+        if (colors && ztk_is_valid_ptr(colors, sizeof(PopCapColor) * 2)) {
+            colors[0].mRed = 0xD5; colors[0].mGreen = 0xE5; colors[0].mBlue = 0x20; colors[0].mAlpha = 255;
+            colors[1].mRed = 0xFF; colors[1].mGreen = 0xFF; colors[1].mBlue = 0xFF; colors[1].mAlpha = 255;
+        }
     }
 }
 
@@ -1128,6 +1118,7 @@ static void *g_fn_FT_Ctor = NULL;
 static void *g_fn_FT_Add = NULL;
 static void *g_fn_FT_Dtor = NULL;
 static void *g_fn_free = NULL;
+static void *g_fn_DestroyAll = NULL;
 static int g_cheat_resolved = 0;
 
 static void ztk_resolve_cheat_signatures(void)
@@ -1199,12 +1190,20 @@ static void ztk_resolve_cheat_signatures(void)
         }
     }
 
+    /* 5. CurveMgr_DestroyAll: 53 8b d9 8b 43 30 85 c0 57 75 04 33 ff eb 02 8b 38 3b 7b 30 */
+    static const unsigned char pat_destroy_all[] = {
+        0x53, 0x8b, 0xd9, 0x8b, 0x43, 0x30, 0x85, 0xc0,
+        0x57, 0x75, 0x04, 0x33, 0xff, 0xeb, 0x02, 0x8b, 0x38, 0x3b, 0x7b, 0x30
+    };
+    g_fn_DestroyAll = ztk_memmem(text_ptr, text_size, pat_destroy_all, sizeof(pat_destroy_all));
+
     ztk_log("Cheat Signatures Resolved (zero hardcoded addresses):");
     ztk_log("  IncScore   = 0x%p", g_fn_IncScore);
     ztk_log("  FT_Ctor    = 0x%p", g_fn_FT_Ctor);
     ztk_log("  FT_Add     = 0x%p", g_fn_FT_Add);
     ztk_log("  FT_Dtor    = 0x%p", g_fn_FT_Dtor);
     ztk_log("  CRT_Free   = 0x%p", g_fn_free);
+    ztk_log("  DestroyAll = 0x%p", g_fn_DestroyAll);
 }
 
 __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
@@ -1316,6 +1315,21 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
     *(int*)((char*)board + 0x144)  = 0x100;
     *(char*)((char*)board + 0x154) = 0;
     *(char*)((char*)board + 0x155) = 0;
+
+    /* 4. Khusus mode Survival ([board + 0x15B] != 0):
+     *    Di mode Survival vanilla, blok 0x00421B1F melompati panggilan CurveMgr::DestroyAll (0x00411310).
+     *    Panggil CurveMgr::DestroyAll secara eksplisit pada setiap curve aktif agar bola di papan
+     *    langsung meledak/hancur saat cheat ditekan, sama seperti di Adventure dan Practice! */
+    if (*(char*)((char*)board + 0x15B) != 0 && g_fn_DestroyAll) {
+        int num_curves = *(int*)((char*)board + 0x8C);
+        for (int i = 0; i < num_curves; i++) {
+            void *curve = *(void**)((char*)board + 0x5C + i * 4);
+            if (curve) {
+                typedef void (__thiscall *fn_DestroyAll_t)(void *c);
+                ((fn_DestroyAll_t)g_fn_DestroyAll)(curve);
+            }
+        }
+    }
 
     ztk_log("DevVIP Cheat triggered: added %d points (score: %d/%d), primed destroyall",
             diff, cur_score + (diff > 0 ? diff : 0), target_score);
