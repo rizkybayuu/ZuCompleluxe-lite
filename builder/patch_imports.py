@@ -16,6 +16,7 @@ Keeps original Entry Point intact (NO entry point hijacking).
 import sys
 import os
 import struct
+import capstone
 
 sys.path.append(os.path.dirname(__file__))
 from pe_util import PEFile, align
@@ -264,7 +265,20 @@ def patch_imports(src_path, dst_path):
     off_ep = pe.rva_to_offset(ep_rva)
     if off_ep is None:
         raise RuntimeError("Cannot resolve Entry Point offset in PE")
-    disp_ep_bytes = bytes(pe.data[off_ep : off_ep + 5])
+
+    # Decode instructions at Entry Point until at least 5 bytes are covered
+    cs = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+    ep_sample = bytes(pe.data[off_ep : off_ep + 32])
+    displaced_len = 0
+    for ins in cs.disasm(ep_sample, ep_va):
+        displaced_len += ins.size
+        if displaced_len >= 5:
+            break
+    if displaced_len < 5:
+        raise RuntimeError(f"Could not decode >= 5 bytes from Entry Point (got {displaced_len})")
+
+    disp_ep_bytes = bytes(pe.data[off_ep : off_ep + displaced_len])
+    print(f"[OK] Entry Point displaced: {displaced_len} bytes ({disp_ep_bytes.hex(' ')})")
 
     last_sec = max(pe.sections, key=lambda s: s.virtual_address)
     zldr_rva = align(last_sec.virtual_address + max(last_sec.virtual_size, last_sec.raw_size), pe.section_alignment)
@@ -388,9 +402,9 @@ def patch_imports(src_path, dst_path):
     code_b[jz_done + 1] = len(code_b) - (jz_done + 2)
     code_b += b"\x9D"  # popfd
     code_b += b"\x61"  # popad
-    code_b += disp_ep_bytes  # execute displaced instruction from Entry Point
-    # jmp ep_va + 5:
-    rel_back = (ep_va + 5) - (code_start_va + len(code_b) + 5)
+    code_b += disp_ep_bytes  # execute displaced instruction(s) from Entry Point
+    # jmp ep_va + displaced_len:
+    rel_back = (ep_va + displaced_len) - (code_start_va + len(code_b) + 5)
     code_b += b"\xE9" + struct.pack("<i", rel_back)
 
     # .fatal_checker target
@@ -423,8 +437,11 @@ def patch_imports(src_path, dst_path):
 
     # Patch Entry Point @ ep_va:
     rel_ep = code_start_va - (ep_va + 5)
-    pe.data[off_ep : off_ep + 5] = b"\xE9" + struct.pack("<i", rel_ep)
-    print(f"[PATCH] Entry Point @ 0x{ep_va:08X} -> jmp 0x{code_start_va:08X}")
+    patch_ep = bytearray(b"\xE9" + struct.pack("<i", rel_ep))
+    if displaced_len > 5:
+        patch_ep.extend(b"\x90" * (displaced_len - 5))
+    pe.data[off_ep : off_ep + displaced_len] = patch_ep
+    print(f"[PATCH] Entry Point @ 0x{ep_va:08X} -> jmp 0x{code_start_va:08X} ({displaced_len} bytes patched)")
 
     # Save output
     pe.save(dst_path)
