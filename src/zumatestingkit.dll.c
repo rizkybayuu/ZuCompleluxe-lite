@@ -1272,9 +1272,9 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
             char vec_buf[16];
             memset(vec_buf, 0, sizeof(vec_buf));
 
-            /* Font 0x0B (Combo Font), Neon Cyan-Blue DevTester (0x00E5FF) */
+            /* Font 0x0B (Combo Font), Yellow (0xFFFF00) */
             typedef void (__thiscall *fn_FT_Ctor)(void *vec, void *s, int font_id, int color);
-            ((fn_FT_Ctor)g_fn_FT_Ctor)(vec_buf, str_obj, 0x0B, 0x00E5FF);
+            ((fn_FT_Ctor)g_fn_FT_Ctor)(vec_buf, str_obj, 0x0B, 0xFFFF00);
 
             void *fx_mgr = *(void**)((char*)board + 0x7C);
             if (fx_mgr) {
