@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Smart In-Game Stone Menubar Generator (`builder/patch_menubar.py`)**:
   - Synthesizes `menubar.jpg` and `_menubar.gif` for any arbitrary target width from master tile assets in `assets/media/`.
-  - Preserves the 5 HUD compartments (Lives, Stage/Level, Score, Zuma Bar, Menu) at native `1:1` unscaled size (`zero gepeng`); only bridge filler segments are stretched or trimmed. Bridge alpha smoothstep-blends to zero at narrow widths (≈ 480 px).
+  - Preserves the 5 HUD compartments (Lives, Stage/Level, Score, Zuma Bar, Menu) at native `1:1` unscaled size (`zero distortion`); only bridge filler segments are stretched or trimmed. Bridge alpha smoothstep-blends to zero at narrow widths (≈ 480 px).
   - Dynamically patches menubar margins (`top`, `bottom`, `left`, `right`) in `Zuma.exe` via AOB and synchronizes HUD element positions via `calc_hud_coords(w)`.
 
 - **`HappyEnding` Fit-To-Viewport Hook (`zumareshandler.dll`)**:

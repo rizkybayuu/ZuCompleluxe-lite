@@ -8,7 +8,7 @@ Constraints:
 - Global Minimum Window Resolution: 480x320.
 - Maximum Resolution: Unlimited (800x600, 1024x768, 1280x720, 1920x1080, etc.).
 - STRICT: The 5 top button/compartment areas (Lives, Stage/Level, Score, Zuma Bar, Menu)
-  MUST NEVER BE SQUISHED HORIZONTALLY (1.0x native unscaled size, ZERO GEPENG).
+  MUST NEVER BE SQUISHED HORIZONTALLY (1.0x native unscaled size, ZERO DISTORTION).
 - At 480px: Bridges removed/minimized with smoothstep alpha-blending across seams.
 - Provides calc_hud_coords(w) for synchronizing with zumareshandler.dll.
 """
@@ -180,7 +180,7 @@ def calc_hud_coords(w):
 def generate_menubar(v_rgb, v_mask, target_w, target_h, assets_dir=None):
     """
     Procedurally generates custom menubar and mask for target resolution.
-    Strictly enforces minimum 480x320 and 0 gepeng / 1.0x native button sizing.
+    Strictly enforces minimum 480x320 and zero distortion / 1.0x native button sizing.
     """
     target_w = max(MIN_W, target_w)
     target_h = max(MIN_H, target_h)
@@ -302,7 +302,7 @@ def generate_menubar(v_rgb, v_mask, target_w, target_h, assets_dir=None):
     else:
         # Minimum Boundary (480 <= W < 540, e.g. 480x320):
         # 5 Buttons at top with bridges minimized and smoothstep alpha blending between elements!
-        # ZERO GEPENG! 1.0x native unscaled button compartments!
+        # ZERO DISTORTION! 1.0x native unscaled button compartments!
         s1_rgb, s1_m = v_rgb[:42, :126], v_mask[:42, :126]
         s2_rgb, s2_m = v_rgb[:42, 165:241], v_mask[:42, 165:241]
         s3_rgb, s3_m = v_rgb[:42, 260:381], v_mask[:42, 260:381]

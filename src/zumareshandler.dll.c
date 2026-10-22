@@ -65,12 +65,12 @@ static int g_W = TARGET_W, g_H = TARGET_H;
 typedef struct {
     unsigned magic;                      /* 0x00 'ZRES' = 0x53455A52 */
     void *initdx, *ddinit, *gfxctor, *fillrect, *drawscreen;   /* 0x04..0x14 */
-    void *volatile slot;                 /* 0x18 -> &ZApi; 0 = DLL belum aktif */
+    void *volatile slot;                 /* 0x18 -> &ZApi; 0 = DLL not yet active */
     volatile unsigned tried;             /* 0x1C */
-    float negx, negy;                    /* 0x20,0x24  batas kiri/atas peluru (-Xoff,-Yoff) */
-    int   rlim, blim;                    /* 0x28,0x2C  batas kanan/bawah peluru (W-Xoff, H-Yoff) */
-    int   dminx, dmaxx, dminy, dmaxy;    /* 0x30..0x3C clamp drag dialog */
-    int   bw, bh;                        /* 0x40,0x44  ukuran Board saat dibuat (default 640x480) */
+    float negx, negy;                    /* 0x20,0x24  projectile left/top clamp bounds (-Xoff,-Yoff) */
+    int   rlim, blim;                    /* 0x28,0x2C  projectile right/bottom clamp bounds (W-Xoff, H-Yoff) */
+    int   dminx, dmaxx, dminy, dmaxy;    /* 0x30..0x3C dialog drag clamp bounds */
+    int   bw, bh;                        /* 0x40,0x44  Board size on creation (default 640x480) */
 } ZTable;
 
 _Static_assert(sizeof(ZTable) == 0x48, "ZTable layout");

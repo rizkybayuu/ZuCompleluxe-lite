@@ -1200,15 +1200,15 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
     drawImage(graphics, g_ImageAdvTemple5, ztk_sx(126), ztk_sy(148));
 
     /* 2. Render advdoor5 at center(323, 201), size(64, 50) -> top-left (291, 176) */
-    int door_cel = 0; /* Frame 0: Open (Hitam) */
+    int door_cel = 0; /* Frame 0: Open (Black) */
     if (g_Door5Selected) {
-        door_cel = 2; /* Frame 2: Click (Merah) */
+        door_cel = 2; /* Frame 2: Click (Red) */
     } else if (g_Door5Hover) {
-        door_cel = 1; /* Frame 1: Hover (Hijau) */
+        door_cel = 1; /* Frame 1: Hover (Green) */
     }
     drawImageCel(graphics, g_ImageAdvDoor5, ztk_sx(291), ztk_sy(176), door_cel);
 
-    /* 3. Re-apply 50% Fog (1/2 pengaruh kabut) via IMAGE_ADVMIDDLE overlay */
+    /* 3. Re-apply 50% Fog via IMAGE_ADVMIDDLE overlay */
     void *advmiddle = *(void**)0x00547EB4;
     if (advmiddle) {
         setColorize(graphics, 1);
@@ -1376,9 +1376,9 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
 {
     if (!ZTK_IsActive() || !is_current_user_dev_tester() || !board) return;
 
-    /* Pastikan hanya dieksekusi saat gameplay aktif:
+    /* Ensure execution only while gameplay is active:
      * [board + 0xC8] (mGameState) == 1 (Board::UpdatePlaying)
-     * [board + 0xCC] (mPauseCount) == 0 (tidak sedang pause / dialog) */
+     * [board + 0xCC] (mPauseCount) == 0 (not paused / no modal dialog active) */
     int game_state = *(int*)((char*)board + 0xC8);
     int pause_count = *(int*)((char*)board + 0xCC);
     if (game_state != 1 || pause_count != 0) return;
@@ -1403,7 +1403,7 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
     int target_score = *(int*)((char*)board + 0x134);
     int diff = target_score - cur_score;
 
-    /* 1. Tambahkan selisih skor ke Board agar skor mencapai targetScore */
+    /* 1. Add score difference to Board so score reaches targetScore */
     if (diff > 0) {
         if (g_fn_IncScore) {
             typedef void (__thiscall *fn_IncScore)(void *b, int amt, char p2);
@@ -1412,7 +1412,7 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
             *(int*)((char*)board + 0xB8) = target_score;
         }
 
-        /* 2. Munculkan FloatingText "+<diff>" tepat di posisi pointer mouse */
+        /* 2. Spawn FloatingText "+<diff>" precisely at mouse pointer position */
         int fx_x = 0, fx_y = 0;
         void *app = *(void**)((char*)board + 0xB4);
         void *wm = *(void**)((char*)board + 0x24);
@@ -1477,31 +1477,31 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
         }
     }
 
-    /* 3. Picu transisi native Zuma Bar-Full + DestroyAll pada tick FUN_00421a10 berikutnya:
-     *    - JANGAN menyentuh [board + 0x15B] (mIsSurvival)!
-     *    - JANGAN memanggil WinLevel secara paksa!
+    /* 3. Trigger native Zuma Bar-Full + DestroyAll transition on next FUN_00421a10 tick:
+     *    - DO NOT modify [board + 0x15B] (mIsSurvival)!
+     *    - DO NOT invoke WinLevel forcefully!
      *    - [board + 0x140] = 0x100: bar state ready
-     *    - [board + 0x144] = 0x100: progress bar penuh
-     *    - [board + 0x154] = 0: aktifkan flag DestroyAll pada Board
-     *    - [board + 0x155] = 0: reset mHasZuma agar blok 0x00421AC7 dieksekusi di tick berikutnya,
-     *      memanggil FUN_00411310 pada semua curve, memutar suara ZUMA! + DestroyAll,
-     *      dan menyelesaikan stage otomatis begitu semua bola meledak */
+     *    - [board + 0x144] = 0x100: progress bar full
+     *    - [board + 0x154] = 0: activate DestroyAll flag on Board
+     *    - [board + 0x155] = 0: reset mHasZuma so block 0x00421AC7 executes on next tick,
+     *      invoking FUN_00411310 across all curves, playing ZUMA! + DestroyAll sound,
+     *      and clearing the stage automatically once all balls detonate */
     *(int*)((char*)board + 0x140)  = 0x100;
     *(int*)((char*)board + 0x144)  = 0x100;
     *(char*)((char*)board + 0x154) = 0;
     *(char*)((char*)board + 0x155) = 0;
 
-    /* 4. Khusus mode Survival ([board + 0x15B] != 0):
-     *    Di mode Survival vanilla, blok 0x00421B1F melompati panggilan CurveMgr::DestroyAll (0x00411310).
-     *    Panggil CurveMgr::DestroyAll secara eksplisit pada setiap curve aktif agar bola di papan
-     *    langsung meledak/hancur saat cheat ditekan, sama seperti di Adventure dan Practice!
+    /* 4. Survival mode handling ([board + 0x15B] != 0):
+     *    In vanilla Survival mode, block 0x00421B1F skips the CurveMgr::DestroyAll call (0x00411310).
+     *    Invoke CurveMgr::DestroyAll explicitly on each active curve so balls on the board
+     *    detonate immediately when cheat is triggered, matching Adventure and Practice modes!
      *
-     *    CATATAN ARSITEKTUR ENGINE POPCAP & ZUMAEXTRAPATH:
-     *    Array active CurveMgr disimpan di [board + 0x68] (mActiveCurveMgrs = void**), BUKAN flat struct
-     *    di [board + 0x5C]! Di game vanilla, [board + 0x68] menunjuk ke &board->mCurveMgr[0] (3 curve).
-     *    Ketika zumaextrapath.dll aktif (path ke-4 dst), [board + 0x68] menunjuk ke array dinamis.
-     *    Mengakses [board + 0x5C + i*4] untuk i=3 malah membaca [board + 0x68] (pointer array itu sendiri),
-     *    sehingga memanggil DestroyAll pada pointer array -> CRASH di 0x0041132A dan curve 4 tidak hancur! */
+     *    POPCAP ENGINE & ZUMAEXTRAPATH ARCHITECTURE NOTES:
+     *    The active CurveMgr array is stored at [board + 0x68] (mActiveCurveMgrs = void**), NOT flat struct
+     *    at [board + 0x5C]! In vanilla Zuma, [board + 0x68] points to &board->mCurveMgr[0] (3 curves).
+     *    When zumaextrapath.dll is active (curve 4+), [board + 0x68] points to a dynamic heap pointer array.
+     *    Accessing [board + 0x5C + i*4] for i>=3 reads [board + 0x68] itself (the array pointer),
+     *    invoking DestroyAll on the array pointer -> CRASH at 0x0041132A and extra curves are not destroyed! */
     if (*(char*)((char*)board + 0x15B) != 0 && g_fn_DestroyAll) {
         int num_curves = *(int*)((char*)board + 0x8C);
         void **active_curves = *(void***)((char*)board + 0x68);
@@ -1543,9 +1543,9 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
         return 0;
     }
 
-    /* 1. Sembunyikan keempat sibling widget tutorial vanilla (+0x60, +0x64, +0x68, +0x6C)
-     *    dengan mengatur field mVisible (+0x19) = 0.
-     *    Biarkan Checkbox (+0x70) dan tombol OK (+0x74) tetap aktif dan terlihat. */
+    /* 1. Hide the four vanilla tutorial sibling widgets (+0x60, +0x64, +0x68, +0x6C)
+     *    by setting field mVisible (+0x19) = 0.
+     *    Keep Checkbox (+0x70) and OK button (+0x74) active and visible. */
     for (int off = 0x60; off <= 0x6C; off += 4) {
         void *w = *(void**)((char*)helpScreen + off);
         if (w) {
@@ -1553,13 +1553,13 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
         }
     }
 
-    /* 2. Ambil pointer image dari ResourceManager */
+    /* 2. Retrieve image pointers from ResourceManager */
     void *imgHelpBackDev  = ztk_get_res_image(g_ResMgr, "IMAGE_HELP_BACK_DEV");
     void *imgHelpFrontDev = ztk_get_res_image(g_ResMgr, "IMAGE_HELP_FRONT_DEV");
     void *imgTutMouseM    = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_MOUSE_M");
     void *imgTutTemple5   = ztk_get_res_image(g_ResMgr, "IMAGE_TUT_TEMPLE5");
 
-    /* Bola tutorial diambil langsung dari gambar bola baBall PopCap */
+    /* Tutorial balls rendered directly from native PopCap baBall textures */
     void *imgBallRed    = ztk_get_res_image(g_ResMgr, "IMAGE_RED_BALL");
     void *imgBallYellow = ztk_get_res_image(g_ResMgr, "IMAGE_YELLOW_BALL");
     void *imgBallGreen  = ztk_get_res_image(g_ResMgr, "IMAGE_GREEN_BALL");
@@ -1577,13 +1577,13 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
         imgHelpBackDev = *g_ppImageHelpBack;
     }
     if (!imgHelpFrontDev) {
-        return 0; /* Fallback jika aset belum termuat */
+        return 0; /* Fallback if assets not yet loaded */
     }
 
     fn_DrawImage drawImage       = (fn_DrawImage)g_fn_DrawImage;
     fn_DrawImageCel drawImageCel = (fn_DrawImageCel)g_fn_DrawImageCel;
 
-    /* 3. Dynamic Resolution Scaling: Mendapatkan dimensi HelpScreen secara adaptif */
+    /* 3. Dynamic Resolution Scaling: Adaptively retrieve HelpScreen dimensions */
     int scr_w = *(int*)((char*)helpScreen + 0x10);
     int scr_h = *(int*)((char*)helpScreen + 0x14);
     if (scr_w <= 0 || scr_h <= 0) {
@@ -1608,17 +1608,17 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     int col1_cx = (int)(162.0f * s + 0.5f);
     int col2_cx = scr_w - col1_cx;
 
-    /* Render latar batu utuh dan bingkai emas ber-mask murni local space */
+    /* Render solid stone background and gold masked frame in local coordinate space */
     if (imgHelpBackDev) {
         drawImage(graphics, imgHelpBackDev, D_LX(11), D_LY(51));
     }
     drawImage(graphics, imgHelpFrontDev, 0, 0);
 
     /* 4. Font PopCap Native:
-     *    fontTitle: FONT_BROWNTITLE (NativeAlienExtended16) dengan Sandy Aztec Glow
-     *    fontHeading: FONT_FLOAT (CancunFloat14) asli PopCap
-     *    fontBody: FONT_MAIN10 (Cancun10) untuk teks penjelasan
-     *    fontPlain: FONT_PLAIN (Arial12Bold) khusus untuk CLICK!
+     *    fontTitle: FONT_BROWNTITLE (NativeAlienExtended16) with Sandy Aztec Glow
+     *    fontHeading: FONT_FLOAT (CancunFloat14) native PopCap
+     *    fontBody: FONT_MAIN10 (Cancun10) for instructional body text
+     *    fontPlain: FONT_PLAIN (Arial12Bold) specifically for CLICK! labels
      */
     void *fontTitle   = g_ppFontBrownTitle ? *g_ppFontBrownTitle : NULL;
     void *fontHeading = (g_ppFontCancun14 && *g_ppFontCancun14) ? *g_ppFontCancun14 : (g_ppFontDialog ? *g_ppFontDialog : fontTitle);
@@ -1632,8 +1632,8 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     PopCapColor colWhite  = { 255, 255, 255, 255 }; /* 0xFFFFFF - Crisp White */
 
     /* =========================================================================
-     * HEADER: "DEVELOPER MODE" terpusat secara adaptif (cx = scr_w / 2)
-     * Efek: Sandy Grain Glow (tekstur granular pasir Aztec)
+     * HEADER: "DEVELOPER MODE" adaptively centered (cx = scr_w / 2)
+     * Effect: Sandy Grain Glow (Aztec sand granular texture)
      * ========================================================================= */
     if (fontTitle) {
         ztk_draw_text_sandy_glow(graphics, fontTitle, "DEVELOPER MODE", cx, D_LY(28));
@@ -1644,13 +1644,13 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     }
 
     /* =========================================================================
-     * SECTION 1 (KIRI): ADVENTURE MODE (Center: col1_cx)
+     * SECTION 1 (LEFT): ADVENTURE MODE (Center: col1_cx)
      * ========================================================================= */
     if (fontHeading) {
         ztk_draw_text_centered(graphics, fontHeading, "ADVENTURE MODE", col1_cx, D_LY(108), &colYellow);
     }
 
-    /* Gambar preview Temple 5 dengan pintu hijau bersinar (190x75, terpusat di col1_cx) */
+    /* Temple 5 preview graphic with glowing green door (190x75, centered at col1_cx) */
     if (imgTutTemple5) {
         int temple_x = col1_cx - 190 / 2;
         drawImage(graphics, imgTutTemple5, temple_x, D_LY(114));
@@ -1663,7 +1663,7 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     }
 
     /* =========================================================================
-     * SECTION 2 (KANAN): GAUNTLET MODE (Center: col2_cx)
+     * SECTION 2 (RIGHT): GAUNTLET MODE (Center: col2_cx)
      * ========================================================================= */
     if (fontHeading) {
         ztk_draw_text_centered(graphics, fontHeading, "GAUNTLET MODE", col2_cx, D_LY(108), &colYellow);
@@ -1678,7 +1678,7 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     }
 
     /* =========================================================================
-     * SECTION 3 (BAWAH): MIDDLE MOUSE BUTTON CHEAT (Center: col1_cx)
+     * SECTION 3 (BOTTOM): MIDDLE MOUSE BUTTON CHEAT (Center: col1_cx)
      * ========================================================================= */
     if (fontHeading) {
         ztk_draw_text_centered(graphics, fontHeading,
@@ -1699,13 +1699,13 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     }
 
     /* =========================================================================
-     * DEMO INTERAKTIF: 5 BOLA + ANIMASI KLIK TENGAH DESTROYALL (Center: col2_cx)
+     * INTERACTIVE DEMO: 5 BALLS + MIDDLE CLICK DESTROYALL ANIMATION (Center: col2_cx)
      * ========================================================================= */
     int update_cnt = *(int*)((char*)helpScreen + 0x4C);
     int cycle = update_cnt % 180;
     int is_clicking = (cycle >= 100 && cycle <= 145);
 
-    /* 5 Bola Zuma berjejer rapat 32px (total 160px) terpusat di col2_cx */
+    /* 5 Zuma balls spaced 32px apart (total 160px) centered at col2_cx */
     int ball_center_x = col2_cx;
     int base_ball_x = ball_center_x - (5 * 32) / 2;
     int ball_x[5] = {
@@ -1717,7 +1717,7 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     };
     int ball_y = D_LY(295);
 
-    /* Putaran bola ke arah kanan dengan tempo lambat */
+    /* Clockwise ball rotation with slow cadence */
     int ball_cel = (50 - ((update_cnt / 3) % 50)) % 50;
 
     void *ball_imgs[5] = {
@@ -1729,7 +1729,7 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     };
 
     if (cycle < 100) {
-        /* FASE 1: 5 Bola berputar ke arah kanan dengan orientasi diputar 90 derajat CCW (-PI/2) */
+        /* PHASE 1: 5 balls rotating clockwise with 90 degree CCW orientation (-PI/2) */
         for (int i = 0; i < 5; i++) {
             if (ball_imgs[i]) {
                 int rows = *(int*)((char*)ball_imgs[i] + 0xC);
@@ -1749,20 +1749,20 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
             }
         }
     } else if (cycle <= 145) {
-        /* FASE 2: Middle Click terpicu -> Animasi ledakan DestroyAll dengan Additive Blending (mDrawMode=1) */
+        /* PHASE 2: Middle click triggered -> DestroyAll explosion animation with Additive Blending (mDrawMode=1) */
         int exp_frame = (cycle - 100) / 3; /* 0 .. 15 */
         if (exp_frame > 16) exp_frame = 16;
 
         if (g_ImageExplosion) {
             int old_draw_mode = *(int*)((char*)graphics + 0x44);
-            *(int*)((char*)graphics + 0x44) = 1; /* PopCap Additive Blending: hilangkan kotak hitam */
+            *(int*)((char*)graphics + 0x44) = 1; /* PopCap Additive Blending: eliminate black border box */
             for (int i = 0; i < 5; i++) {
                 drawImageCel(graphics, g_ImageExplosion, ball_x[i] - 26, ball_y - 27, exp_frame);
             }
-            *(int*)((char*)graphics + 0x44) = old_draw_mode; /* Kembalikan ke mode normal */
+            *(int*)((char*)graphics + 0x44) = old_draw_mode; /* Restore to normal draw mode */
         }
 
-        /* Skor floating bonus (+100) melayang naik ke atas khas DestroyAll Zuma */
+        /* Floating bonus score (+100) rising upwards matching Zuma DestroyAll */
         int float_offset = (cycle - 100) / 2;
         if (fontBody) {
             for (int i = 0; i < 5; i++) {
@@ -1770,19 +1770,19 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
             }
         }
     } else {
-        /* FASE 3: Bola telah hancur sepenuhnya (Clear!) */
+        /* PHASE 3: Balls fully cleared (Clear!) */
         if (fontBody) {
             ztk_draw_text_centered(graphics, fontBody, "STAGE CLEARED!", ball_center_x, ball_y + 8, &colGold);
         }
     }
 
-    /* Ikon Animasi Mouse terpusat di bawah 5 bola (Sprite tut_mouse_m unscaled 40x29) */
+    /* Mouse animation icon centered beneath 5 balls (Sprite tut_mouse_m unscaled 40x29) */
     if (imgTutMouseM) {
         int cel = is_clicking ? 1 : 0;
         int mouse_y = D_LY(350);
         int mouse_x = ball_center_x + 30;
 
-        /* Label status animasi di atas mouse: Arial CLICK! saat tombol tengah ditekan */
+        /* Animation status label above mouse: Arial CLICK! when middle button is pressed */
         if (is_clicking && fontPlain) {
             ztk_draw_text_centered(graphics, fontPlain, "CLICK!", ball_center_x - 20, mouse_y + 12, &colWhite);
         }

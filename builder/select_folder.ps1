@@ -113,8 +113,8 @@ $otherExes = Get-ChildItem -Path $selectedPath -Filter "*.exe" -File -ErrorActio
 if (-not (Test-Path $zumaExe) -and -not (Test-Path $zumaBak) -and -not (Test-Path $zumaModBak) -and -not (Test-Path $zumaModOrig) -and -not (Test-Path $zumaModBase) -and (-not $otherExes)) {
     Add-Type -AssemblyName System.Windows.Forms
     $res = [System.Windows.Forms.MessageBox]::Show(
-        "Executable Zuma Deluxe tidak ditemukan di folder:`n$selectedPath`n`nApakah Anda yakin ingin tetap mem-patch folder ini?",
-        "Konfirmasi Folder Zuma",
+        "Zuma Deluxe executable was not found in folder:`n$selectedPath`n`nAre you sure you want to patch this folder anyway?",
+        "Zuma Folder Confirmation",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Warning
     )
