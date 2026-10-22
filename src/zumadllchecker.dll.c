@@ -376,7 +376,11 @@ static void DrawModernCheckbox(HDC hdc, RECT *rc, bool isChecked, bool isMandato
 
     COLORREF bgCol, borderCol, checkCol;
     if (isDark) {
-        if (isMissing || isLiteExcluded) {
+        if (isLiteExcluded) {
+            bgCol = RGB(36, 36, 40);
+            borderCol = RGB(85, 85, 95);
+            checkCol = RGB(150, 150, 160);
+        } else if (isMissing) {
             bgCol = RGB(45, 25, 25);
             borderCol = RGB(160, 45, 45);
             checkCol = RGB(239, 68, 68);
@@ -394,7 +398,11 @@ static void DrawModernCheckbox(HDC hdc, RECT *rc, bool isChecked, bool isMandato
             checkCol = RGB(0, 0, 0);
         }
     } else {
-        if (isMissing || isLiteExcluded) {
+        if (isLiteExcluded) {
+            bgCol = RGB(242, 242, 245);
+            borderCol = RGB(175, 175, 182);
+            checkCol = RGB(130, 130, 138);
+        } else if (isMissing) {
             bgCol = RGB(254, 242, 242);
             borderCol = RGB(239, 68, 68);
             checkCol = RGB(220, 38, 38);
@@ -434,7 +442,14 @@ static void DrawModernCheckbox(HDC hdc, RECT *rc, bool isChecked, bool isMandato
         LineTo(hdc, boxX + 6, boxY + 10);
         LineTo(hdc, boxX + 11, boxY + 4);
         DeleteObject(hCheckPen);
-    } else if (isMissing || isLiteExcluded) {
+    } else if (isLiteExcluded) {
+        /* Omitted sidecar in Lite Edition: subtle horizontal grey dash */
+        HPEN hDashPen = CreatePen(PS_SOLID, 2, checkCol);
+        SelectObject(hdc, hDashPen);
+        MoveToEx(hdc, boxX + 4, boxY + 7, NULL);
+        LineTo(hdc, boxX + 11, boxY + 7);
+        DeleteObject(hDashPen);
+    } else if (isMissing) {
         HPEN hXPen = CreatePen(PS_SOLID, 1, checkCol);
         SelectObject(hdc, hXPen);
         MoveToEx(hdc, boxX + 4, boxY + 4, NULL);
@@ -578,7 +593,7 @@ static void DrawModuleRow(HDC hdc, int i, int rowY, COLORREF colTextPri, COLORRE
 #ifdef ZUCOMPLELUXE_LITE
         if (g_modules[i].is_lite_excluded) {
             SetTextColor(hdc, colDisabled);
-            TextOutA(hdc, 495, rowY, "[DISABLED]", 10);
+            TextOutA(hdc, 495, rowY, "[OMITTED]", 9);
         } else
 #endif
         if (!g_modules[i].exists) {

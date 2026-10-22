@@ -415,7 +415,7 @@ set "DLL_STATUS_zumaextrapath.dll=skipped (omitted in lite)"
 set "DLL_STATUS_zumaextracolor.dll=skipped (omitted in lite)"
 
 echo -------------------------------------------------------
-echo  [FILE 1/6] Building zumadllchecker.dll - Lite Module and Dependency Checker ...
+echo  [FILE 1/6] Building zumadllchecker.dll - Lite Diagnostic Gatekeeper ...
 echo -------------------------------------------------------
 set "OUT=zumadllchecker.dll"
 set "SRC=src\zumadllchecker.dll.c"
@@ -431,8 +431,7 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 2/6] Building zumacustommap.dll - Gauntlet custom map sidecar ...
-echo -------------------------------------------------------
+echo  [FILE 2/6] Building zumacustommap.dll - Gauntlet Custom Map Sidecar ...
 echo -------------------------------------------------------
 set "OUT=zumacustommap.dll"
 set "SRC=src\zumacustommap.dll.c"
@@ -448,9 +447,7 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo -------------------------------------------------------
-echo  [FILE 3/6] Building zumacplxcredit.dll - Developer Credits sidecar ...
-echo -------------------------------------------------------
+echo  [FILE 3/6] Building zumacplxcredit.dll - Developer Credits Sidecar ...
 echo -------------------------------------------------------
 set "OUT=zumacplxcredit.dll"
 set "SRC=src\zumacplxcredit.dll.c"
@@ -466,9 +463,7 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo -------------------------------------------------------
-echo  [FILE 4/6] Building zumatestingkit.dll - Developer Testing Kit sidecar ...
-echo -------------------------------------------------------
+echo  [FILE 4/6] Building zumatestingkit.dll - Developer Testing Kit Sidecar ...
 echo -------------------------------------------------------
 set "OUT=zumatestingkit.dll"
 set "SRC=src\zumatestingkit.dll.c"
@@ -483,8 +478,6 @@ if errorlevel 1 (
 )
 echo.
 
-echo -------------------------------------------------------
-echo -------------------------------------------------------
 echo -------------------------------------------------------
 echo  [FILE 5/6] Building zumadisplay.dll - Display ^& Window Driver ...
 echo -------------------------------------------------------
@@ -518,9 +511,12 @@ if errorlevel 1 (
 echo.
 
 REM =======================================================================
-echo [LITE] Skipping zumawebpbg.dll and zumawebpsprite.dll - Omitted in Lite Edition
-echo [LITE] Skipping zumaextrapath.dll - Omitted in Lite Edition
-echo [LITE] Skipping zumaextracolor.dll - Omitted in Lite Edition
+echo -------------------------------------------------------
+echo  [LITE] Omitted Feature Sidecars in Lite Edition:
+echo  - zumawebpbg.dll / zumawebpsprite.dll (Animated WebP Engine)
+echo  - zumaextrapath.dll (Multi-Path Subsystem)
+echo  - zumaextracolor.dll (11-Ball Color Palettes)
+echo -------------------------------------------------------
 echo.
 
 REM [PRIORITY 5] Synthesizing and Patching Executable
@@ -533,49 +529,49 @@ del /f /q "!PATCH_LOG!" >nul 2>&1
 set "ALL_OK=1"
 
 REM 1. Inject static sidecar imports into .zdata
-echo [PATCHING] Injecting static sidecar imports into .zdata...
+echo [PATCH 1/5] Injecting static sidecar imports into .zdata ...
 "!PYTHON_BIN!" "builder\patch_imports.py" "!SRC_VANILLA!" "!BUILD_TMP!\Zuma.exe" --lite >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_imports.py"
     goto PatchFailed
 )
-echo [OK] Static sidecar imports injected.
+echo [OK] Static sidecar imports injected successfully.
 
 REM 6. Custom Map Gauntlet support via .zcm and zumacustommap.dll
-echo [PATCHING] Applying Custom Map Gauntlet support via .zcm and zumacustommap.dll...
+echo [PATCH 2/5] Applying Custom Map Gauntlet support via .zcm and zumacustommap.dll ...
 "!PYTHON_BIN!" "builder\patch_custommap.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_custommap.py"
     goto PatchFailed
 )
-echo [OK] Custom Map Gauntlet support applied.
+echo [OK] Custom Map Gauntlet support applied successfully.
 
 REM 7. Developer Credits via .zcc and zumacplxcredit.dll
-echo [PATCHING] Applying Developer Credits support via .zcc and zumacplxcredit.dll...
+echo [PATCH 3/5] Applying Developer Credits support via .zcc and zumacplxcredit.dll ...
 "!PYTHON_BIN!" "builder\patch_zccredit.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_zccredit.py"
     goto PatchFailed
 )
-echo [OK] Developer Credits support applied.
+echo [OK] Developer Credits support applied successfully.
 
 REM 8. Developer Testing Kit via .ztk and zumatestingkit.dll
-echo [PATCHING] Applying Developer Testing Kit support via .ztk and zumatestingkit.dll...
+echo [PATCH 4/5] Applying Developer Testing Kit support via .ztk and zumatestingkit.dll ...
 "!PYTHON_BIN!" "builder\patch_testingkit.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_testingkit.py"
     goto PatchFailed
 )
-echo [OK] Developer Testing Kit support applied.
+echo [OK] Developer Testing Kit support applied successfully.
 
 REM 9. Resolution ^& Viewport Config via .zres and zumareshandler.dll
-echo [PATCHING] Applying Resolution ^& Viewport Config ^(!CUSTOM_W!x!CUSTOM_H!^) via .zres and zumareshandler.dll...
+echo [PATCH 5/5] Applying Resolution ^& Viewport Config ^(!CUSTOM_W!x!CUSTOM_H!^) via .zres and zumareshandler.dll ...
 "!PYTHON_BIN!" "builder\patch_customres.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" -W !CUSTOM_W! -H !CUSTOM_H! >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_customres.py"
     goto PatchFailed
 )
-echo [OK] Resolution ^& Viewport Config applied.
+echo [OK] Resolution ^& Viewport Config applied successfully.
 
 REM Deploy patched executable to target folder
 copy /y "!BUILD_TMP!\Zuma.exe" "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" >nul

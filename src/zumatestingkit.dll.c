@@ -1497,24 +1497,48 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
      *    detonate immediately when cheat is triggered, matching Adventure and Practice modes!
      *
      *    POPCAP ENGINE & ZUMAEXTRAPATH ARCHITECTURE NOTES:
-     *    The active CurveMgr array is stored at [board + 0x68] (mActiveCurveMgrs = void**), NOT flat struct
-     *    at [board + 0x5C]! In vanilla Zuma, [board + 0x68] points to &board->mCurveMgr[0] (3 curves).
-     *    When zumaextrapath.dll is active (curve 4+), [board + 0x68] points to a dynamic heap pointer array.
-     *    Accessing [board + 0x5C + i*4] for i>=3 reads [board + 0x68] itself (the array pointer),
-     *    invoking DestroyAll on the array pointer -> CRASH at 0x0041132A and extra curves are not destroyed! */
+     *    In vanilla Zuma / Lite Edition, curves 0..2 are stored as inline pointers at
+     *    [board + 0x5C + i*4], while [board + 0x68] is mStagingCurves[0] (a Curve* object,
+     *    NOT an array of pointers!).
+     *    Only when zumaextrapath.dll is active does patch_extrapath.py replace [board + 0x68]
+     *    with a dynamically allocated heap array of pointers (Curve**).
+     *    Therefore, we always inspect the first curve at [board + 0x5C] to retrieve the
+     *    legitimate Curve vftable, and verify every candidate pointer against that vftable
+     *    before invoking DestroyAll. */
     if (*(char*)((char*)board + 0x15B) != 0 && g_fn_DestroyAll) {
         int num_curves = *(int*)((char*)board + 0x8C);
-        void **active_curves = *(void***)((char*)board + 0x68);
+        if (num_curves < 1) num_curves = 1;
+        if (num_curves > 10) num_curves = 10;
+
+        void *curve0 = *(void**)((char*)board + 0x5C);
+        void *curve_vftable = NULL;
+        if (curve0 && !IsBadReadPtr(curve0, sizeof(void*))) {
+            curve_vftable = *(void**)curve0;
+        }
+
+        int has_extrapath = (GetModuleHandleA("zumaextrapath.dll") != NULL);
+        void **extra_curves = NULL;
+        if (has_extrapath) {
+            void *ptr68 = *(void**)((char*)board + 0x68);
+            if (ptr68 && !IsBadReadPtr(ptr68, sizeof(void*) * num_curves)) {
+                if (!curve_vftable || *(void**)ptr68 != curve_vftable) {
+                    extra_curves = (void**)ptr68;
+                }
+            }
+        }
+
         for (int i = 0; i < num_curves; i++) {
             void *curve = NULL;
-            if (active_curves && !IsBadReadPtr(&active_curves[i], sizeof(void*))) {
-                curve = active_curves[i];
-            } else if (i < 3) {
+            if (i < 3) {
                 curve = *(void**)((char*)board + 0x5C + i * 4);
+            } else if (extra_curves) {
+                curve = extra_curves[i];
             }
             if (curve && !IsBadReadPtr(curve, 0x40)) {
-                typedef void (__thiscall *fn_DestroyAll_t)(void *c);
-                ((fn_DestroyAll_t)g_fn_DestroyAll)(curve);
+                if (!curve_vftable || *(void**)curve == curve_vftable) {
+                    typedef void (__thiscall *fn_DestroyAll_t)(void *c);
+                    ((fn_DestroyAll_t)g_fn_DestroyAll)(curve);
+                }
             }
         }
     }

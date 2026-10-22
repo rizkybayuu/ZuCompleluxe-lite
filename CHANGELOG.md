@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Extraneous asset backups (`baDotz.gif`, `resources.xml`) have been completely eliminated from `modules\bak\`.
 - **Lite Edition 6-Color Integrity Enforcement (`build_lite.bat`)**:
   - Asset pipeline in `--lite` mode strictly bypasses 11-color asset synthesis, automatically restoring native 6-dot `baDotz.gif` dimensions and eliminating dotz frame offset errors in Lite builds.
+- **Dedicated Omitted Status & Visual Styling in Diagnostic Gatekeeper (`zumadllchecker.dll`)**:
+  - Replaced misleading red cross / `[DISABLED]` badges for omitted Lite sidecars with a dedicated muted grey rounded box featuring a horizontal strip dash (`-`) and explicit `[OMITTED]` badge text.
+- **Build Console UI Standardization (`build_full.bat` & `build_lite.bat`)**:
+  - Eliminated redundant stacked dividers between modules in Lite edition.
+  - Standardized uniform module header borders and sequential patch steps (`[PATCH X/N]`) across both editions.
+
+### Fixed
+- **DevVIP Middle-Click Cheat Survival Mode Access Violation (`0x0041131F`)**:
+  - Fixed a crash in `zumatestingkit.dll` when triggering middle-click cheat in Survival mode under Lite Edition or without `zumaextrapath.dll`.
+  - In vanilla Zuma, `[board + 0x68]` points to a `Curve*` object (`mStagingCurves[0]`) rather than a dynamic heap pointer array (`Curve**`). Dereferencing it as an array passed the Curve vftable (`0x004FE5EC`) to `CurveMgr::DestroyAll`, resulting in crash at `0x0041131F`.
+  - Added dynamic verification of `has_extrapath`, fallback to inline curve array (`board + 0x5C + i*4`), and runtime Curve vftable sanity checking before invoking `DestroyAll`.
 
 ## [0.5.0] - 2026-10-22
 
