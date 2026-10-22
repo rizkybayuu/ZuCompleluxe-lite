@@ -181,7 +181,7 @@ def patch_resources_file(zuma_dir, is_lite=False):
     """
     Maintains dual-manifest architecture:
     - properties/resources.xml: STRICTLY vanilla 6 colors (baDotz, cols=6).
-    - properties/resource_extra.xml: 11 colors (baDotz_extra, cols=11).
+    - properties/resources_extra.xml: 11 colors (baDotz_extra, cols=11).
     """
     p_res = os.path.join(zuma_dir, 'properties', 'resources.xml')
     if not os.path.isfile(p_res):
@@ -245,7 +245,7 @@ def patch_resources_file(zuma_dir, is_lite=False):
         f.write(text_clean)
     print("  [OK] resources.xml preserved as clean vanilla 6-color manifest (cols=6).")
 
-    # In Full Edition, generate 11-color properties/resource_extra.xml & resources_extra.xml
+    # In Full Edition, generate 11-color properties/resources_extra.xml
     if not is_lite:
         extra_balls = (
             '<Image id="WHITE_BALL"\t\t\t\t\t\tpath="baBallWhite" alphagrid="_ballalpha" rows=50 />\n'
@@ -274,13 +274,18 @@ def patch_resources_file(zuma_dir, is_lite=False):
             pattern = rf'<Image\s+id="{anchor}"[^>]*/>'
             text_extra = re.sub(pattern, '\n'.join(inserted), text_extra)
 
-        p_extra = os.path.join(zuma_dir, 'properties', 'resource_extra.xml')
-        p_extra_alt = os.path.join(zuma_dir, 'properties', 'resources_extra.xml')
+        p_extra = os.path.join(zuma_dir, 'properties', 'resources_extra.xml')
         with open(p_extra, 'w', encoding='utf-8', newline='\r\n') as f:
             f.write(text_extra)
-        with open(p_extra_alt, 'w', encoding='utf-8', newline='\r\n') as f:
-            f.write(text_extra)
-        print("  [OK] resource_extra.xml generated with 11-color support (baDotz_extra, cols=11).")
+        print("  [OK] resources_extra.xml generated with 11-color support (baDotz_extra, cols=11).")
+
+        # Clean up legacy resource_extra.xml if present
+        legacy_extra = os.path.join(zuma_dir, 'properties', 'resource_extra.xml')
+        if os.path.isfile(legacy_extra):
+            try:
+                os.remove(legacy_extra)
+            except Exception:
+                pass
 
 
 def patch_dialog_button(zuma_dir, tables):
