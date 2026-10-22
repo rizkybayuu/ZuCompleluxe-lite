@@ -290,75 +290,8 @@ def patch_resources_file(zuma_dir):
 
 
 def patch_levels_file(zuma_dir, is_lite=False):
-    p_lvl = os.path.join(zuma_dir, 'levels', 'levels.xml')
-    if not os.path.isfile(p_lvl):
-        print(f"[WARN] levels.xml not found at: {p_lvl}")
-        return
-        
-    bak_lvl = get_backup_path(zuma_dir, 'levels.xml')
-    migrate_legacy_backup(p_lvl + '.bak', bak_lvl)
-
-    # Use clean vanilla backup as base source if available
-    base_lvl = bak_lvl if os.path.exists(bak_lvl) else p_lvl
-    with open(base_lvl, 'r', encoding='utf-8', errors='ignore') as f:
-        text = f.read()
-
-    # Backup if not yet backed up
-    if not os.path.exists(bak_lvl):
-        with open(bak_lvl, 'w', encoding='utf-8') as f:
-            f.write(text)
-            
-    sp_match = re.search(r'<StageProgression\s+([^>]+)/>', text, re.DOTALL)
-    if not sp_match:
-        print("[WARN] <StageProgression /> block not found in levels.xml")
-        return
-
-    mode_label = "Lite (max 6 colors)" if is_lite else "Full (up to 11 colors)"
-    print(f"[XML] Patching levels.xml [{mode_label}]: {p_lvl}")
-    sp_body = sp_match.group(1)
-    target_colors = {}
-    
-    for s_num in range(1, 14):
-        m = re.search(rf'diffi{s_num}\s*=\s*"([^"]+)"', sp_body)
-        if m:
-            sids = [s.strip() for s in m.group(1).split(',')]
-            if is_lite:
-                if 1 <= s_num <= 3:
-                    c_val = 4
-                elif 4 <= s_num <= 6:
-                    c_val = 5
-                elif 7 <= s_num <= 13:
-                    c_val = 6
-            else:
-                if 1 <= s_num <= 3:
-                    c_val = 4
-                elif 4 <= s_num <= 6:
-                    c_val = 6
-                elif 7 <= s_num <= 9:
-                    c_val = 8
-                elif 10 <= s_num <= 12:
-                    c_val = 10
-                elif s_num == 13:
-                    c_val = 11
-            for sid in sids:
-                target_colors[sid] = c_val
-
-    def replace_setting(match):
-        full_line = match.group(0)
-        sid = match.group(1)
-        if sid in target_colors:
-            req_c = target_colors[sid]
-            if re.search(r'colors="\d+"', full_line):
-                return re.sub(r'colors="\d+"', f'colors="{req_c}"', full_line)
-            else:
-                return re.sub(r'\s*/>', f' colors="{req_c}"/>', full_line)
-        return full_line
-
-    new_text = re.sub(r'<Settings\s+id="([^"]+)"[^>]*/>', replace_setting, text)
-    with open(p_lvl, 'w', encoding='utf-8') as f:
-        f.write(new_text)
-    print(f"  [OK] levels.xml patched successfully ({len(target_colors)} stage levels updated).")
-
+    # Rule: levels.xml MUST NOT be modified or patched!
+    return
 
 def patch_dialog_button(zuma_dir, tables):
     img_dir = os.path.join(zuma_dir, 'images')
@@ -539,6 +472,20 @@ def patch_dev_media(zuma_dir):
 
 
 
+def patch_outscreen_media(zuma_dir):
+    src_media = os.path.join(SCRIPT_DIR, '..', 'assets', 'media')
+    if not os.path.isdir(src_media):
+        return
+    img_dir = os.path.join(zuma_dir, 'images')
+    if not os.path.isdir(img_dir):
+        return
+    out_jpg = os.path.join(src_media, 'outscreen.jpg')
+    dst_out = os.path.join(img_dir, 'outscreen.jpg')
+    if os.path.exists(out_jpg):
+        shutil.copyfile(out_jpg, dst_out)
+        print("  [OK] Copied outscreen.jpg (160x160) to images/")
+
+
 if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     flags = [a.lower() for a in sys.argv[1:] if a.startswith('--')]
@@ -554,10 +501,11 @@ if __name__ == '__main__':
     is_lite = '--lite' in flags or os.path.basename(os.path.abspath('.')).lower().endswith('-lite')
     tbls = load_tables()
     patch_resources_file(z_dir)
-    patch_levels_file(z_dir, is_lite=is_lite)
+    # patch_levels_file disabled: levels.xml preserved untouched
     patch_images(z_dir, tbls)
     patch_dialog_button(z_dir, tbls)
     patch_temple5_media(z_dir)
     patch_dev_media(z_dir)
+    patch_outscreen_media(z_dir)
     print("[DONE] Assets and XML patched successfully.")
 

@@ -164,6 +164,122 @@ static inline int ztk_is_valid_ptr(const void *p, size_t size)
     return 1;
 }
 
+typedef void (__cdecl *fn_SetupDialog)(void *theDialog, int theWidth);
+typedef void* (__thiscall *fn_FindImage)(void *res_mgr, void *str_id);
+typedef void (__thiscall *fn_StrAssign)(void *this_str, const char *s, size_t n);
+typedef void (__cdecl *fn_Free)(void *p);
+
+static void ***g_app_ptr = NULL;
+static fn_SetupDialog g_pfn_SetupDialog = NULL;
+static fn_StrAssign g_pfn_StrAssign = NULL;
+static fn_Free g_pfn_Free = NULL;
+static fn_FindImage g_pfn_FindImage = NULL;
+static void *g_vtUserDialogListener = NULL;
+static int g_engine_core_resolved = 0;
+
+static void ztk_resolve_engine_core(void)
+{
+    if (g_engine_core_resolved) return;
+    g_engine_core_resolved = 1;
+
+    unsigned char *base = (unsigned char*)GetModuleHandleA(NULL);
+    if (!base) return;
+    IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER*)base;
+    IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS*)(base + dos->e_lfanew);
+    IMAGE_SECTION_HEADER *sec = IMAGE_FIRST_SECTION(nt);
+    unsigned char *text_ptr = NULL;
+    size_t text_size = 0;
+    for (int i = 0; i < nt->FileHeader.NumberOfSections; i++) {
+        if (memcmp(sec[i].Name, ".text", 5) == 0) {
+            text_ptr = base + sec[i].VirtualAddress;
+            text_size = sec[i].Misc.VirtualSize ? sec[i].Misc.VirtualSize : sec[i].SizeOfRawData;
+            break;
+        }
+    }
+    if (!text_ptr || text_size < 32) return;
+
+    for (size_t i = 0; i <= text_size - 30; i++) {
+        /* 1. g_app_ptr via: 55 8B EC A1 ?? ?? ?? ?? 8B 88 C0 04 00 00 */
+        if (!g_app_ptr && text_ptr[i] == 0x55 && text_ptr[i+1] == 0x8B && text_ptr[i+2] == 0xEC &&
+            text_ptr[i+3] == 0xA1 && text_ptr[i+8] == 0x8B && text_ptr[i+9] == 0x88 &&
+            text_ptr[i+10] == 0xC0 && text_ptr[i+11] == 0x04) {
+            g_app_ptr = *(void****)(text_ptr + i + 4);
+            ztk_log("Resolved g_app_ptr dynamically: %p", g_app_ptr);
+        }
+
+        /* 2. SetupDialog via: 55 8B EC 83 EC 10 8B 0D ?? ?? ?? ?? 53 56 8B 75 08 */
+        if (!g_pfn_SetupDialog && text_ptr[i] == 0x55 && text_ptr[i+1] == 0x8B && text_ptr[i+2] == 0xEC &&
+            text_ptr[i+3] == 0x83 && text_ptr[i+4] == 0xEC && text_ptr[i+5] == 0x10 &&
+            text_ptr[i+6] == 0x8B && text_ptr[i+7] == 0x0D && text_ptr[i+12] == 0x53 &&
+            text_ptr[i+13] == 0x56 && text_ptr[i+14] == 0x8B && text_ptr[i+15] == 0x75 && text_ptr[i+16] == 0x08) {
+            g_pfn_SetupDialog = (fn_SetupDialog)(text_ptr + i);
+            ztk_log("Resolved SetupDialog dynamically: %p", g_pfn_SetupDialog);
+        }
+
+        /* 3. StrAssign via: 55 8B EC 53 8B D9 8B 53 18 83 FA 10 56 57 72 05 */
+        if (!g_pfn_StrAssign && text_ptr[i] == 0x55 && text_ptr[i+1] == 0x8B && text_ptr[i+2] == 0xEC &&
+            text_ptr[i+3] == 0x53 && text_ptr[i+4] == 0x8B && text_ptr[i+5] == 0xD9 &&
+            text_ptr[i+6] == 0x8B && text_ptr[i+7] == 0x53 && text_ptr[i+8] == 0x18 &&
+            text_ptr[i+9] == 0x83 && text_ptr[i+10] == 0xFA && text_ptr[i+11] == 0x10 &&
+            text_ptr[i+12] == 0x56 && text_ptr[i+13] == 0x57 && text_ptr[i+14] == 0x72 && text_ptr[i+15] == 0x05) {
+            g_pfn_StrAssign = (fn_StrAssign)(text_ptr + i);
+            ztk_log("Resolved StrAssign dynamically: %p", g_pfn_StrAssign);
+        }
+
+        /* 4. fn_Free via caller: 83 7B 18 10 72 12 8B 43 04 50 E8 (rel32) */
+        if (!g_pfn_Free && text_ptr[i] == 0x83 && text_ptr[i+1] == 0x7B && text_ptr[i+2] == 0x18 &&
+            text_ptr[i+3] == 0x10 && text_ptr[i+4] == 0x72 && text_ptr[i+5] == 0x12 &&
+            text_ptr[i+6] == 0x8B && text_ptr[i+7] == 0x43 && text_ptr[i+8] == 0x04 &&
+            text_ptr[i+9] == 0x50 && text_ptr[i+10] == 0xE8) {
+            int rel = *(int*)(text_ptr + i + 11);
+            g_pfn_Free = (fn_Free)(text_ptr + i + 15 + rel);
+            ztk_log("Resolved Free dynamically: %p", g_pfn_Free);
+        }
+
+        /* 5. FindImage via: 55 8B EC 8B 45 08 56 8B F1 50 8D 4D 08 51 8D 4E 04 E8 ?? ?? ?? ?? 8B 4E 08 8B 45 08 3B C1 */
+        if (!g_pfn_FindImage && text_ptr[i] == 0x55 && text_ptr[i+1] == 0x8B && text_ptr[i+2] == 0xEC &&
+            text_ptr[i+3] == 0x8B && text_ptr[i+4] == 0x45 && text_ptr[i+5] == 0x08 &&
+            text_ptr[i+6] == 0x56 && text_ptr[i+7] == 0x8B && text_ptr[i+8] == 0xF1 &&
+            text_ptr[i+9] == 0x50 && text_ptr[i+10] == 0x8D && text_ptr[i+11] == 0x4D &&
+            text_ptr[i+12] == 0x08 && text_ptr[i+13] == 0x51 && text_ptr[i+14] == 0x8D &&
+            text_ptr[i+15] == 0x4E && text_ptr[i+16] == 0x04 &&
+            text_ptr[i+22] == 0x8B && text_ptr[i+23] == 0x4E && text_ptr[i+24] == 0x08 &&
+            text_ptr[i+25] == 0x8B && text_ptr[i+26] == 0x45 && text_ptr[i+27] == 0x08 &&
+            text_ptr[i+28] == 0x3B && text_ptr[i+29] == 0xC1) {
+            g_pfn_FindImage = (fn_FindImage)(text_ptr + i);
+            ztk_log("Resolved FindImage dynamically: %p", g_pfn_FindImage);
+        }
+
+        /* 6. UserDialog ButtonListener vtable:
+         * Anchor: UserDialog::UserDialog constructor initializes Dialog base with id=7:
+         * 6A 01 6A 07 50 51 8B CE (push 1; push 7; push eax; push ecx; mov ecx, esi)
+         * followed shortly by setting UserDialog::ButtonListener vtable at [esi + 0x58]:
+         * C7 46 58 ?? ?? ?? ?? C7 07 (mov dword ptr [esi + 0x58], vtable)
+         */
+        if (!g_vtUserDialogListener &&
+            text_ptr[i] == 0x6A && text_ptr[i+1] == 0x01 && text_ptr[i+2] == 0x6A && text_ptr[i+3] == 0x07 &&
+            text_ptr[i+4] == 0x50 && text_ptr[i+5] == 0x51 && text_ptr[i+6] == 0x8B && text_ptr[i+7] == 0xCE) {
+            for (size_t k = i; k < i + 200 && k <= text_size - 10; k++) {
+                if (text_ptr[k] == 0xC7 && text_ptr[k+1] == 0x46 && text_ptr[k+2] == 0x58 &&
+                    text_ptr[k+7] == 0xC7 && text_ptr[k+8] == 0x07) {
+                    g_vtUserDialogListener = *(void**)(text_ptr + k + 3);
+                    ztk_log("Resolved UserDialog::ButtonListener vtable dynamically: %p", g_vtUserDialogListener);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+static inline void ***ztk_get_app_ptr(void)
+{
+    if (!g_app_ptr) ztk_resolve_engine_core();
+    return g_app_ptr;
+}
+
+static void *g_active_user_dialog = NULL;
+static void *g_active_user_listbox = NULL;
+
 static int ztk_validate_user_dialog_button(void *btn, int *out_is_dev)
 {
     if (!ztk_is_valid_ptr(btn, 0x110)) return 0;
@@ -176,22 +292,34 @@ static int ztk_validate_user_dialog_button(void *btn, int *out_is_dev)
     void *listener = *(void**)((char*)btn + 0xC0);
     if (!ztk_is_valid_ptr(listener, sizeof(void*))) return 0;
 
-    /* 3. Compute dialog = listener - 0x58 */
+    /* 3. STRICT CHECK: listener VTable MUST match UserDialog::ButtonListener! */
+    if (!g_vtUserDialogListener) {
+        ztk_resolve_engine_core();
+    }
+    if (g_vtUserDialogListener && *(void**)listener != g_vtUserDialogListener) {
+        return 0;
+    }
+
+    /* 4. Compute dialog = listener - 0x58 */
     char *dialog = (char*)listener - 0x58;
     if (!ztk_is_valid_ptr(dialog, 0x130)) return 0;
 
-    /* 4. Strongest & cheapest check: verify button is registered child of dialog */
+    /* 5. Check dialog ID: UserDialog ID is strictly 7 (or 8/9 if custom) */
+    int dlg_id = *(int*)(dialog + 0x100);
+    if (dlg_id != 7 && dlg_id != 8 && dlg_id != 9) return 0;
+
+    /* 6. Verify button is registered child of dialog (Rename at +0x120, Delete at +0x124) */
     void *registered_btn = (btn_id == 0) ? *(void**)(dialog + 0x120) : *(void**)(dialog + 0x124);
     if (registered_btn != btn) return 0;
 
-    /* 5. Check dialog ID: must be 7 (POPCAP_DIALOG_USER) */
-    if (*(int*)(dialog + 0x100) != 7) return 0;
-
-    /* 6. Check dialog visibility */
-    if (*(char*)(dialog + 0x18) == 0) return 0;
-
-    /* 7. Check ListBox and retrieve selected item name */
-    void *listbox = *(void**)(dialog + 0x11C);
+    /* 7. Check ListBox at dialog + 0x118 (or 0x11C) and retrieve selected item name */
+    void *listbox = *(void**)(dialog + 0x118);
+    if (!ztk_is_valid_ptr(listbox, 0xB0) || *(int*)((char*)listbox + 0xA4) < -1) {
+        listbox = *(void**)(dialog + 0x11C);
+    }
+    if (!ztk_is_valid_ptr(listbox, 0xB0) && g_active_user_listbox) {
+        listbox = g_active_user_listbox;
+    }
     if (!ztk_is_valid_ptr(listbox, 0xB0)) return 0;
 
     int sel_idx = *(int*)((char*)listbox + 0xA4);
@@ -224,6 +352,16 @@ __declspec(dllexport) void __cdecl ZTK_OnUserDialogInit(void *listbox, void *use
     if (!ZTK_IsActive()) return;
     if (!listbox) return;
 
+    g_active_user_dialog = user_dialog;
+    g_active_user_listbox = listbox;
+    if (user_dialog && !g_vtUserDialogListener) {
+        void *listener = (char*)user_dialog + 0x58;
+        if (ztk_is_valid_ptr(listener, sizeof(void*))) {
+            g_vtUserDialogListener = *(void**)listener;
+            ztk_log("Captured UserDialog::ButtonListener vtable directly from instance: %p", g_vtUserDialogListener);
+        }
+    }
+
     ztk_log("OnUserDialogInit: user_dialog=%p, listbox=%p", user_dialog, listbox);
 
     ztk_init_dev_profile();
@@ -242,7 +380,7 @@ __declspec(dllexport) void __cdecl ZTK_OnUserDialogInit(void *listbox, void *use
     ztk_log("Inserted DevTester at ListBox index %d", idx);
 
     /* Check if current active user is DevTester */
-    void ***app_ptr = (void***)0x0057EF00;
+    void ***app_ptr = ztk_get_app_ptr();
     if (app_ptr && *app_ptr) {
         void *cur_user = (*app_ptr)[0x614 / 4];
         if (is_dev_tester(cur_user)) {
@@ -283,7 +421,7 @@ __declspec(dllexport) unsigned int __cdecl ZTK_GetWelcomeColor(void)
 {
     if (!ZTK_IsActive()) return 0xFFFFFF;
 
-    void ***app_ptr = (void***)0x0057EF00;
+    void ***app_ptr = ztk_get_app_ptr();
     if (app_ptr && *app_ptr) {
         void *cur_user = (*app_ptr)[0x614 / 4];
         if (is_dev_tester(cur_user)) {
@@ -297,61 +435,75 @@ __declspec(dllexport) unsigned int __cdecl ZTK_GetWelcomeColor(void)
 }
 
 typedef void* (__thiscall *fn_DoDialog)(void *this_ptr, int theDialogId, int isModal, const void *theDialogTitle, const void *theDialogLines, const void *theDialogHeader, int theButtonMode);
-typedef void (__thiscall *fn_StrAssign)(void *this_str, const char *s, size_t n);
-typedef void (__cdecl *fn_Free)(void *p);
 
 static void ztk_init_string(char *str_obj, const char *text)
 {
     memset(str_obj, 0, 32);
     *(int*)(str_obj + 0x14) = 0;   /* len = 0 */
     *(int*)(str_obj + 0x18) = 15;  /* cap = 15 */
-    fn_StrAssign strAssign = (fn_StrAssign)0x00408FF0;
-    strAssign(str_obj, text, strlen(text));
+    if (!g_pfn_StrAssign) ztk_resolve_engine_core();
+    if (g_pfn_StrAssign) {
+        g_pfn_StrAssign(str_obj, text, strlen(text));
+    }
 }
 
 static void ztk_free_string(char *str_obj)
 {
     if (*(int*)(str_obj + 0x18) >= 16) {
-        fn_Free free_fn = (fn_Free)0x004E11D0;
-        free_fn(*(void**)(str_obj + 4));
+        if (!g_pfn_Free) ztk_resolve_engine_core();
+        if (g_pfn_Free) {
+            g_pfn_Free(*(void**)(str_obj + 4));
+        }
     }
 }
-
-typedef void (__cdecl *fn_SetupDialog)(void *theDialog, int theWidth);
-typedef void (__thiscall *fn_Resize)(void *this_ptr, int x, int y, int w, int h);
 
 static void ztk_center_dialog(void *dlg, int width)
 {
     if (!dlg) return;
 
-    /* Zuma native SetupDialog at 0x0042AB90:
+    /* Zuma native SetupDialog:
      * - Configures PopCap text wrapping, stone font styles, colors, and preferred height
-     * - Repositions buttons
+     * - Repositions buttons and sets initial layout
      */
-    fn_SetupDialog setupDialog = (fn_SetupDialog)0x0042AB90;
-    setupDialog(dlg, width);
+    if (!g_pfn_SetupDialog) ztk_resolve_engine_core();
+    if (g_pfn_SetupDialog) {
+        g_pfn_SetupDialog(dlg, width);
+    }
 
-    /* Widget size and coordinate offsets:
-     * 0x08: mX, 0x0C: mY, 0x10: mWidth, 0x14: mHeight
+    /* Force true geometric screen center (X and Y) across all resolutions (640x480, 800x600, etc.)
+     * PopCap's SetupDialog adds a massive vertical offset (+210) to avoid overlapping the welcome banner.
+     * We explicitly re-center the dialog vertically and horizontally on the actual screen.
      */
-    int w = *(int*)((char*)dlg + 0x10);
-    int h = *(int*)((char*)dlg + 0x14);
+    void ***app_ptr = ztk_get_app_ptr();
+    int screen_w = 640;
+    int screen_h = 480;
+    if (app_ptr && *app_ptr) {
+        void *app = *app_ptr;
+        int aw = *(int *)((char *)app + 0x5C);
+        int ah = *(int *)((char *)app + 0x60);
+        if (aw > 0 && ah > 0) {
+            screen_w = aw;
+            screen_h = ah;
+        }
+    }
 
-    int x = (640 - w) / 2;
-    int y = (480 - h) / 2;
-    if (y < 10) y = 10;
+    int w = *(int *)((char *)dlg + 0x10);
+    int h = *(int *)((char *)dlg + 0x14);
+    if (w > 0 && h > 0) {
+        int cx = (screen_w - w) / 2;
+        int cy = (screen_h - h) / 2;
+        if (cy < 10) cy = 10;
 
-    /* Dialog::Resize at vtable[0x34 / 4] (0x0047AE00):
-     * Updates widget bounds and centers child buttons relative to the dialog frame.
-     */
-    void **vtable = *(void***)dlg;
-    fn_Resize resize = (fn_Resize)vtable[0x34 / 4];
-    resize(dlg, x, y, w, h);
+        void **vt = *(void ***)dlg;
+        typedef void (__thiscall *fWidgetResize)(void *this_ptr, int x, int y, int w, int h);
+        fWidgetResize resize = (fWidgetResize)vt[0x34 / 4];
+        resize(dlg, cx, cy, w, h);
+    }
 }
 
 static void ztk_show_dev_access_dialog(void)
 {
-    void ***app_ptr = (void***)0x0057EF00;
+    void ***app_ptr = ztk_get_app_ptr();
     if (!app_ptr || !*app_ptr) return;
 
     void *app = *app_ptr;
@@ -402,7 +554,7 @@ __declspec(dllexport) void * __cdecl ZTK_GetProfile(void *profileMgr, const StdS
 __declspec(dllexport) void __cdecl ZTK_SyncPractice(void *practiceScreen, char *is_unlocked)
 {
     if (!ZTK_IsActive()) return;
-    void ***app_ptr = (void***)0x0057EF00;
+    void ***app_ptr = ztk_get_app_ptr();
     if (!app_ptr || !*app_ptr) return;
     void *cur_user = (*app_ptr)[0x614 / 4];
     if (!is_dev_tester(cur_user)) return;
@@ -420,7 +572,7 @@ __declspec(dllexport) int __cdecl ZTK_CheckStageUnlock(void *stageNode)
         if (!stageNode) return 0;
         return (*(int*)((char*)stageNode + 0x28) >= 0x15);
     }
-    void ***app_ptr = (void***)0x0057EF00;
+    void ***app_ptr = ztk_get_app_ptr();
     if (app_ptr && *app_ptr) {
         void *cur_user = (*app_ptr)[0x614 / 4];
         if (is_dev_tester(cur_user)) return 1; /* All stages 1..12 unlocked */
@@ -449,31 +601,23 @@ static int g_Door5Selected = 0;
 static void *ztk_get_res_image(void *res_mgr, const char *str_name)
 {
     if (!res_mgr) {
-        void ***app_ptr = (void***)0x0057EF00;
-        if (app_ptr && *app_ptr) {
-            res_mgr = (*app_ptr)[0x5D8 / 4];
+        if (g_ResMgr) {
+            res_mgr = g_ResMgr;
+        } else {
+            void ***app_ptr = ztk_get_app_ptr();
+            if (app_ptr && *app_ptr) {
+                res_mgr = (*app_ptr)[0x5D8 / 4];
+            }
         }
     }
     if (!res_mgr || !str_name) return NULL;
     char str_obj[32];
-    memset(str_obj, 0, sizeof(str_obj));
-    *(int*)(str_obj + 0x14) = 0;   /* len = 0 */
-    *(int*)(str_obj + 0x18) = 15;  /* capacity = 15 */
+    ztk_init_string(str_obj, str_name);
 
-    typedef void (__thiscall *fn_StrAssign)(void *this_str, const char *s, size_t n);
-    fn_StrAssign strAssign = (fn_StrAssign)0x00408FF0;
-    strAssign(str_obj, str_name, strlen(str_name));
+    if (!g_pfn_FindImage) ztk_resolve_engine_core();
+    void *img = g_pfn_FindImage ? g_pfn_FindImage(res_mgr, str_obj) : NULL;
 
-    /* FUN_00485350: ResourceManager::FindImage (safe, returns NULL if not found, does not throw) */
-    typedef void* (__thiscall *fn_FindImage)(void *res_mgr, void *str_id);
-    fn_FindImage findImage = (fn_FindImage)0x00485350;
-    void *img = findImage(res_mgr, str_obj);
-
-    if (*(int*)(str_obj + 0x18) >= 16) {
-        typedef void (__cdecl *fn_Free)(void *p);
-        fn_Free free_fn = (fn_Free)0x004E11D0;
-        free_fn(*(void**)(str_obj + 4));
-    }
+    ztk_free_string(str_obj);
     return img;
 }
 
@@ -485,6 +629,9 @@ __declspec(dllexport) void __cdecl ZTK_OnRegisterResources(void *res_mgr, void *
     ztk_log("OnRegisterResources: res_mgr=%p, dialog_button=%p", res_mgr, dialog_button_img);
 
     g_ImageDialogButtonLocked = ztk_get_res_image(res_mgr, "IMAGE_DIALOG_BUTTON_LOCKED");
+    if (!g_ImageDialogButtonLocked) {
+        g_ImageDialogButtonLocked = ztk_get_res_image(res_mgr, "DIALOG_BUTTON_LOCKED");
+    }
     if (g_ImageDialogButtonLocked) {
         ztk_log("Successfully resolved IMAGE_DIALOG_BUTTON_LOCKED at %p", g_ImageDialogButtonLocked);
     } else {
@@ -512,6 +659,15 @@ __declspec(dllexport) void __cdecl ZTK_PreButtonDraw(void *btn, void *g, fn_Orig
 
     if (is_target && is_dev) {
         /* Temporarily swap button image to locked image during draw */
+        if (!g_ImageDialogButtonLocked) {
+            g_ImageDialogButtonLocked = ztk_get_res_image(g_ResMgr, "IMAGE_DIALOG_BUTTON_LOCKED");
+            if (!g_ImageDialogButtonLocked) {
+                g_ImageDialogButtonLocked = ztk_get_res_image(g_ResMgr, "DIALOG_BUTTON_LOCKED");
+            }
+            if (g_ImageDialogButtonLocked) {
+                ztk_log("PreButtonDraw: resolved g_ImageDialogButtonLocked on-demand: %p", g_ImageDialogButtonLocked);
+            }
+        }
         if (g_ImageDialogButtonLocked) {
             *btn_img_ptr = g_ImageDialogButtonLocked;
         }
@@ -577,7 +733,7 @@ __declspec(dllexport) int __cdecl ZTK_CheckUserDialogAction(const StdString *nam
         }
 
         if (title && msg) {
-            void ***app_ptr = (void***)0x0057EF00;
+            void ***app_ptr = ztk_get_app_ptr();
             if (app_ptr && *app_ptr) {
                 void *app = *app_ptr;
                 void **vtable = *(void***)app;
@@ -612,7 +768,7 @@ __declspec(dllexport) int __cdecl ZTK_CheckUserDialogAction(const StdString *nam
 static int is_current_user_dev_tester(void)
 {
     if (!ZTK_IsActive()) return 0;
-    void ***app_ptr = (void***)0x0057EF00;
+    void ***app_ptr = ztk_get_app_ptr();
     if (!app_ptr || !*app_ptr) return 0;
     void *cur_user = (*app_ptr)[0x614 / 4];
     return is_dev_tester(cur_user);
@@ -1257,18 +1413,27 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
         }
 
         /* 2. Munculkan FloatingText "+<diff>" tepat di posisi pointer mouse */
-        POINT pt;
-        GetCursorPos(&pt);
+        int fx_x = 0, fx_y = 0;
         void *app = *(void**)((char*)board + 0xB4);
-        HWND hwnd = NULL;
-        if (app) {
-            hwnd = *(HWND*)((char*)app + 0x2FC);
-        }
-        if (!hwnd) {
-            hwnd = GetActiveWindow();
-        }
-        if (hwnd) {
-            ScreenToClient(hwnd, &pt);
+        void *wm = *(void**)((char*)board + 0x24);
+        if (!wm && app) wm = *(void**)((char*)app + 0x2DC);
+        if (wm) {
+            fx_x = *(int*)((char*)wm + 0x54);
+            fx_y = *(int*)((char*)wm + 0x58);
+        } else {
+            POINT pt;
+            GetCursorPos(&pt);
+            HWND hwnd = app ? *(HWND*)((char*)app + 0x2FC) : GetActiveWindow();
+            if (hwnd) ScreenToClient(hwnd, &pt);
+            fx_x = pt.x;
+            fx_y = pt.y;
+            HMODULE hMod = GetModuleHandleA("zumadisplay.dll");
+            if (!hMod) hMod = GetModuleHandleA("zumareshandler.dll");
+            if (hMod) {
+                typedef void (__cdecl *fn_S2G)(int sx, int sy, int *gx, int *gy);
+                fn_S2G pfn = (fn_S2G)GetProcAddress(hMod, "ZRH_ScreenToGameCoords");
+                if (pfn) pfn(fx_x, fx_y, &fx_x, &fx_y);
+            }
         }
 
         if (g_fn_FT_Ctor && g_fn_FT_Add && g_fn_FT_Dtor) {
@@ -1289,7 +1454,7 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
             void *fx_mgr = *(void**)((char*)board + 0x7C);
             if (fx_mgr) {
                 typedef void (__thiscall *fn_FT_Add)(void *vec, void *fx, int x, int y, int delay, int extra);
-                ((fn_FT_Add)g_fn_FT_Add)(vec_buf, fx_mgr, pt.x, pt.y, 0, 0);
+                ((fn_FT_Add)g_fn_FT_Add)(vec_buf, fx_mgr, fx_x, fx_y, 0, 0);
             }
 
             /* Destruct and free the temporary vector elements */
@@ -1329,12 +1494,25 @@ __declspec(dllexport) void __cdecl ZTK_UpdateDevCheat(void *board)
     /* 4. Khusus mode Survival ([board + 0x15B] != 0):
      *    Di mode Survival vanilla, blok 0x00421B1F melompati panggilan CurveMgr::DestroyAll (0x00411310).
      *    Panggil CurveMgr::DestroyAll secara eksplisit pada setiap curve aktif agar bola di papan
-     *    langsung meledak/hancur saat cheat ditekan, sama seperti di Adventure dan Practice! */
+     *    langsung meledak/hancur saat cheat ditekan, sama seperti di Adventure dan Practice!
+     *
+     *    CATATAN ARSITEKTUR ENGINE POPCAP & ZUMAEXTRAPATH:
+     *    Array active CurveMgr disimpan di [board + 0x68] (mActiveCurveMgrs = void**), BUKAN flat struct
+     *    di [board + 0x5C]! Di game vanilla, [board + 0x68] menunjuk ke &board->mCurveMgr[0] (3 curve).
+     *    Ketika zumaextrapath.dll aktif (path ke-4 dst), [board + 0x68] menunjuk ke array dinamis.
+     *    Mengakses [board + 0x5C + i*4] untuk i=3 malah membaca [board + 0x68] (pointer array itu sendiri),
+     *    sehingga memanggil DestroyAll pada pointer array -> CRASH di 0x0041132A dan curve 4 tidak hancur! */
     if (*(char*)((char*)board + 0x15B) != 0 && g_fn_DestroyAll) {
         int num_curves = *(int*)((char*)board + 0x8C);
+        void **active_curves = *(void***)((char*)board + 0x68);
         for (int i = 0; i < num_curves; i++) {
-            void *curve = *(void**)((char*)board + 0x5C + i * 4);
-            if (curve) {
+            void *curve = NULL;
+            if (active_curves && !IsBadReadPtr(&active_curves[i], sizeof(void*))) {
+                curve = active_curves[i];
+            } else if (i < 3) {
+                curve = *(void**)((char*)board + 0x5C + i * 4);
+            }
+            if (curve && !IsBadReadPtr(curve, 0x40)) {
                 typedef void (__thiscall *fn_DestroyAll_t)(void *c);
                 ((fn_DestroyAll_t)g_fn_DestroyAll)(curve);
             }
@@ -1405,9 +1583,34 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     fn_DrawImage drawImage       = (fn_DrawImage)g_fn_DrawImage;
     fn_DrawImageCel drawImageCel = (fn_DrawImageCel)g_fn_DrawImageCel;
 
-    /* 3. Render latar batu utuh (11, 51) dan bingkai emas ber-mask (0, 0) */
+    /* 3. Dynamic Resolution Scaling: Mendapatkan dimensi HelpScreen secara adaptif */
+    int scr_w = *(int*)((char*)helpScreen + 0x10);
+    int scr_h = *(int*)((char*)helpScreen + 0x14);
+    if (scr_w <= 0 || scr_h <= 0) {
+        void ***app_ptr = (void***)0x0057EF00;
+        if (app_ptr && *app_ptr) {
+            scr_w = *(int*)((char*)*app_ptr + 0x5C);
+            scr_h = *(int*)((char*)*app_ptr + 0x60);
+        } else {
+            scr_w = 640;
+            scr_h = 480;
+        }
+    }
+    float scale_w = (float)scr_w / 640.0f;
+    float scale_h = (float)scr_h / 480.0f;
+    float s = scale_w < scale_h ? scale_w : scale_h;
+    if (s <= 0.0f) s = 1.0f;
+
+    #define D_LX(v) ((int)((float)(v) * s + 0.5f))
+    #define D_LY(v) ((int)((float)(v) * s + 0.5f))
+
+    int cx = scr_w / 2;
+    int col1_cx = (int)(162.0f * s + 0.5f);
+    int col2_cx = scr_w - col1_cx;
+
+    /* Render latar batu utuh dan bingkai emas ber-mask murni local space */
     if (imgHelpBackDev) {
-        drawImage(graphics, imgHelpBackDev, 11, 51);
+        drawImage(graphics, imgHelpBackDev, D_LX(11), D_LY(51));
     }
     drawImage(graphics, imgHelpFrontDev, 0, 0);
 
@@ -1429,84 +1632,90 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     PopCapColor colWhite  = { 255, 255, 255, 255 }; /* 0xFFFFFF - Crisp White */
 
     /* =========================================================================
-     * HEADER: "DEVELOPER MODE" seimbang di tengah antara batas window & bingkai (Y = 32)
+     * HEADER: "DEVELOPER MODE" terpusat secara adaptif (cx = scr_w / 2)
      * Efek: Sandy Grain Glow (tekstur granular pasir Aztec)
      * ========================================================================= */
     if (fontTitle) {
-        ztk_draw_text_sandy_glow(graphics, fontTitle, "DEVELOPER MODE", 320, 28);
+        ztk_draw_text_sandy_glow(graphics, fontTitle, "DEVELOPER MODE", cx, D_LY(28));
     }
     if (fontBody) {
         ztk_draw_text_centered(graphics, fontBody,
-            "Special Testing Profile  -  Unrestricted Game Access", 320, 78, &colGold);
+            "Special Testing Profile  -  Unrestricted Game Access", cx, D_LY(78), &colGold);
     }
 
     /* =========================================================================
-     * SECTION 1 (KIRI): ADVENTURE MODE (X: 45 .. 315)
+     * SECTION 1 (KIRI): ADVENTURE MODE (Center: col1_cx)
      * ========================================================================= */
     if (fontHeading) {
-        ztk_draw_text_centered(graphics, fontHeading, "ADVENTURE MODE", 162, 108, &colYellow);
+        ztk_draw_text_centered(graphics, fontHeading, "ADVENTURE MODE", col1_cx, D_LY(108), &colYellow);
     }
 
-    /* Gambar preview Temple 5 dengan pintu hijau bersinar (190x75) */
+    /* Gambar preview Temple 5 dengan pintu hijau bersinar (190x75, terpusat di col1_cx) */
     if (imgTutTemple5) {
-        drawImage(graphics, imgTutTemple5, 69, 114);
+        int temple_x = col1_cx - 190 / 2;
+        drawImage(graphics, imgTutTemple5, temple_x, D_LY(114));
     }
 
     if (fontBody) {
-        ztk_draw_text_left(graphics, fontBody, "* All 13 Stages Unlocked From Start", 30, 206, &colWhite);
-        ztk_draw_text_left(graphics, fontBody, "* Direct Temple 5 Access to Secret", 30, 224, &colWhite);
-        ztk_draw_text_left(graphics, fontBody, "  Stage 13 (\"The Void\")", 30, 242, &colCyan);
+        ztk_draw_text_left(graphics, fontBody, "* All 13 Stages Unlocked From Start", D_LX(30), D_LY(206), &colWhite);
+        ztk_draw_text_left(graphics, fontBody, "* Direct Temple 5 Access to Secret", D_LX(30), D_LY(224), &colWhite);
+        ztk_draw_text_left(graphics, fontBody, "  Stage 13 (\"The Void\")", D_LX(30), D_LY(242), &colCyan);
     }
 
     /* =========================================================================
-     * SECTION 2 (KANAN): GAUNTLET MODE (X: 325 .. 595)
+     * SECTION 2 (KANAN): GAUNTLET MODE (Center: col2_cx)
      * ========================================================================= */
     if (fontHeading) {
-        ztk_draw_text_centered(graphics, fontHeading, "GAUNTLET MODE", 450, 108, &colYellow);
+        ztk_draw_text_centered(graphics, fontHeading, "GAUNTLET MODE", col2_cx, D_LY(108), &colYellow);
     }
 
     if (fontBody) {
-        /* Jarak judul ke kalimat pertama lebih jauh (Y = 132, gap 36px) */
-        ztk_draw_text_left(graphics, fontBody, "* All Levels Unlocked in Gauntlet", 327, 132, &colWhite);
-
-        /* Tiga baris berikutnya dibuat lebih berdekatan per barisnya (gap 19px) */
-        ztk_draw_text_left(graphics, fontBody, "* Practice & Survival Modes Active", 327, 153, &colWhite);
-        ztk_draw_text_left(graphics, fontBody, "* Full Sun God Rank Access Unlocked", 327, 172, &colGold);
-        ztk_draw_text_left(graphics, fontBody, "* Jump to Any Difficulty Tier or Map", 327, 191, &colAmber);
+        int g_text_x = col2_cx - D_LX(135);
+        ztk_draw_text_left(graphics, fontBody, "* All Levels Unlocked in Gauntlet", g_text_x, D_LY(132), &colWhite);
+        ztk_draw_text_left(graphics, fontBody, "* Practice & Survival Modes Active", g_text_x, D_LY(153), &colWhite);
+        ztk_draw_text_left(graphics, fontBody, "* Full Sun God Rank Access Unlocked", g_text_x, D_LY(172), &colGold);
+        ztk_draw_text_left(graphics, fontBody, "* Jump to Any Difficulty Tier or Map", g_text_x, D_LY(191), &colAmber);
     }
 
     /* =========================================================================
-     * SECTION 3 (BAWAH): MIDDLE MOUSE BUTTON CHEAT
+     * SECTION 3 (BAWAH): MIDDLE MOUSE BUTTON CHEAT (Center: col1_cx)
      * ========================================================================= */
     if (fontHeading) {
         ztk_draw_text_centered(graphics, fontHeading,
-            "MIDDLE MOUSE BUTTON", 190, 282, &colCyan);
+            "MIDDLE MOUSE BUTTON", col1_cx, D_LY(282), &colCyan);
     }
 
     if (fontBody) {
-        /* Penjelasan instruksi di sebelah kiri (X = 55 .. 360) */
         ztk_draw_text_left(graphics, fontBody,
-            "Just play normally, or click Middle Mouse", 30, 304, &colWhite);
+            "Just play normally, or click Middle Mouse", D_LX(30), D_LY(304), &colWhite);
         ztk_draw_text_left(graphics, fontBody,
-            "Button at any time to end it all and advance!", 30, 322, &colWhite);
+            "Button at any time to end it all and advance!", D_LX(30), D_LY(322), &colWhite);
         ztk_draw_text_left(graphics, fontBody,
-            "* Instantly awards full target score", 30, 344, &colGold);
+            "* Instantly awards full target score", D_LX(30), D_LY(344), &colGold);
         ztk_draw_text_left(graphics, fontBody,
-            "* Triggers Zuma DestroyAll & clears all balls", 30, 362, &colGold);
+            "* Triggers Zuma DestroyAll & clears all balls", D_LX(30), D_LY(362), &colGold);
         ztk_draw_text_left(graphics, fontBody,
-            "* Automatically completes the current stage", 30, 380, &colAmber);
+            "* Automatically completes the current stage", D_LX(30), D_LY(380), &colAmber);
     }
 
     /* =========================================================================
-     * DEMO INTERAKTIF: 5 BOLA + ANIMASI KLIK TENGAH DESTROYALL
+     * DEMO INTERAKTIF: 5 BOLA + ANIMASI KLIK TENGAH DESTROYALL (Center: col2_cx)
      * ========================================================================= */
     int update_cnt = *(int*)((char*)helpScreen + 0x4C);
     int cycle = update_cnt % 180;
     int is_clicking = (cycle >= 100 && cycle <= 145);
 
-    /* 5 Bola Zuma berjejer rapat 32px */
-    int ball_x[5] = { 430, 462, 494, 526, 558 };
-    int ball_y = 295;
+    /* 5 Bola Zuma berjejer rapat 32px (total 160px) terpusat di col2_cx */
+    int ball_center_x = col2_cx;
+    int base_ball_x = ball_center_x - (5 * 32) / 2;
+    int ball_x[5] = {
+        base_ball_x,
+        base_ball_x + 32,
+        base_ball_x + 64,
+        base_ball_x + 96,
+        base_ball_x + 128
+    };
+    int ball_y = D_LY(295);
 
     /* Putaran bola ke arah kanan dengan tempo lambat */
     int ball_cel = (50 - ((update_cnt / 3) % 50)) % 50;
@@ -1563,24 +1772,25 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     } else {
         /* FASE 3: Bola telah hancur sepenuhnya (Clear!) */
         if (fontBody) {
-            ztk_draw_text_centered(graphics, fontBody, "STAGE CLEARED!", 495, ball_y + 8, &colGold);
+            ztk_draw_text_centered(graphics, fontBody, "STAGE CLEARED!", ball_center_x, ball_y + 8, &colGold);
         }
     }
 
-    /* Ikon Animasi Mouse terpusat di bawah 5 bola (Center X = 495) */
+    /* Ikon Animasi Mouse terpusat di bawah 5 bola (Sprite tut_mouse_m unscaled 40x29) */
     if (imgTutMouseM) {
         int cel = is_clicking ? 1 : 0;
-        int mouse_x = 540;
-        int mouse_y = 350;
+        int mouse_y = D_LY(350);
+        int mouse_x = ball_center_x + 30;
 
         /* Label status animasi di atas mouse: Arial CLICK! saat tombol tengah ditekan */
         if (is_clicking && fontPlain) {
-            ztk_draw_text_centered(graphics, fontPlain, "CLICK!", mouse_x - 48, mouse_y + 12, &colWhite);
+            ztk_draw_text_centered(graphics, fontPlain, "CLICK!", ball_center_x - 20, mouse_y + 12, &colWhite);
         }
 
-        /* Sprite tut_mouse_m (40x29) */
         drawImageCel(graphics, imgTutMouseM, mouse_x, mouse_y, cel);
     }
+    #undef D_LX
+    #undef D_LY
 
     return 1;
 }

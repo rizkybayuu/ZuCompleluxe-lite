@@ -4,7 +4,7 @@ Adds a pure data section '.zdata' (characteristics 0xC0000040: READ | WRITE, non
 Constructs a new Import Directory containing:
   - All existing descriptors from vanilla Zuma.exe
   - New descriptor for zumaextrapath.dll (ZEP_BindExtras, ZEP_AddHole, ZEP_SetHolePercent, ZEP_SetHoleSomething, ZEP_LevelStart)
-  - New descriptor for zumawebp.dll (Anim_PreDraw, Anim_LoadImage)
+  - New descriptors for zumawebpbg.dll, zumawebpsprite.dll, and zumadisplay.dll
   - Null terminator descriptor
   - ILT, IAT, Hint/Name tables, and DLL name strings
   - Reserved space for 11-ball color data cave relocation
@@ -35,9 +35,13 @@ NEW_DLLS = [
         'ZEP_GetCurveDesc',
         'ZEP_CheckHolePriority'
     ]),
-    ('zumawebp.dll', [
+    ('zumawebpbg.dll', [
         'Anim_PreDraw',
         'Anim_LoadImage'
+    ]),
+    ('zumawebpsprite.dll', [
+        'ZSP_AnimateSprites',
+        'ZSP_IsActive'
     ]),
     ('zumaextracolor.dll', [
         'ZEC_ExtractAll',
@@ -81,15 +85,30 @@ NEW_DLLS = [
         'ZTK_GetSelectedStage',
         'ZTK_UpdateDevCheat',
         'ZTK_DrawHelpScreen'
+    ]),
+    ('zumadisplay.dll', [
+        'ZDISP_IsActive',
+        'ZDISP_ScreenToGameCoords'
     ])
 ]
+
+LITE_EXCLUDED = {
+    'zumaextrapath.dll',
+    'zumawebpbg.dll',
+    'zumawebpsprite.dll',
+    'zumaextracolor.dll'
+}
 
 # Section characteristics: IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 ZDATA_CHARS = 0xC0000040
 ZDATA_RESERVE_SIZE = 0x2000  # 8192 bytes (leaves >7KB for data cave relocation)
 
-def patch_imports(src_path, dst_path):
+def patch_imports(src_path, dst_path, is_lite=False):
     pe = PEFile(src_path)
+
+    active_dlls = [d for d in NEW_DLLS if not (is_lite and d[0] in LITE_EXCLUDED)]
+    if is_lite:
+        print(f"[INFO] Lite Edition: {len(active_dlls)} sidecars enabled (excluded: {', '.join(sorted(LITE_EXCLUDED))})")
 
     # Check idempotency guard
     if pe.find_section_by_name('.zdata'):
@@ -165,7 +184,7 @@ def patch_imports(src_path, dst_path):
     blob = bytearray()
 
     # Descriptors: old_descs (11) + null terminator (1) + new_dlls (5) + null terminator (1)
-    num_descs = len(old_descs) + 1 + len(NEW_DLLS) + 1
+    num_descs = len(old_descs) + 1 + len(active_dlls) + 1
     desc_table_size = num_descs * 20
     blob.extend(b'\x00' * desc_table_size)
 
@@ -176,7 +195,7 @@ def patch_imports(src_path, dst_path):
 
     # Place DLL names
     dll_name_rvas = {}
-    for dll_name, _ in NEW_DLLS:
+    for dll_name, _ in active_dlls:
         dll_name_rvas[dll_name] = new_rva + len(blob)
         blob.extend(dll_name.encode('ascii') + b'\x00')
     while len(blob) % 4 != 0:
@@ -184,7 +203,7 @@ def patch_imports(src_path, dst_path):
 
     # Place Hint/Name entries
     hint_name_rvas = {}
-    for dll_name, funcs in NEW_DLLS:
+    for dll_name, funcs in active_dlls:
         hint_name_rvas[dll_name] = {}
         for fn in funcs:
             hint_name_rvas[dll_name][fn] = new_rva + len(blob)
@@ -198,7 +217,7 @@ def patch_imports(src_path, dst_path):
     # Place ILT and IAT entries
     ilt_rvas = {}
     iat_rvas = {}
-    for dll_name, funcs in NEW_DLLS:
+    for dll_name, funcs in active_dlls:
         ilt_rvas[dll_name] = new_rva + len(blob)
         for fn in funcs:
             blob.extend(struct.pack('<I', hint_name_rvas[dll_name][fn]))
@@ -211,7 +230,7 @@ def patch_imports(src_path, dst_path):
 
     # Fill new descriptors in the descriptor table starting after the null terminator
     cur_desc_idx = len(old_descs) + 1
-    for dll_name, _ in NEW_DLLS:
+    for dll_name, _ in active_dlls:
         desc = struct.pack('<IIIII',
                            ilt_rvas[dll_name],
                            0, 0,
@@ -224,7 +243,7 @@ def patch_imports(src_path, dst_path):
     if len(blob) < ZDATA_RESERVE_SIZE:
         blob.extend(b'\x00' * (ZDATA_RESERVE_SIZE - len(blob)))
 
-    # 3.5 Write ZEP_EngineConfig into .zdata @ offset 0xC00 (safe margin after imports and ExtraColor cave @ 0x800)
+    # 3.5 Write ZEP_EngineConfig into .zdata @ offset 0xC00 (safe margin after imports and before ExtraColor cave @ 0x1000)
     ZEP_CFG_OFFSET = 0xC00
     eng_sites = resolve_all_sites(src_path, enforce_hash=False)
     image_base = pe.image_base
@@ -344,7 +363,7 @@ def patch_imports(src_path, dst_path):
 
     dll_str_vas = {}
     func_str_vas = {}
-    for dll, funcs in NEW_DLLS:
+    for dll, funcs in active_dlls:
         dll_rel_path = f"modules\\{dll}".encode('ascii') + b"\x00"
         dll_str_vas[dll] = zldr_va + len(raw_zldr)
         raw_zldr.extend(dll_rel_path)
@@ -357,7 +376,7 @@ def patch_imports(src_path, dst_path):
 
     # DLL Table:
     table_va = zldr_va + len(raw_zldr)
-    for dll, funcs in NEW_DLLS:
+    for dll, funcs in active_dlls:
         raw_zldr.extend(struct.pack('<II', dll_str_vas[dll], len(funcs)))
         for idx, f in enumerate(funcs):
             slot_va = pe.image_base + iat_rvas[dll] + idx * 4
@@ -496,10 +515,12 @@ def patch_imports(src_path, dst_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python patch_imports.py <input_exe> <output_exe>")
+    is_lite = "--lite" in sys.argv
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if len(args) != 2:
+        sys.exit("Usage: python patch_imports.py <input_exe> <output_exe> [--lite]")
     try:
-        patch_imports(sys.argv[1], sys.argv[2])
+        patch_imports(args[0], args[1], is_lite=is_lite)
     except Exception as e:
         print("\n" + "=" * 67)
         print(" [COMPATIBILITY ERROR] Failed to detect required import structure.")

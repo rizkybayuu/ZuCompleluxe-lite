@@ -229,11 +229,19 @@ def patch_zccredit(src_path, dst_path):
     # If IAT slot is NULL, branches directly to vanilla (mov byte ptr [ecx + 0x1f], 1; ret 0xc)
     a = Asm(); va_cave_c = a.start
     dispatch_click_block = bytearray()
-    dispatch_click_block += b"\xFF\x74\x24\x08"                           # push dword ptr [esp + 8] (y)
-    dispatch_click_block += b"\xFF\x74\x24\x08"                           # push dword ptr [esp + 8] (x, was [esp+4])
-    dispatch_click_block += b"\x51"                                       # push ecx                 (this)
+    # IMPORTANT: Widget::MouseDown is __thiscall with ecx = this!
+    # Because ZCC_OnMouseDown is a C function, it clobbers caller-saved registers (ecx, edx).
+    # We MUST preserve ecx and edx so that if ZCC_OnMouseDown returns 0 (unhandled click, e.g. Whatever button),
+    # vanilla_default can safely execute 'mov byte ptr [ecx + 0x1f], 1' without Access Violation (c0000005).
+    dispatch_click_block += b"\x51"                                       # push ecx (save this)
+    dispatch_click_block += b"\x52"                                       # push edx (save edx)
+    dispatch_click_block += b"\xFF\x74\x24\x10"                           # push dword ptr [esp + 16] (y)
+    dispatch_click_block += b"\xFF\x74\x24\x10"                           # push dword ptr [esp + 16] (x)
+    dispatch_click_block += b"\xFF\x74\x24\x0C"                           # push dword ptr [esp + 12] (this / saved ecx)
     dispatch_click_block += b"\xFF\x15" + struct.pack("<I", va_iat_click) # call [ZCC_OnMouseDown]
-    dispatch_click_block += b"\x83\xC4\x0C"                               # add esp, 12
+    dispatch_click_block += b"\x83\xC4\x0C"                               # add esp, 12 (clean args)
+    dispatch_click_block += b"\x5A"                                       # pop edx (restore edx)
+    dispatch_click_block += b"\x59"                                       # pop ecx (restore this!)
     dispatch_click_block += b"\x85\xC0"                                   # test eax, eax
     dispatch_click_block += b"\x74\x03"                                   # jz vanilla_default (skip ret 0xc)
     dispatch_click_block += b"\xC2\x0C\x00"                               # ret 0xc (handled)

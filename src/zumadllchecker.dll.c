@@ -7,8 +7,18 @@
 #include <stdlib.h>
 
 #ifndef ZUCOMPLELUXE_VERSION
-#define ZUCOMPLELUXE_VERSION "v0.4.2"
+#define ZUCOMPLELUXE_VERSION "v0.5"
 #endif
+
+#ifndef TARGET_W
+#define TARGET_W 800
+#endif
+#ifndef TARGET_H
+#define TARGET_H 600
+#endif
+
+#define MIN_TARGET_W 480
+#define MIN_TARGET_H 320
 
 #define IDC_BTN_RUN  1001
 #define IDC_BTN_QUIT 1002
@@ -20,19 +30,30 @@ typedef struct {
     bool is_mandatory;
     bool exists;
     bool is_lite_excluded;
+    bool enabled;
+    RECT rc_checkbox;
+    RECT rc_row;
+    bool hover;
 } ModuleDep;
 
 static ModuleDep g_modules[] = {
-    { "zumadllchecker.dll", "zumadllchecker.dll", "Core Gatekeeper & Integrity Checker", true,  false, false },
-    { "zumacplxcredit.dll", "zumacplxcredit.dll", "Developer Credits Screen Mod",        false, false, false },
-    { "zumacustommap.dll",  "zumacustommap.dll",  "Gauntlet Custom Map Extender",        false, false, false },
-    { "zumatestingkit.dll", "zumatestingkit.dll", "Dev Testing Kit & Secret Temple 5",   false, false, false },
-    { "zumawebp.dll",       "zumawebp.dll",       "Animated WebP Asset Loader",          false, false, true  },
-    { "zumaextrapath.dll",  "zumaextrapath.dll",  "Multi-Path Curve Engine (4-10)",      false, false, true  },
-    { "zumaextracolor.dll", "zumaextracolor.dll", "11-Ball Color Pipeline Engine",       false, false, true  }
+    { "zumadllchecker.dll", "zumadllchecker.dll", "Core Gatekeeper & Integrity Checker", true,  false, false, true,  {0}, {0}, false },
+    { "zumacplxcredit.dll", "zumacplxcredit.dll", "Developer Credits Screen Mod",        false, false, false, true,  {0}, {0}, false },
+    { "zumacustommap.dll",  "zumacustommap.dll",  "Gauntlet Custom Map Extender",        false, false, false, true,  {0}, {0}, false },
+    { "zumatestingkit.dll", "zumatestingkit.dll", "Dev Testing Kit & Secret Temple 5",   false, false, false, true,  {0}, {0}, false },
+    { "zumawebpbg.dll",     "zumawebpbg.dll",     "Animated WebP Background Canvas",     false, false, true,  true,  {0}, {0}, false },
+    { "zumawebpsprite.dll", "zumawebpsprite.dll", "Multi-Layer Animated Sprite Engine",  false, false, true,  true,  {0}, {0}, false },
+    { "zumaextrapath.dll",  "zumaextrapath.dll",  "Multi-Path Curve Engine (4-10)",      false, false, true,  true,  {0}, {0}, false },
+    { "zumaextracolor.dll", "zumaextracolor.dll", "11-Ball Color Pipeline Engine",       false, false, true,  true,  {0}, {0}, false },
+    /* Category 3: Resolution & Display Driver Modules (8..9) */
+    { "zumadisplay.dll",    "zumadisplay.dll",    "Display & Window Driver (F11/DD)",    false, false, false, true,  {0}, {0}, false },
+    { "zumareshandler.dll", "zumareshandler.dll", "Resolution & UI Layout Patcher",      false, false, false, true,  {0}, {0}, false }
 };
 
-#define MODULE_COUNT ((int)(sizeof(g_modules) / sizeof(g_modules[0])))
+#define MODULE_COUNT           ((int)(sizeof(g_modules) / sizeof(g_modules[0])))
+#define GAMEPLAY_MODULE_COUNT  8
+#define RES_MODULE_START       8
+#define RES_MODULE_COUNT       2
 
 typedef struct {
     char fileName[MAX_PATH];
@@ -43,7 +64,15 @@ typedef struct {
     char fileDescription[128];
 } ZumaMetadata;
 
+typedef struct {
+    int w;
+    int h;
+    bool has_zres;
+    char ratioStr[48];
+} ResMetadata;
+
 static ZumaMetadata g_meta;
+static ResMetadata g_res;
 static BOOL g_isDarkMode = FALSE;
 static int g_dialogResult = 0;
 static HWND g_hBtnRun = NULL;
@@ -54,6 +83,7 @@ static RECT g_rcLink = { 0, 0, 0, 0 };
 static bool g_linkHover = false;
 static HCURSOR g_hCurArrow = NULL;
 static HCURSOR g_hCurHand = NULL;
+static HBRUSH g_hBrDlgBg = NULL;
 
 /* Detect Windows System App Theme (0 = Dark, 1 = Light) */
 static BOOL DetectSystemDarkMode(void) {
@@ -81,6 +111,89 @@ static void ApplyDwmTitleBarTheme(HWND hwnd, BOOL isDark) {
             set_attr(hwnd, 19, &dark, sizeof(dark));
         }
         FreeLibrary(hDwm);
+    }
+}
+
+/* Linear color blending for precise alpha opacity */
+static inline COLORREF BlendColor(COLORREF fg, COLORREF bg, float alpha) {
+    int r = (int)(GetRValue(fg) * alpha + GetRValue(bg) * (1.0f - alpha) + 0.5f);
+    int g = (int)(GetGValue(fg) * alpha + GetGValue(bg) * (1.0f - alpha) + 0.5f);
+    int b = (int)(GetBValue(fg) * alpha + GetBValue(bg) * (1.0f - alpha) + 0.5f);
+    return RGB(r, g, b);
+}
+
+/* Detect target resolution and aspect ratio directly from PE section .zres and build configuration */
+static void DetectResolutionInfo(void) {
+    int w = 640;
+    int h = 480;
+    bool has_zres = false;
+
+    HMODULE hExe = GetModuleHandleA(NULL);
+    if (hExe) {
+        PIMAGE_DOS_HEADER dos = (PIMAGE_DOS_HEADER)hExe;
+        if (dos->e_magic == IMAGE_DOS_SIGNATURE) {
+            PIMAGE_NT_HEADERS nt = (PIMAGE_NT_HEADERS)((BYTE*)hExe + dos->e_lfanew);
+            if (nt->Signature == IMAGE_NT_SIGNATURE) {
+                PIMAGE_SECTION_HEADER sec = IMAGE_FIRST_SECTION(nt);
+                for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
+                    if (strncmp((char*)sec[i].Name, ".zres", 5) == 0) {
+                        has_zres = true;
+                        BYTE *secData = (BYTE*)hExe + sec[i].VirtualAddress;
+                        DWORD magic = *(DWORD*)secData;
+                        if (magic == 0x53455A52) { /* 'ZRES' */
+                            DWORD stored_w = *(DWORD*)(secData + 0x48);
+                            DWORD stored_h = *(DWORD*)(secData + 0x4C);
+                            if (stored_w >= MIN_TARGET_W && stored_h >= MIN_TARGET_H) {
+                                w = (int)stored_w;
+                                h = (int)stored_h;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+#ifdef TARGET_W
+    if (!has_zres || w == 640) {
+        w = TARGET_W;
+    }
+#endif
+#ifdef TARGET_H
+    if (!has_zres || h == 480) {
+        h = TARGET_H;
+    }
+#endif
+
+/* In Lite Edition, custom resolution engine is fully supported */
+
+    /* Strictly enforce minimum limit 480x320 */
+    if (has_zres) {
+        if (w < MIN_TARGET_W) w = MIN_TARGET_W;
+        if (h < MIN_TARGET_H) h = MIN_TARGET_H;
+    }
+
+    g_res.w = w;
+    g_res.h = h;
+    g_res.has_zres = has_zres;
+
+    /* Calculate Aspect Ratio description */
+    if (w * 3 == h * 4) {
+        if (w == 640 && h == 480) strcpy(g_res.ratioStr, "4:3 (VGA Standard)");
+        else if (w == 800 && h == 600) strcpy(g_res.ratioStr, "4:3 (SVGA Standard)");
+        else snprintf(g_res.ratioStr, sizeof(g_res.ratioStr), "4:3 Standard");
+    } else if (w * 9 == h * 16) {
+        snprintf(g_res.ratioStr, sizeof(g_res.ratioStr), "16:9 (Widescreen)");
+    } else if (w * 10 == h * 16) {
+        snprintf(g_res.ratioStr, sizeof(g_res.ratioStr), "16:10 (Wide)");
+    } else if (w * 4 == h * 5) {
+        snprintf(g_res.ratioStr, sizeof(g_res.ratioStr), "5:4 (Standard)");
+    } else if (w * 9 == h * 21) {
+        snprintf(g_res.ratioStr, sizeof(g_res.ratioStr), "21:9 (Ultrawide)");
+    } else {
+        float r = (float)w / (float)h;
+        snprintf(g_res.ratioStr, sizeof(g_res.ratioStr), "%.2f:1 (Custom)", r);
     }
 }
 
@@ -208,6 +321,7 @@ static void CheckModules(void) {
         if (g_modules[i].is_lite_excluded) {
             /* In Lite Edition, excluded sidecars are always disabled regardless of files on disk */
             g_modules[i].exists = false;
+            g_modules[i].enabled = false;
             continue;
         }
 #endif
@@ -215,6 +329,7 @@ static void CheckModules(void) {
         snprintf(path, sizeof(path), "modules\\%s", g_modules[i].filename);
         DWORD attr = GetFileAttributesA(path);
         g_modules[i].exists = (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY));
+        g_modules[i].enabled = g_modules[i].exists;
     }
 }
 
@@ -251,11 +366,101 @@ static void DrawClassicGroupBox(HDC hdc, RECT *rc, const char *title, COLORREF b
     SelectObject(hdc, oldFont);
 }
 
-/* Draw classic button with proper theme adaptation */
+/* Draw modern checkbox with strict 50% opacity when unusable/unclickable */
+static void DrawModernCheckbox(HDC hdc, RECT *rc, bool isChecked, bool isMandatory, bool isMissing, bool isLiteExcluded, bool isHover, BOOL isDark, COLORREF dlgBg) {
+    int boxSize = 14;
+    int boxX = rc->left + ((rc->right - rc->left) - boxSize) / 2;
+    int boxY = rc->top + ((rc->bottom - rc->top) - boxSize) / 2;
+
+    bool isUnusable = isMandatory || isMissing || isLiteExcluded;
+
+    COLORREF bgCol, borderCol, checkCol;
+    if (isDark) {
+        if (isMissing || isLiteExcluded) {
+            bgCol = RGB(45, 25, 25);
+            borderCol = RGB(160, 45, 45);
+            checkCol = RGB(239, 68, 68);
+        } else if (isMandatory) {
+            bgCol = RGB(16, 38, 58);
+            borderCol = RGB(56, 189, 248);
+            checkCol = RGB(56, 189, 248);
+        } else if (isChecked) {
+            bgCol = isHover ? RGB(26, 48, 36) : RGB(20, 38, 28);
+            borderCol = isHover ? RGB(74, 222, 128) : RGB(46, 160, 90);
+            checkCol = RGB(74, 222, 128);
+        } else {
+            bgCol = isHover ? RGB(45, 45, 52) : RGB(35, 35, 40);
+            borderCol = isHover ? RGB(100, 100, 115) : RGB(70, 70, 80);
+            checkCol = RGB(0, 0, 0);
+        }
+    } else {
+        if (isMissing || isLiteExcluded) {
+            bgCol = RGB(254, 242, 242);
+            borderCol = RGB(239, 68, 68);
+            checkCol = RGB(220, 38, 38);
+        } else if (isMandatory) {
+            bgCol = RGB(224, 242, 254);
+            borderCol = RGB(2, 132, 199);
+            checkCol = RGB(2, 132, 199);
+        } else if (isChecked) {
+            bgCol = isHover ? RGB(220, 252, 231) : RGB(240, 253, 244);
+            borderCol = isHover ? RGB(22, 163, 74) : RGB(34, 197, 94);
+            checkCol = RGB(22, 128, 61);
+        } else {
+            bgCol = isHover ? RGB(240, 240, 245) : RGB(255, 255, 255);
+            borderCol = isHover ? RGB(120, 120, 130) : RGB(170, 170, 175);
+            checkCol = RGB(0, 0, 0);
+        }
+    }
+
+    /* Apply strict 50% opacity (faded/disabled) when module cannot be toggled */
+    if (isUnusable) {
+        bgCol     = BlendColor(bgCol, dlgBg, 0.50f);
+        borderCol = BlendColor(borderCol, dlgBg, 0.50f);
+        checkCol  = BlendColor(checkCol, dlgBg, 0.50f);
+    }
+
+    HBRUSH hBr = CreateSolidBrush(bgCol);
+    HPEN hPen = CreatePen(PS_SOLID, 1, borderCol);
+    HBRUSH oldBr = (HBRUSH)SelectObject(hdc, hBr);
+    HPEN oldPen = (HPEN)SelectObject(hdc, hPen);
+
+    RoundRect(hdc, boxX, boxY, boxX + boxSize, boxY + boxSize, 3, 3);
+
+    if (isChecked) {
+        HPEN hCheckPen = CreatePen(PS_SOLID, 2, checkCol);
+        SelectObject(hdc, hCheckPen);
+        MoveToEx(hdc, boxX + 3, boxY + 7, NULL);
+        LineTo(hdc, boxX + 6, boxY + 10);
+        LineTo(hdc, boxX + 11, boxY + 4);
+        DeleteObject(hCheckPen);
+    } else if (isMissing || isLiteExcluded) {
+        HPEN hXPen = CreatePen(PS_SOLID, 1, checkCol);
+        SelectObject(hdc, hXPen);
+        MoveToEx(hdc, boxX + 4, boxY + 4, NULL);
+        LineTo(hdc, boxX + 10, boxY + 10);
+        MoveToEx(hdc, boxX + 10, boxY + 4, NULL);
+        LineTo(hdc, boxX + 4, boxY + 10);
+        DeleteObject(hXPen);
+    }
+
+    SelectObject(hdc, oldBr);
+    SelectObject(hdc, oldPen);
+    DeleteObject(hBr);
+    DeleteObject(hPen);
+}
+
+/* Draw classic button with pixel-perfect background clear (no bright corner dots) */
 static void DrawClassicButton(DRAWITEMSTRUCT *dis, const char *label, bool isDefault, bool isHover, BOOL isDark, HFONT hFont) {
     HDC hdc = dis->hDC;
     RECT rc = dis->rcItem;
     bool isPressed = (dis->itemState & ODS_SELECTED) != 0;
+
+    /* 1. Pre-fill entire button DC with exact dialog background color to prevent light corner artifacts */
+    COLORREF dlgBg = isDark ? RGB(32, 32, 36) : GetSysColor(COLOR_BTNFACE);
+    HBRUSH hBrDlg = CreateSolidBrush(dlgBg);
+    FillRect(hdc, &rc, hBrDlg);
+    DeleteObject(hBrDlg);
 
     COLORREF bgCol, borderCol, textCol;
     if (isDark) {
@@ -305,6 +510,91 @@ static void DrawClassicButton(DRAWITEMSTRUCT *dis, const char *label, bool isDef
     SelectObject(hdc, oldFont);
 }
 
+/* Render a single module table row (checkbox, name, description, status) */
+static void DrawModuleRow(HDC hdc, int i, int rowY, COLORREF colTextPri, COLORREF colTextSec, COLORREF colSuccess, COLORREF colError, COLORREF colDisabled, COLORREF colBadgeBg, COLORREF colBadgeBorder, COLORREF colBadgeText, COLORREF dlgBg, HFONT hFontNormal, HFONT hFontSemibold, HFONT hFontBold) {
+#ifdef ZUCOMPLELUXE_LITE
+    bool isExcluded = g_modules[i].is_lite_excluded;
+#else
+    bool isExcluded = false;
+#endif
+    bool isUnusable = g_modules[i].is_mandatory || !g_modules[i].exists || isExcluded;
+
+    /* Checkbox clickable rect */
+    g_modules[i].rc_checkbox.left   = 34;
+    g_modules[i].rc_checkbox.top    = rowY - 1;
+    g_modules[i].rc_checkbox.right  = 54;
+    g_modules[i].rc_checkbox.bottom = rowY + 17;
+
+    /* Entire row clickable rect */
+    g_modules[i].rc_row.left   = 28;
+    g_modules[i].rc_row.top    = rowY - 2;
+    g_modules[i].rc_row.right  = 620;
+    g_modules[i].rc_row.bottom = rowY + 18;
+
+    /* Draw Checkbox with strict 50% opacity when unusable (required, missing, or excluded) */
+    DrawModernCheckbox(hdc, &g_modules[i].rc_checkbox,
+                       g_modules[i].enabled,
+                       g_modules[i].is_mandatory,
+                       !g_modules[i].exists,
+                       isExcluded,
+                       isUnusable ? false : g_modules[i].hover,
+                       g_isDarkMode,
+                       dlgBg);
+
+    /* Column 2: Module name */
+    SelectObject(hdc, hFontNormal);
+    COLORREF nameCol = isUnusable ? BlendColor(colTextPri, dlgBg, 0.70f) : (g_modules[i].enabled ? colTextPri : colDisabled);
+    SetTextColor(hdc, nameCol);
+    TextOutA(hdc, 88, rowY, g_modules[i].disp_name, (int)strlen(g_modules[i].disp_name));
+
+    /* Column 3: Description */
+    COLORREF descCol = isUnusable ? BlendColor(colTextSec, dlgBg, 0.70f) : (g_modules[i].enabled ? colTextSec : colDisabled);
+    SetTextColor(hdc, descCol);
+    TextOutA(hdc, 232, rowY, g_modules[i].desc, (int)strlen(g_modules[i].desc));
+
+    /* Column 4: Status */
+    if (g_modules[i].is_mandatory) {
+        SelectObject(hdc, hFontBold);
+        const char *reqText = "[OK] Required";
+        SIZE sz;
+        GetTextExtentPoint32A(hdc, reqText, (int)strlen(reqText), &sz);
+
+        RECT rcBadge = { 491, rowY - 2, 491 + sz.cx + 8, rowY + sz.cy + 1 };
+        HBRUSH hBr = CreateSolidBrush(colBadgeBg);
+        HPEN hPen = CreatePen(PS_SOLID, 1, colBadgeBorder);
+        HBRUSH oldBr = (HBRUSH)SelectObject(hdc, hBr);
+        HPEN oldPen = (HPEN)SelectObject(hdc, hPen);
+        RoundRect(hdc, rcBadge.left, rcBadge.top, rcBadge.right, rcBadge.bottom, 4, 4);
+        SelectObject(hdc, oldBr);
+        SelectObject(hdc, oldPen);
+        DeleteObject(hBr);
+        DeleteObject(hPen);
+
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, colBadgeText);
+        TextOutA(hdc, 495, rowY, reqText, (int)strlen(reqText));
+    } else {
+        SelectObject(hdc, hFontSemibold);
+#ifdef ZUCOMPLELUXE_LITE
+        if (g_modules[i].is_lite_excluded) {
+            SetTextColor(hdc, colDisabled);
+            TextOutA(hdc, 495, rowY, "[DISABLED]", 10);
+        } else
+#endif
+        if (!g_modules[i].exists) {
+            SetTextColor(hdc, colError);
+            TextOutA(hdc, 495, rowY, "[MISSING]", 9);
+        } else if (!g_modules[i].enabled) {
+            COLORREF colOff = g_isDarkMode ? RGB(251, 146, 60) : RGB(194, 65, 12);
+            SetTextColor(hdc, colOff);
+            TextOutA(hdc, 495, rowY, "[OFF] Disabled", 14);
+        } else {
+            SetTextColor(hdc, colSuccess);
+            TextOutA(hdc, 495, rowY, "[OK] Present", 12);
+        }
+    }
+}
+
 /* Window procedure for Classic Dialog Window */
 static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
@@ -313,12 +603,21 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
 
         g_hBtnQuit = CreateWindowExA(0, "BUTTON", "Quit",
                                      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
-                                     484, 325, 68, 24, hwnd, (HMENU)IDC_BTN_QUIT, GetModuleHandle(NULL), NULL);
+                                     484, 456, 68, 25, hwnd, (HMENU)IDC_BTN_QUIT, GetModuleHandle(NULL), NULL);
 
         g_hBtnRun = CreateWindowExA(0, "BUTTON", "Run",
                                     WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
-                                    562, 325, 68, 24, hwnd, (HMENU)IDC_BTN_RUN, GetModuleHandle(NULL), NULL);
+                                    562, 456, 68, 25, hwnd, (HMENU)IDC_BTN_RUN, GetModuleHandle(NULL), NULL);
         return 0;
+    }
+
+    case WM_CTLCOLORBTN: {
+        HDC hdcBtn = (HDC)wParam;
+        COLORREF colBg = g_isDarkMode ? RGB(32, 32, 36) : GetSysColor(COLOR_BTNFACE);
+        SetBkColor(hdcBtn, colBg);
+        if (g_hBrDlgBg) DeleteObject(g_hBrDlgBg);
+        g_hBrDlgBg = CreateSolidBrush(colBg);
+        return (LRESULT)g_hBrDlgBg;
     }
 
     case WM_SETTINGCHANGE: {
@@ -376,25 +675,33 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
         HBITMAP hbm = CreateCompatibleBitmap(hdcWindow, w, h);
         HBITMAP oldBm = (HBITMAP)SelectObject(hdc, hbm);
 
-        COLORREF colBg        = g_isDarkMode ? RGB(32, 32, 36)   : GetSysColor(COLOR_BTNFACE);
-        COLORREF colBorder    = g_isDarkMode ? RGB(65, 65, 72)   : RGB(180, 180, 185);
-        COLORREF colTextPri   = g_isDarkMode ? RGB(235, 235, 240): RGB(20, 20, 20);
-        COLORREF colTextSec   = g_isDarkMode ? RGB(160, 160, 168): RGB(105, 105, 112);
-        COLORREF colSuccess   = g_isDarkMode ? RGB(74, 222, 128) : RGB(22, 128, 61);
-        COLORREF colError     = g_isDarkMode ? RGB(248, 113, 113): RGB(220, 38, 38);
+        COLORREF colBg          = g_isDarkMode ? RGB(32, 32, 36)   : GetSysColor(COLOR_BTNFACE);
+        COLORREF colBorder      = g_isDarkMode ? RGB(65, 65, 72)   : RGB(180, 180, 185);
+        COLORREF colTextPri     = g_isDarkMode ? RGB(235, 235, 240): RGB(20, 20, 20);
+        COLORREF colTextSec     = g_isDarkMode ? RGB(160, 160, 168): RGB(105, 105, 112);
+        COLORREF colSuccess     = g_isDarkMode ? RGB(74, 222, 128) : RGB(22, 128, 61);
+        COLORREF colError       = g_isDarkMode ? RGB(248, 113, 113): RGB(220, 38, 38);
+        COLORREF colDisabled    = g_isDarkMode ? RGB(130, 130, 138): RGB(130, 130, 135);
+        COLORREF colWarning     = g_isDarkMode ? RGB(250, 204, 21) : RGB(180, 83, 9);
+        COLORREF colBadgeBg     = g_isDarkMode ? RGB(12, 45, 72)   : RGB(224, 242, 254);
+        COLORREF colBadgeBorder = g_isDarkMode ? RGB(56, 189, 248) : RGB(2, 132, 199);
+        COLORREF colBadgeText   = g_isDarkMode ? RGB(56, 189, 248) : RGB(2, 132, 199);
 
         HBRUSH hBrBg = CreateSolidBrush(colBg);
         FillRect(hdc, &clientRc, hBrBg);
         DeleteObject(hBrBg);
 
-        /* Comfortable standard font size (Segoe UI 15px = ~11pt) */
+        /* Comfortable standard font sizes */
+        HFONT hFontBold = CreateFontA(15, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+                                      DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                      CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
         HFONT hFontSemibold = CreateFontA(15, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
                                           DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                                           CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
         HFONT hFontNormal = CreateFontA(15, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                                         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                                         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        HFONT hFontNote = CreateFontA(14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        HFONT hFontNote = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                                       DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                                       CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
 
@@ -459,77 +766,138 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
         TextOutA(hdc, 432, 68, "MIT License", 11);
         TextOutA(hdc, 432, 88, g_meta.fileName, (int)strlen(g_meta.fileName));
 
-        /* --- 2. Sidecar Module Dependencies GroupBox --- */
-        RECT rcGroup2 = { 16, 120, 630, 314 };
+        /* --- 2. Sidecar Module Dependencies GroupBox (Gameplay & Content: 8 Modules) --- */
+        RECT rcGroup2 = { 16, 118, 630, 314 };
 #ifdef ZUCOMPLELUXE_LITE
         DrawClassicGroupBox(hdc, &rcGroup2, " Sidecar Module Dependencies (modules\\) [Lite Edition] ", colBorder, colBg, colTextPri, hFontSemibold);
 #else
         DrawClassicGroupBox(hdc, &rcGroup2, " Sidecar Module Dependencies (modules\\) ", colBorder, colBg, colTextPri, hFontSemibold);
 #endif
 
-        /* Table Column Headers */
+        /* Table 1 Column Headers */
         SelectObject(hdc, hFontSemibold);
         SetTextColor(hdc, colTextSec);
-        TextOutA(hdc, 32, 138, "Module", 6);
-        TextOutA(hdc, 195, 138, "Description", 11);
-        TextOutA(hdc, 485, 138, "Status", 6);
+        TextOutA(hdc, 30, 135, "Enable", 6);
+        TextOutA(hdc, 88, 135, "Module", 6);
+        TextOutA(hdc, 232, 135, "Description", 11);
+        TextOutA(hdc, 495, 135, "Status", 6);
 
-        /* Separator line under table header */
+        /* Separator line under table 1 header */
         HPEN hPenSep = CreatePen(PS_SOLID, 1, colBorder);
         HPEN oldPen = (HPEN)SelectObject(hdc, hPenSep);
-        MoveToEx(hdc, 26, 157, NULL);
-        LineTo(hdc, 620, 157);
+        MoveToEx(hdc, 26, 152, NULL);
+        LineTo(hdc, 620, 152);
         SelectObject(hdc, oldPen);
         DeleteObject(hPenSep);
 
-        /* Natural, compact rows (20px pitch) */
-        int rowY = 166;
-        int rowGap = 20;
+        /* Render 8 Gameplay & Content Sidecars (indices 0..7) */
+        int rowY = 158;
+        int rowGap = 19;
 
-        for (int i = 0; i < MODULE_COUNT; i++) {
-            /* Column 1: Module name */
-            SelectObject(hdc, hFontNormal);
-            SetTextColor(hdc, colTextPri);
-            TextOutA(hdc, 32, rowY, g_modules[i].disp_name, (int)strlen(g_modules[i].disp_name));
-
-            /* Column 2: Description */
-            SetTextColor(hdc, colTextSec);
-            TextOutA(hdc, 195, rowY, g_modules[i].desc, (int)strlen(g_modules[i].desc));
-
-            /* Column 3: Status */
-            SelectObject(hdc, hFontSemibold);
-#ifdef ZUCOMPLELUXE_LITE
-            if (g_modules[i].is_lite_excluded) {
-                COLORREF colDisabled = g_isDarkMode ? RGB(140, 149, 159) : RGB(110, 119, 129);
-                SetTextColor(hdc, colDisabled);
-                TextOutA(hdc, 485, rowY, "[DISABLED]", 10);
-            } else
-#endif
-            if (g_modules[i].exists) {
-                SetTextColor(hdc, colSuccess);
-                if (g_modules[i].is_mandatory) {
-                    TextOutA(hdc, 485, rowY, "[OK] Required", 13);
-                } else {
-                    TextOutA(hdc, 485, rowY, "[OK] Present", 12);
-                }
-            } else {
-                SetTextColor(hdc, colError);
-                TextOutA(hdc, 485, rowY, "[MISSING]", 9);
-            }
-
+        for (int i = 0; i < GAMEPLAY_MODULE_COUNT; i++) {
+            DrawModuleRow(hdc, i, rowY, colTextPri, colTextSec, colSuccess, colError, colDisabled,
+                          colBadgeBg, colBadgeBorder, colBadgeText, colBg, hFontNormal, hFontSemibold, hFontBold);
             rowY += rowGap;
         }
 
-        /* --- 3. Bottom Footer Note --- */
+        /* --- 3. Display & Custom Resolution System GroupBox --- */
+        RECT rcGroup3 = { 16, 322, 630, 446 };
+#ifdef ZUCOMPLELUXE_LITE
+        DrawClassicGroupBox(hdc, &rcGroup3, " Display & Custom Resolution System (.zres) [Lite Edition] ", colBorder, colBg, colTextPri, hFontSemibold);
+#else
+        DrawClassicGroupBox(hdc, &rcGroup3, " Display & Custom Resolution System (.zres) ", colBorder, colBg, colTextPri, hFontSemibold);
+#endif
+
+        /* Line 1: Resolution Summary Row */
+        SelectObject(hdc, hFontNormal);
+        SetTextColor(hdc, colTextSec);
+        TextOutA(hdc, 30, 338, "Resolution:", 11);
+
+        char resStr[48];
+        snprintf(resStr, sizeof(resStr), "%d x %d", g_res.w, g_res.h);
+        SelectObject(hdc, hFontBold);
+        SetTextColor(hdc, colTextPri);
+        TextOutA(hdc, 108, 338, resStr, (int)strlen(resStr));
+
+        SelectObject(hdc, hFontNormal);
+        SetTextColor(hdc, colTextSec);
+        TextOutA(hdc, 194, 338, "Aspect Ratio:", 13);
+        SelectObject(hdc, hFontSemibold);
+        SetTextColor(hdc, colTextPri);
+        TextOutA(hdc, 282, 338, g_res.ratioStr, (int)strlen(g_res.ratioStr));
+
+        SelectObject(hdc, hFontNormal);
+        SetTextColor(hdc, colTextSec);
+        TextOutA(hdc, 480, 338, "Limit:", 6);
+        SelectObject(hdc, hFontSemibold);
+        SetTextColor(hdc, colWarning);
+        TextOutA(hdc, 524, 338, "480 x 320", 9);
+
+        /* Line 2: Asset Mode & imagescustomres/ explanation */
+        SelectObject(hdc, hFontNormal);
+        SetTextColor(hdc, colTextSec);
+        TextOutA(hdc, 30, 356, "Asset Mode:", 11);
+
+        if (g_res.has_zres && (g_res.w != 640 || g_res.h != 480)) {
+            SelectObject(hdc, hFontSemibold);
+            SetTextColor(hdc, colTextPri);
+            TextOutA(hdc, 114, 356, "imagescustomres/", 16);
+            SelectObject(hdc, hFontNote);
+            SetTextColor(hdc, colTextSec);
+            TextOutA(hdc, 236, 358, "(Auto-loads scaled UI graphics; fallback to images/)", 52);
+        } else {
+            SelectObject(hdc, hFontSemibold);
+            SetTextColor(hdc, colTextPri);
+            TextOutA(hdc, 114, 356, "images/", 7);
+            SelectObject(hdc, hFontNote);
+            SetTextColor(hdc, colTextSec);
+            TextOutA(hdc, 170, 358, "(Vanilla 640x480 standard assets)", 33);
+        }
+
+        /* Separator line between resolution info and table 2 */
+        HPEN hPenSep2 = CreatePen(PS_SOLID, 1, colBorder);
+        HPEN oldPen2 = (HPEN)SelectObject(hdc, hPenSep2);
+        MoveToEx(hdc, 26, 374, NULL);
+        LineTo(hdc, 620, 374);
+        SelectObject(hdc, oldPen2);
+        DeleteObject(hPenSep2);
+
+        /* Table 2 Column Headers for Resolution Modules */
+        SelectObject(hdc, hFontSemibold);
+        SetTextColor(hdc, colTextSec);
+        TextOutA(hdc, 30, 380, "Enable", 6);
+        TextOutA(hdc, 88, 380, "Module", 6);
+        TextOutA(hdc, 232, 380, "Description", 11);
+        TextOutA(hdc, 495, 380, "Status", 6);
+
+        /* Separator line under table 2 header */
+        HPEN hPenSep3 = CreatePen(PS_SOLID, 1, colBorder);
+        HPEN oldPen3 = (HPEN)SelectObject(hdc, hPenSep3);
+        MoveToEx(hdc, 26, 398, NULL);
+        LineTo(hdc, 620, 398);
+        SelectObject(hdc, oldPen3);
+        DeleteObject(hPenSep3);
+
+        /* Render 2 Resolution Sidecars (indices 8..9: zumadisplay.dll, zumareshandler.dll) */
+        int rowY2 = 404;
+        for (int i = RES_MODULE_START; i < RES_MODULE_START + RES_MODULE_COUNT; i++) {
+            DrawModuleRow(hdc, i, rowY2, colTextPri, colTextSec, colSuccess, colError, colDisabled,
+                          colBadgeBg, colBadgeBorder, colBadgeText, colBg, hFontNormal, hFontSemibold, hFontBold);
+            rowY2 += rowGap;
+        }
+
+        /* --- 4. Bottom Footer Note --- */
         SelectObject(hdc, hFontNote);
         SetTextColor(hdc, colTextSec);
 #ifdef ZUCOMPLELUXE_LITE
-        TextOutA(hdc, 20, 320, "Lite Edition: Core mods only. WebP, Multi-Path & 11-Colors disabled.", 68);
-        TextOutA(hdc, 20, 336, "Press Run to start Zuma Deluxe, or Quit to exit.", 48);
+        TextOutA(hdc, 20, 456, "Lite Edition: WebP, Multi-Path & 11-Colors omitted. Press F11 for borderless fullscreen.", 88);
+        TextOutA(hdc, 20, 472, "Press Run to start Zuma Deluxe, or Quit to exit.", 48);
 #else
-        TextOutA(hdc, 20, 329, "Press Run to start Zuma Deluxe, or Quit to exit.", 48);
+        TextOutA(hdc, 20, 456, "Tip: Click checkboxes to toggle optional sidecars. Press F11 for borderless fullscreen.", 87);
+        TextOutA(hdc, 20, 472, "Press Run to start Zuma Deluxe, or Quit to exit.", 48);
 #endif
 
+        DeleteObject(hFontBold);
         DeleteObject(hFontSemibold);
         DeleteObject(hFontNormal);
         DeleteObject(hFontNote);
@@ -566,8 +934,31 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
         if (newLinkHover != g_linkHover) {
             g_linkHover = newLinkHover;
             InvalidateRect(hwnd, &g_rcLink, TRUE);
-            SetCursor(g_linkHover ? g_hCurHand : g_hCurArrow);
         }
+
+        bool overClickable = newLinkHover;
+        for (int i = 0; i < MODULE_COUNT; i++) {
+#ifdef ZUCOMPLELUXE_LITE
+            bool isExcluded = g_modules[i].is_lite_excluded;
+#else
+            bool isExcluded = false;
+#endif
+            bool canToggle = !g_modules[i].is_mandatory && g_modules[i].exists && !isExcluded;
+            bool isOverRow = PtInRect(&g_modules[i].rc_row, pt);
+            if (canToggle) {
+                if (isOverRow != g_modules[i].hover) {
+                    g_modules[i].hover = isOverRow;
+                    InvalidateRect(hwnd, &g_modules[i].rc_row, FALSE);
+                }
+                if (isOverRow) {
+                    overClickable = true;
+                }
+            } else {
+                g_modules[i].hover = false;
+            }
+        }
+
+        SetCursor(overClickable ? g_hCurHand : g_hCurArrow);
 
         TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, hwnd, 0 };
         TrackMouseEvent(&tme);
@@ -585,6 +976,12 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
             g_linkHover = false;
             InvalidateRect(hwnd, &g_rcLink, TRUE);
         }
+        for (int i = 0; i < MODULE_COUNT; i++) {
+            if (g_modules[i].hover) {
+                g_modules[i].hover = false;
+                InvalidateRect(hwnd, &g_modules[i].rc_row, FALSE);
+            }
+        }
         SetCursor(g_hCurArrow);
         return 0;
     }
@@ -594,7 +991,22 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
             POINT pt;
             GetCursorPos(&pt);
             ScreenToClient(hwnd, &pt);
-            SetCursor(PtInRect(&g_rcLink, pt) ? g_hCurHand : g_hCurArrow);
+            bool overClickable = PtInRect(&g_rcLink, pt);
+            if (!overClickable) {
+                for (int i = 0; i < MODULE_COUNT; i++) {
+#ifdef ZUCOMPLELUXE_LITE
+                    bool isExcluded = g_modules[i].is_lite_excluded;
+#else
+                    bool isExcluded = false;
+#endif
+                    bool canToggle = !g_modules[i].is_mandatory && g_modules[i].exists && !isExcluded;
+                    if (canToggle && PtInRect(&g_modules[i].rc_row, pt)) {
+                        overClickable = true;
+                        break;
+                    }
+                }
+            }
+            SetCursor(overClickable ? g_hCurHand : g_hCurArrow);
             return TRUE;
         }
         break;
@@ -606,6 +1018,21 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
             ShellExecuteA(hwnd, "open", "https://github.com/rizkybayuu", NULL, NULL, SW_SHOWNORMAL);
             return 0;
         }
+
+        /* Check module row click / checkbox toggle */
+        for (int i = 0; i < MODULE_COUNT; i++) {
+#ifdef ZUCOMPLELUXE_LITE
+            bool isExcluded = g_modules[i].is_lite_excluded;
+#else
+            bool isExcluded = false;
+#endif
+            bool canToggle = !g_modules[i].is_mandatory && g_modules[i].exists && !isExcluded;
+            if (canToggle && PtInRect(&g_modules[i].rc_row, pt)) {
+                g_modules[i].enabled = !g_modules[i].enabled;
+                InvalidateRect(hwnd, NULL, FALSE);
+                return 0;
+            }
+        }
         break;
     }
 
@@ -616,6 +1043,10 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
     }
 
     case WM_DESTROY: {
+        if (g_hBrDlgBg) {
+            DeleteObject(g_hBrDlgBg);
+            g_hBrDlgBg = NULL;
+        }
         PostQuitMessage(0);
         return 0;
     }
@@ -626,11 +1057,8 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
     return DefWindowProcA(hwnd, uMsg, wParam, lParam);
 }
 
-#ifdef ZUCOMPLELUXE_LITE
-/* Neutralize excluded sidecar DLL strings inside the loaded Zuma.exe executable.
-   This guarantees that the in-executable .zldr stub cannot load them even if
-   physical DLL files exist in modules\ */
-static void DisableLiteExcludedModules(void) {
+/* Neutralize disabled sidecar DLL string references inside the host executable memory */
+static void ApplyModuleStates(void) {
     HMODULE hExe = GetModuleHandleA(NULL);
     if (!hExe) return;
 
@@ -639,46 +1067,43 @@ static void DisableLiteExcludedModules(void) {
     PIMAGE_NT_HEADERS nt = (PIMAGE_NT_HEADERS)((BYTE*)hExe + dos->e_lfanew);
     if (nt->Signature != IMAGE_NT_SIGNATURE) return;
 
-    const char *targets[] = {
-        "modules\\zumawebp.dll",
-        "modules\\zumaextrapath.dll",
-        "modules\\zumaextracolor.dll"
-    };
+    for (int i = 0; i < MODULE_COUNT; i++) {
+        if (!g_modules[i].enabled && !g_modules[i].is_mandatory) {
+            char target[64];
+            snprintf(target, sizeof(target), "modules\\%s", g_modules[i].filename);
+            size_t tlen = strlen(target);
 
-    PIMAGE_SECTION_HEADER sec = IMAGE_FIRST_SECTION(nt);
-    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++) {
-        DWORD secSize = sec->Misc.VirtualSize ? sec->Misc.VirtualSize : sec->SizeOfRawData;
-        BYTE *secStart = (BYTE*)hExe + sec->VirtualAddress;
+            PIMAGE_SECTION_HEADER sec = IMAGE_FIRST_SECTION(nt);
+            for (WORD s = 0; s < nt->FileHeader.NumberOfSections; s++, sec++) {
+                DWORD secSize = sec->Misc.VirtualSize ? sec->Misc.VirtualSize : sec->SizeOfRawData;
+                BYTE *secStart = (BYTE*)hExe + sec->VirtualAddress;
 
-        for (int t = 0; t < 3; t++) {
-            size_t tlen = strlen(targets[t]);
-            if (secSize < tlen) continue;
-            for (DWORD j = 0; j <= secSize - tlen; j++) {
-                if (memcmp(secStart + j, targets[t], tlen) == 0) {
-                    DWORD oldProt;
-                    if (VirtualProtect(secStart + j, 4, PAGE_READWRITE, &oldProt)) {
-                        secStart[j] = '\0'; /* Neutralize string so LoadLibraryA("") returns NULL safely */
-                        VirtualProtect(secStart + j, 4, oldProt, &oldProt);
+                if (secSize < tlen) continue;
+                for (DWORD j = 0; j <= secSize - tlen; j++) {
+                    if (memcmp(secStart + j, target, tlen) == 0) {
+                        DWORD oldProt;
+                        if (VirtualProtect(secStart + j, 4, PAGE_READWRITE, &oldProt)) {
+                            secStart[j] = '\0'; /* Neutralize string so LoadLibraryA("") returns NULL safely */
+                            VirtualProtect(secStart + j, 4, oldProt, &oldProt);
+                        }
                     }
                 }
             }
         }
     }
 }
-#endif
 
 /* Exported main entry point called by Zuma's module loader (.zldr) */
 __declspec(dllexport) int __cdecl ZDC_RunChecker(void) {
     if (getenv("ZUMA_NO_CHECKER") || strstr(GetCommandLineA(), "--no-checker") || strstr(GetCommandLineA(), "-fast")) {
-#ifdef ZUCOMPLELUXE_LITE
-        DisableLiteExcludedModules();
-#endif
+        ApplyModuleStates();
         return 1;
     }
 
     g_dialogResult = 0;
 
     LoadZumaMetadata();
+    DetectResolutionInfo();
     CheckModules();
     g_isDarkMode = DetectSystemDarkMode();
 
@@ -696,7 +1121,7 @@ __declspec(dllexport) int __cdecl ZDC_RunChecker(void) {
     wc.hbrBackground = NULL;
     RegisterClassExA(&wc);
 
-    RECT rc = { 0, 0, 646, 360 };
+    RECT rc = { 0, 0, 646, 498 };
     DWORD dwStyle = WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     DWORD dwExStyle = WS_EX_DLGMODALFRAME;
     AdjustWindowRectEx(&rc, dwStyle, FALSE, dwExStyle);
@@ -711,9 +1136,9 @@ __declspec(dllexport) int __cdecl ZDC_RunChecker(void) {
         dwExStyle,
         wc.lpszClassName,
 #ifdef ZUCOMPLELUXE_LITE
-        "ZuCompleluxe v0.4.2 Lite - Module & Dependency Checker",
+        "ZuCompleluxe v0.5 Lite - Module & Dependency Checker",
 #else
-        "ZuCompleluxe v0.4.2 - Module & Dependency Checker",
+        "ZuCompleluxe v0.5 - Module & Dependency Checker",
 #endif
         dwStyle | WS_VISIBLE,
         posX, posY, winW, winH,
@@ -748,9 +1173,7 @@ __declspec(dllexport) int __cdecl ZDC_RunChecker(void) {
         ExitProcess(0);
     }
 
-#ifdef ZUCOMPLELUXE_LITE
-    DisableLiteExcludedModules();
-#endif
+    ApplyModuleStates();
 
     return g_dialogResult;
 }

@@ -169,6 +169,31 @@ static int init_config_(void)
     if (cfg->rva_zuma_app)
         g_p_zuma_app = (void **)(b + cfg->rva_zuma_app);
 
+    /* Patch CreditsScreen::Draw early line cutoff check so multi-line / tall custom elements (e.g. GitHub button)
+       can smoothly scroll completely out of view without disappearing halfway */
+    for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++) {
+        if (memcmp(sec[i].Name, ".text", 5) == 0) {
+            uint8_t *text_data = (uint8_t *)base + sec[i].VirtualAddress;
+            DWORD text_size = sec[i].Misc.VirtualSize;
+            for (DWORD j = 0; j + 18 <= text_size; j++) {
+                if (text_data[j] == 0x03 && text_data[j+1] == 0xC7 &&
+                    text_data[j+2] == 0x3B && text_data[j+3] == 0xFA &&
+                    text_data[j+4] == 0x0F && text_data[j+5] == 0x8D &&
+                    text_data[j+10] == 0x3B && text_data[j+11] == 0xC3 &&
+                    text_data[j+12] == 0x0F && text_data[j+13] == 0x8E) {
+                    DWORD old_prot;
+                    if (VirtualProtect(text_data + j + 10, 8, PAGE_EXECUTE_READWRITE, &old_prot)) {
+                        memset(text_data + j + 10, 0x90, 8); /* 8x NOP */
+                        VirtualProtect(text_data + j + 10, 8, old_prot, &old_prot);
+                        logf_("Patched CreditsScreen::Draw early cutoff check at %p", text_data + j + 10);
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
     logf_("Config loaded: title_font=%p, btn_img=%p, credits_count_ptr=%p",
           g_p_font_title, g_p_img_dialog_button, g_p_credits_count);
     g_config_valid = 1;
@@ -266,15 +291,21 @@ static void *get_native_alien_image_(void)
     return NULL;
 }
 
-static void draw_scaled_zucompleluxe_project_(void *g, int lineY)
+static void draw_scaled_zucompleluxe_project_(void *creditsScreen, void *g, int lineY)
 {
+    (void)creditsScreen;
     if (!g || !g_fn_draw_image) return;
 
     void *img = get_native_alien_image_();
     if (!img) return;
 
-    /* Total scaled advance is 489 px; centered in 640 px screen: startX = (640 - 489) / 2 = 75 */
-    int curX = 75;
+    int screenW = (g_p_zuma_app && *g_p_zuma_app) ? *(int *)((uint8_t *)(*g_p_zuma_app) + 0x5c) : 640;
+    int screenH = (g_p_zuma_app && *g_p_zuma_app) ? *(int *)((uint8_t *)(*g_p_zuma_app) + 0x60) : 480;
+    if (screenW <= 0) screenW = 640;
+    if (screenH <= 0) screenH = 480;
+
+    /* Total scaled advance is 489 px; dynamically centered across full widescreen */
+    int curX = (screenW - 489) / 2;
     float scale = 2.0f / 3.0f;
 
     for (int i = 0; i < ZCC_GLYPHS_COUNT; i++) {
@@ -303,6 +334,12 @@ static void draw_scaled_zucompleluxe_project_(void *g, int lineY)
 
 static void open_github_url_(void)
 {
+    HWND hwnd = NULL;
+    if (g_p_zuma_app && *g_p_zuma_app) {
+        hwnd = *(HWND *)((uint8_t *)(*g_p_zuma_app) + 0x2fc);
+    }
+    if (!hwnd) hwnd = GetActiveWindow();
+
     if (!g_fn_shellexecute) {
         HMODULE hShell = LoadLibraryA("shell32.dll");
         if (hShell) {
@@ -311,7 +348,10 @@ static void open_github_url_(void)
     }
     if (g_fn_shellexecute) {
         logf_("Opening ZuCompleluxe GitHub repository in default browser...");
-        g_fn_shellexecute(NULL, "open", "https://github.com/rizkybayuu/ZuCompleluxe", NULL, NULL, SW_SHOWNORMAL);
+        g_fn_shellexecute(hwnd, "open", "https://github.com/rizkybayuu/ZuCompleluxe", NULL, NULL, SW_SHOWNORMAL);
+        if (hwnd) {
+            ShowWindow(hwnd, SW_MINIMIZE);
+        }
     } else {
         logf_("Error: Failed to resolve ShellExecuteA from shell32.dll");
     }
@@ -348,7 +388,7 @@ EXPORT void * __cdecl ZCC_GetCreditsTable(void)
         /* Entry 41: GitHub Button -> FONT_DIALOG (style like "Whatever" button) */
         g_extended_credits[41].font = (g_p_font_dialog && *g_p_font_dialog) ? *g_p_font_dialog : NULL;
         g_extended_credits[41].text = "GitHub";
-        g_extended_credits[41].spacing = 60;
+        g_extended_credits[41].spacing = 60; /* Added spacing so GitHub button completely scrolls off before loop reset */
 
         g_credits_inited = 1;
         logf_("Extended credits table initialized (total entries: %d)", ZCC_CREDITS_TOTAL);
@@ -367,7 +407,7 @@ EXPORT void __cdecl ZCC_PreDrawCreditLine(void *creditsScreen, void *g, void *fo
     if (!text) return;
 
     if (strcmp(text, "ZuCompleluxe Project") == 0) {
-        draw_scaled_zucompleluxe_project_(g, lineY);
+        draw_scaled_zucompleluxe_project_(creditsScreen, g, lineY);
         /* Suppress Zuma's default unscaled DrawString for this entry */
         g_extended_credits[38].text = "";
     } else {
@@ -380,16 +420,22 @@ EXPORT void __cdecl ZCC_PreDrawCreditLine(void *creditsScreen, void *g, void *fo
     if (strcmp(text, "GitHub") == 0) {
         g_credits_screen = creditsScreen;
 
+        int screenW = (g_p_zuma_app && *g_p_zuma_app) ? *(int *)((uint8_t *)(*g_p_zuma_app) + 0x5c) : 640;
+        int screenH = (g_p_zuma_app && *g_p_zuma_app) ? *(int *)((uint8_t *)(*g_p_zuma_app) + 0x60) : 480;
+        if (screenW <= 0) screenW = 640;
+        if (screenH <= 0) screenH = 480;
+
         int btnW = 120;
         int btnH = 48;
-        int btnX = (640 - btnW) / 2;
+        int btnX = (screenW - btnW) / 2;
         int btnY = lineY - 11;
 
+        /* Hitbox in root window client coordinates (CreditsScreen has xo=0, yo=0 fullscreen) */
         g_btn_rect.left = btnX;
         g_btn_rect.top = btnY;
         g_btn_rect.right = btnX + btnW;
         g_btn_rect.bottom = btnY + btnH;
-        g_btn_visible = (btnY + btnH > 0 && btnY < 480);
+        g_btn_visible = (btnY + btnH > 0 && btnY < screenH);
 
         int cel = 0; /* 0 = Normal, 1 = Hover, 2 = Pressed */
         if (g_btn_visible) {
@@ -399,19 +445,45 @@ EXPORT void __cdecl ZCC_PreDrawCreditLine(void *creditsScreen, void *g, void *fo
             }
             if (!hwnd) hwnd = GetActiveWindow();
 
-            if (hwnd) {
+            void *app = (g_p_zuma_app && *g_p_zuma_app) ? *g_p_zuma_app : NULL;
+            void *wm = app ? *(void **)((uint8_t *)app + 0x2dc) : NULL;
+            int mx = -1, my = -1;
+            if (wm) {
+                mx = *(int *)((uint8_t *)wm + 0x54);
+                my = *(int *)((uint8_t *)wm + 0x58);
+            } else if (hwnd) {
                 POINT pt;
                 if (GetCursorPos(&pt) && ScreenToClient(hwnd, &pt)) {
-                    if (pt.x >= btnX && pt.x < btnX + btnW &&
-                        pt.y >= btnY && pt.y < btnY + btnH) {
-                        SetCursor(LoadCursorA(NULL, IDC_HAND));
-                        if ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0) {
-                            cel = 2;
-                        } else {
-                            cel = 1;
-                        }
+                    mx = pt.x;
+                    my = pt.y;
+                    HMODULE hMod = GetModuleHandleA("zumadisplay.dll");
+                    if (!hMod) hMod = GetModuleHandleA("zumareshandler.dll");
+                    if (hMod) {
+                        typedef void (__cdecl *fn_S2G)(int, int, int *, int *);
+                        fn_S2G pfn = (fn_S2G)GetProcAddress(hMod, "ZRH_ScreenToGameCoords");
+                        if (pfn) pfn(mx, my, &mx, &my);
                     }
                 }
+            }
+
+            static int s_was_pressed = 0;
+            int is_pressed = ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
+
+            if (mx >= g_btn_rect.left && mx < g_btn_rect.right &&
+                my >= g_btn_rect.top && my < g_btn_rect.bottom) {
+                SetCursor(LoadCursorA(NULL, IDC_HAND));
+                if (is_pressed) {
+                    cel = 2;
+                    s_was_pressed = 1;
+                } else {
+                    cel = 1;
+                    if (s_was_pressed) {
+                        s_was_pressed = 0;
+                        open_github_url_();
+                    }
+                }
+            } else {
+                if (!is_pressed) s_was_pressed = 0;
             }
         }
 
@@ -429,9 +501,22 @@ EXPORT void __cdecl ZCC_PreDrawCreditLine(void *creditsScreen, void *g, void *fo
 
 EXPORT int __cdecl ZCC_OnMouseDown(void *widget, int x, int y)
 {
-    if (widget == g_credits_screen && g_btn_visible) {
-        if (x >= g_btn_rect.left && x < g_btn_rect.right &&
-            y >= g_btn_rect.top && y < g_btn_rect.bottom) {
+    (void)widget;
+    if (g_btn_visible) {
+        void *app = (g_p_zuma_app && *g_p_zuma_app) ? *g_p_zuma_app : NULL;
+        void *wm = app ? *(void **)((uint8_t *)app + 0x2dc) : NULL;
+        int mx = x, my = y;
+        if (wm) {
+            mx = *(int *)((uint8_t *)wm + 0x54);
+            my = *(int *)((uint8_t *)wm + 0x58);
+        }
+
+        int hit = (x >= g_btn_rect.left && x < g_btn_rect.right &&
+                   y >= g_btn_rect.top && y < g_btn_rect.bottom) ||
+                  (mx >= g_btn_rect.left && mx < g_btn_rect.right &&
+                   my >= g_btn_rect.top && my < g_btn_rect.bottom);
+
+        if (hit) {
             open_github_url_();
             return 1; /* Handled */
         }

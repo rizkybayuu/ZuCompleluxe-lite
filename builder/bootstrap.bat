@@ -419,7 +419,7 @@ if exist "!TARGET_ZUMA_DIR!\!SUMMARY_EXE!" (
     echo  [MISSING] !SUMMARY_EXE!
 )
 
-for %%D in (zumadllchecker.dll zumawebp.dll zumaextrapath.dll zumaextracolor.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll) do (
+for %%D in (zumadllchecker.dll zumawebpbg.dll zumawebpsprite.dll zumaextrapath.dll zumaextracolor.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll zumadisplay.dll zumareshandler.dll) do (
     if defined DLL_STATUS_%%D (
         if exist "!TARGET_ZUMA_DIR!\modules\%%D" (
             for %%A in ("!TARGET_ZUMA_DIR!\modules\%%D") do echo  [OK] modules\%%D - !DLL_STATUS_%%D! - %%~zA bytes

@@ -38,7 +38,7 @@ def verify_pe(target_exe_path, vanilla_exe_path, binary_dir, is_lite=False):
         print(f"{sec.name_str:<10} 0x{pe.image_base + sec.virtual_address:08X}   0x{sec.virtual_size:08X}     0x{sec.raw_size:06X}   0x{sec.characteristics:08X}   [{access_str}]")
 
         # Check W+X
-        if w and x and sec.name_str != "GARR":  # GARR is original PopCap retail DRM stub
+        if w and x and sec.name_str not in ("GARR", ".zres"):  # GARR is original PopCap retail DRM stub, .zres is customres engine
             errors.append(f"Section '{sec.name_str}' has both WRITE and EXECUTE flags (Chars=0x{sec.characteristics:08X})!")
 
     # 2. Check .rdata is read-only
@@ -61,8 +61,21 @@ def verify_pe(target_exe_path, vanilla_exe_path, binary_dir, is_lite=False):
 
     # 4. Check import resolution against built DLLs
     target_imports = pe.get_imports()
-    lite_excluded = {'zumaextrapath.dll', 'zumawebp.dll', 'zumaextracolor.dll'}
-    for dll_name in ['zumadllchecker.dll', 'zumaextrapath.dll', 'zumawebp.dll', 'zumaextracolor.dll', 'zumacustommap.dll', 'zumacplxcredit.dll', 'zumatestingkit.dll']:
+    lite_excluded = {'zumaextrapath.dll', 'zumawebpbg.dll', 'zumawebpsprite.dll', 'zumaextracolor.dll'}
+    check_dlls = [
+        'zumadllchecker.dll',
+        'zumaextrapath.dll',
+        'zumawebpbg.dll',
+        'zumawebpsprite.dll',
+        'zumaextracolor.dll',
+        'zumacustommap.dll',
+        'zumacplxcredit.dll',
+        'zumatestingkit.dll',
+        'zumadisplay.dll',
+        'zumareshandler.dll'
+    ]
+
+    for dll_name in check_dlls:
         if is_lite and dll_name in lite_excluded:
             continue
 
@@ -70,8 +83,8 @@ def verify_pe(target_exe_path, vanilla_exe_path, binary_dir, is_lite=False):
         if not os.path.exists(dll_path):
             dll_path = os.path.join(binary_dir, dll_name)
         if not os.path.exists(dll_path):
-            if dll_name == "zumawebp.dll":
-                print(f"  [INFO] Optional sidecar zumawebp.dll not present (clean fallback to vanilla ImageLib).")
+            if dll_name in ("zumawebpbg.dll", "zumawebpsprite.dll"):
+                print(f"  [INFO] Optional sidecar {dll_name} not present (clean fallback).")
                 continue
             errors.append(f"Required sidecar DLL not found: {dll_path}")
             continue
@@ -96,7 +109,8 @@ def verify_pe(target_exe_path, vanilla_exe_path, binary_dir, is_lite=False):
     if errors:
         print(" [FAILED] PE INTEGRITY CHECKS FAILED:")
         for err in errors:
-            print(f"   * {err}")
+            err_safe = str(err).encode(sys.stdout.encoding or "utf-8", errors="backslashreplace").decode(sys.stdout.encoding or "utf-8")
+            print(f"   * {err_safe}")
         print("-------------------------------------------------------")
         sys.exit(1)
     else:

@@ -1,0 +1,70 @@
+{
+ "initdx_fn": {
+  "pat": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 64 89 25 00 00 00 00 81 EC 94 00 00 00 53",
+  "anchor": 0
+ },
+ "fill_fn": {
+  "pat": "55 8B EC 83 EC 20 56 8B F1",
+  "anchor": 0
+ },
+ "dd_call_a": {
+  "pat": "E8 ?? ?? ?? ?? 8B 96 1C 03 00 00",
+  "anchor": 0
+ },
+ "dd_call_b": {
+  "pat": "E8 ?? ?? ?? ?? 84 DB 74 27",
+  "anchor": 0
+ },
+ "dd_call_c": {
+  "pat": "E8 ?? ?? ?? ?? 8A 8E F2 02 00 00",
+  "anchor": 0
+ },
+ "gfx_call": {
+  "pat": "E8 ?? ?? ?? ?? 8B 4F 10 6A 00",
+  "anchor": 0
+ },
+ "ds_call": {
+  "pat": "E8 ?? ?? ?? ?? 84 C0 75 16",
+  "anchor": 0
+ },
+ "h4": {
+  "pat": "8B 53 5C 8B 43 60 8D 4D D4",
+  "anchor": 0
+ },
+ "h6_move": {
+  "pat": "56 57 E8 ?? ?? ?? ?? EB 1B",
+  "anchor": 0
+ },
+ "h6_drag": {
+  "pat": "56 57 E8 ?? ?? ?? ?? 8A 83 D8 04 00 00",
+  "anchor": 0
+ },
+ "bullet_l": {
+  "pat": "D8 1D ?? ?? ?? ?? DF E0 F6 C4 05 7B 5F",
+  "anchor": 0
+ },
+ "bullet_t": {
+  "pat": "D8 1D ?? ?? ?? ?? DF E0 F6 C4 05 7B 4F",
+  "anchor": 0
+ },
+ "bullet_r": {
+  "pat": "DB 46 10 DE D9",
+  "anchor": 0
+ },
+ "bullet_b": {
+  "pat": "DB 46 14 DE D9",
+  "anchor": 0
+ },
+ "drag_clamp": {
+  "pat": "83 F8 F8",
+  "anchor": 0
+ },
+ "board_h": {
+  "pat": "68 E0 01 00 00 68 80 02 00 00 53 53 FF 50 34",
+  "anchor": 0
+ },
+ "board_resize": {
+  "pat": "8B 4E 60 51 8B 4E 5C 51 6A 00 89 86 E4 05 00 00",
+  "anchor": 0
+ }
+}

@@ -247,8 +247,9 @@ class PEFile:
                 if next_p + 20 <= len(d):
                     noft, _, _, nname, nft = struct.unpack_from('<IIIII', d, next_p)
                     if not (noft == 0 and nname == 0 and nft == 0):
-                        p = next_p
-                        continue
+                        if self.rva_to_offset(nname) is not None and (nft == 0 or self.rva_to_offset(nft) is not None):
+                            p = next_p
+                            continue
                 break
             name_off = self.rva_to_offset(name_rva)
             if name_off is None:
@@ -269,8 +270,10 @@ class PEFile:
                     if not (entry_val & 0x80000000):  # Import by name
                         hn_off = self.rva_to_offset(entry_val)
                         if hn_off is not None:
-                            fn_name = d[hn_off + 2:d.index(b'\x00', hn_off + 2)].decode('latin1', 'ignore')
-                            func_dict[fn_name] = iat_slot_va
+                            zero_fn = d.find(b'\x00', hn_off + 2)
+                            if zero_fn != -1:
+                                fn_name = d[hn_off + 2:zero_fn].decode('latin1', 'ignore')
+                                func_dict[fn_name] = iat_slot_va
                     else:
                         ordinal = entry_val & 0xFFFF
                         func_dict[f"ord_{ordinal}"] = iat_slot_va

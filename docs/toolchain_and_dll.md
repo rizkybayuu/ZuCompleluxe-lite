@@ -1,58 +1,61 @@
 # Toolchain Setup and DLL Build Verification
 
-## 1. Keystone Assembler
-- Installed: `keystone-engine` (via pip)
-- Verified: Python import and assembly test
-  ```python
-  import keystone
-  ks = keystone.Ks(keystone.KS_ARCH_X86, keystone.KS_MODE_32)
-  print(ks.asm('mov eax,[esi+0x8c]; ret'))
-  # Output: ([139, 134, 140, 0, 0, 0, 195], 2)
-  ```
+## 1. Compiler: MinGW32 GCC (Primary)
 
-## 2. Zig Compiler
-- Installed: `ziglang` (via pip)
-- Version: `0.16.0` (`python -m ziglang version`)
+The primary compiler for all sidecar DLLs is **MinGW32 GCC** (`C:\msys64\mingw32\bin\gcc.exe`).
 
-## 3. 32-bit Windows DLL Build with Zig
-- **Working command**:
+- **Working build command**:
   ```bash
-  python -m ziglang cc -target x86-windows-gnu -O2 -shared -o /tmp/zep_test.dll zumaextrapath.c
+  gcc -m32 -O2 -s -shared -static-libgcc -o <output>.dll <source>.c
   ```
-  - No additional flags needed (`-s`/`-static` optional; omitted for simplicity).
-  - Produced a valid PE32 DLL (Machine: 0x14c).
+  - Produces a valid PE32 DLL (Machine: `0x14c` / i386).
+  - `-static-libgcc` ensures no external `libgcc_s` runtime dependency.
 
-### DLL Exports (via `pefile`)
-- Machine: `0x14c` (Intel 386, i386)
-- Exported functions:
-  - `ZEP_ExtraCount` (RVA: 0x1b50)
-  - `ZEP_Init` (RVA: 0x1000)
-  - `ZEP_LevelEnd` (RVA: 0x1490)
-  - `ZEP_LevelStart` (RVA: 0x1620)
+- **Fallback compiler**: `python -m ziglang cc -target x86-windows-gnu -O2 -shared`
+  - Used automatically by `build_full.bat` if MinGW32 GCC is not found on PATH.
+  - Zig accepts `__attribute__((thiscall))` and `__attribute__((fastcall))` correctly.
 
-### Calling Convention
-- All exports use `__declspec(dllexport)` with default `__cdecl` (no explicit attributes like `__stdcall`).
-- Verified that Zig accepts `__attribute__((thiscall))` and `__attribute__((fastcall))` in test snippets (though the cache error prevented full output; the attributes are parsed by Zig).
+> [!NOTE]
+> **Keystone Assembler is no longer used.** All byte-level patches are generated using raw bytecode arrays in the Python builder scripts (`builder/patch_*.py`). There is no dependency on `keystone-engine`.
 
-## 4. zumaextrapath.c – Precise Summary
+---
+
+## 2. Sidecar DLL Inventory
+
+All eight sidecar DLLs are compiled by `build_full.bat` and deployed to the `modules/` directory (excluded from version control — build output only).
+
+| DLL | Source File | PE Section | Key Exports | Purpose |
+|---|---|---|---|---|
+| `zumadllchecker.dll` | `src/zumadllchecker.dll.c` | `.zdlc` | `ZDC_Check` | Startup diagnostic dialog; verifies sidecar integrity |
+| `zumawebp.dll` | `src/zumawebp.dll.c` | `.zwbp` | `ZWP_Init`, `ZWP_Render` | Animated WebP playback for intro/splash sequences |
+| `zumaextrapath.dll` | `src/zumaextrapath.dll.c` | `.zep` | `ZEP_Init`, `ZEP_LevelStart`, `ZEP_LevelEnd`, `ZEP_ExtraCount` | Extra curve paths (curve4..curve10) loaded from XML + CURV files |
+| `zumaextracolor.dll` | `src/zumaextracolor.dll.c` | `.zec` | `ZEC_Init`, `ZEC_GetColor` | 11-color ball mod (extends vanilla 7-color palette) |
+| `zumacustommap.dll` | `src/zumacustommap.dll.c` | `.zcm` | `ZCM_Init`, `ZCM_Load` | Custom Gauntlet map support |
+| `zumacplxcredit.dll` | `src/zumacplxcredit.dll.c` | `.zcc` | `ZCC_Init`, `ZCC_DrawLine`, `ZCC_OnMouseDown` | Developer credits with interactive GitHub button |
+| `zumatestingkit.dll` | `src/zumatestingkit.dll.c` | `.ztk` | `ZTK_Init`, `ZTK_HUD` | Developer testing kit: HUD overlay, middle-click score diff |
+| `zumareshandler.dll` | `src/zumareshandler.dll.c` | `.zres` | `ZRH_Init`, `ZRH_GetScale`, `ZRH_Resize` | Main resolution & viewport handler; IAT hook, AOB UI patches, VTable resize hooks |
+
+---
+
+## 3. zumaextrapath.dll – Precise Summary
 
 ### Purpose
 Sidecar DLL that loads extra path data (curve4..curve10) from XML and CURV files for Zuma Deluxe, providing hooks for extended gameplay.
 
 ### Key Definitions
-- `ZEP_VANILLA_PATHS = 3` (indices 0‑2 reserved for original game paths)
+- `ZEP_VANILLA_PATHS = 3` (indices 0–2 reserved for original game paths)
 - `ZEP_MAX_PATHS = 10`, `ZEP_MAX_EXTRA = 7`
-- `ZEP_HOOKS_READY = 0` (placeholder; hooks not implemented in this phase)
+- `ZEP_HOOKS_READY = 1` — Stage 2 patch in `builder/patch_extrapath_stage2.py` activates curve4–10 runtime hooks at game launch
 - `ZEP_XML_PATH = "levels/levels.xml"`
 - `ZEP_MAX_CURV_POINTS = 1000000`
 
 ### Data Structures
 - `ZepPoint`: `{float x, y; uint8_t in_tunnel, priority;}`
 - `ZepCurv`: `{uint32_t version, count; ZepPoint *pts;}`
-- `ZepLevel`: 
+- `ZepLevel`:
   ```c
   char id[64];
-  char curve[ZEP_MAX_PATHS + 1][128];   // indexes 0..10, but only 4..10 used for extra paths
+  char curve[ZEP_MAX_PATHS + 1][128];   // indexes 0..10, only 4..10 used for extra paths
   ```
 - Global state:
   - `ZepLevel *g_levels; int g_nlevels;` (parsed levels)
@@ -62,7 +65,7 @@ Sidecar DLL that loads extra path data (curve4..curve10) from XML and CURV files
 
 ### Logging & Crash Handling
 - `logf_()`: writes timestamped messages to `zumaextrapath.log`.
-- Vectored Exception Handler (`veh_`): logs access violations and other selected crashes occurring in the DLL or main module, then lets the game’s handler proceed.
+- Vectored Exception Handler (`veh_`): logs access violations and other selected crashes occurring in the DLL or main module, then lets the game's handler proceed.
 
 ### XML Parsing (`levels/levels.xml`)
 - **Format**: Simple attribute scanner (no full XML validation).
@@ -85,10 +88,9 @@ Sidecar DLL that loads extra path data (curve4..curve10) from XML and CURV files
      - Else: read two `int8_t` (dx, dy) and accumulate: `x = ox + dx*0.01`, `y = oy + dy*0.01`.
      - If version ≤ 1 **or** `tunnels` flag: read `uint8_t tunnel` and `uint8_t priority`.
      - Store point, update origin (`ox`, `oy`).
-- **Search paths** (in `try_load_`):
+- **Search paths** (in `try_load_()`):
   - `./<name>` and `./<name>.dat`
   - `levels/<name>/<name>` and `levels/<name>/<name>.dat`
-  - `levels/<name>/<name>` and `levels/<name>/<name>.dat` (duplicate? Actually the code has three formats: `"%s%s"`, `"levels/%s%s"`, `"levels/%s/%s%s"`; the last two are distinct).
   - Called with `name` from `level.curve[k]` (curve4..curve10) and `id` as the level identifier.
 
 ### Export Functions
@@ -97,7 +99,7 @@ Sidecar DLL that loads extra path data (curve4..curve10) from XML and CURV files
    - Resets log file (opens for write, then closes).
    - Loads and parses `levels/levels.xml` via `slurp_()` + `xml_parse_()`.
    - Sets `g_ready = 1`.
-   - Logs: `"ZEP_Init OK: %d level punya curve4..curve10 (hooks %s)"` with `g_nlevels` and hook status.
+   - Logs: `"ZEP_Init OK: %d levels with curve4..curve10 (hooks %s)"` with `g_nlevels` and hook status.
    - Returns 1 on success, 0 on XML load failure.
 
 2. `ZEP_LevelStart(const char *levelId)`
@@ -121,11 +123,18 @@ Sidecar DLL that loads extra path data (curve4..curve10) from XML and CURV files
 - On `DLL_PROCESS_ATTACH`:
   - Disables thread‑library calls.
   - Installs the vectored exception handler (`veh_`).
-  - Logs `"zumaextrapath.dll dimuat"`.
+  - Logs `"zumaextrapath.dll loaded"`.
 - Returns `TRUE`.
 
 ### Notes
-- The DLL does **not** alter game behavior until hooks are implemented (currently `ZEP_HOOKS_READY = 0`).
 - All string comparisons are case‑insensitive (`_stricmp`, `_strnicmp`).
-- Path loading tries multiple locations and both raw and `.dat` suffices.
+- Path loading tries multiple locations and both raw and `.dat` suffixes.
 - The CURV loader supports both absolute‑float (versions 0/1) and delta‑encoded (version ≥2) point streams, with optional tunnel/priority flags.
+
+---
+
+## 4. Calling Conventions
+
+All sidecar DLL exports use `__declspec(dllexport)` with default `__cdecl` convention.
+
+When a sidecar hook must interact with game internals using `__thiscall` (e.g., `Widget::MouseDown`), the `this` pointer arrives in `ecx`. Any intervening `__cdecl` call will clobber `ecx` — callers must explicitly `push ecx` / `push edx` before and `pop edx` / `pop ecx` after. See `docs/credits_system.md` for the Cave C crash fix that demonstrates this pattern.

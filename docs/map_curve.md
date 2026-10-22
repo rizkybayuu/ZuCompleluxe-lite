@@ -49,9 +49,9 @@ Board setup that calls the by-name loader (for each curve slot, with bound 3): N
 ## 4. levels.xml format (VERIFIED from files)
 
 Files found:
-- `D:/Files/Project/Reverse Engineer/Zuma Deluxe - Vanilla/levels/levels.xml` (422 lines, 23,336 bytes)
-- `D:/Files/Project/Reverse Engineer/Zuma Deluxe - Clean Assets/levels/levels.xml`
-- `D:/Files/Project/Reverse Engineer/Zuma Deluxe - Recompiled Mod/levels/levels.xml`
+- `<zuma_dir>/levels/levels.xml` (vanilla) (422 lines, 23,336 bytes)
+- `<zuma_dir>/levels/levels.xml` (clean assets build)
+- `<zuma_dir>/levels/levels.xml` (recompiled mod build)
 
 Structure: `<Levels>` root containing `<Graphics ...>` elements. Child elements include `<TreasurePoint x y dist1|dist2>`, `<Cutout image pri x y>`.
 

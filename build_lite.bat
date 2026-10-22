@@ -1,12 +1,15 @@
 @echo off
 setlocal EnableDelayedExpansion
 set "SCRIPT_PATH=%~f0"
+cd /d "%~dp0"
 
 REM =======================================================================
 REM 0. Check non-interactive / CI flag & parameters
 REM =======================================================================
 set "NON_INTERACTIVE=0"
 set "CLI_ZUMA_DIR="
+set "CLI_CUSTOM_W="
+set "CLI_CUSTOM_H="
 
 :ParseArgs
 if "%~1"=="" goto DoneParseArgs
@@ -30,8 +33,53 @@ if /i "%~1"=="--non-interactive" (
     shift
     goto ParseArgs
 )
+if /i "%~1"=="-w" (
+    set "CLI_CUSTOM_W=%~2"
+    shift
+    shift
+    goto ParseArgs
+)
+if /i "%~1"=="--width" (
+    set "CLI_CUSTOM_W=%~2"
+    shift
+    shift
+    goto ParseArgs
+)
+if /i "%~1"=="-h" (
+    set "CLI_CUSTOM_H=%~2"
+    shift
+    shift
+    goto ParseArgs
+)
+if /i "%~1"=="--height" (
+    set "CLI_CUSTOM_H=%~2"
+    shift
+    shift
+    goto ParseArgs
+)
+if /i "%~1"=="--res" (
+    for /f "tokens=1,2 delims=xX" %%a in ("%~2") do (
+        set "CLI_CUSTOM_W=%%a"
+        set "CLI_CUSTOM_H=%%b"
+    )
+    shift
+    shift
+    goto ParseArgs
+)
+if /i "%~1"=="--dir" (
+    set "CLI_ZUMA_DIR=%~2"
+    shift
+    shift
+    goto ParseArgs
+)
+if /i "%~1"=="-d" (
+    set "CLI_ZUMA_DIR=%~2"
+    shift
+    shift
+    goto ParseArgs
+)
 if "!CLI_ZUMA_DIR!"=="" (
-    set "CLI_ZUMA_DIR=%~f1"
+    set "CLI_ZUMA_DIR=%~1"
     shift
     goto ParseArgs
 )
@@ -55,7 +103,7 @@ REM 1. Terminate game if running to prevent file locks
 taskkill /f /im Zuma.exe >nul 2>&1
 
 echo =======================================================
-echo    ZuCompleluxe v0.4.2 Lite - 1-Click Game Patcher ^& Builder
+echo    ZuCompleluxe v0.5 Lite - 1-Click Game Patcher ^& Builder
 echo    Direct Installation Folder Patcher - Lite Edition
 echo =======================================================
 echo.
@@ -191,6 +239,60 @@ echo [OK] Target Executable : "!TARGET_EXE_NAME!"
 echo.
 
 REM =======================================================================
+REM [PRIORITY 2.5] Target Game Resolution Selection
+REM Default: 640x480 (Vanilla baseline - Custom resolution omitted)
+REM =======================================================================
+set "CUSTOM_W=640"
+set "CUSTOM_H=480"
+if defined CLI_CUSTOM_W set "CUSTOM_W=!CLI_CUSTOM_W!"
+if defined CLI_CUSTOM_H set "CUSTOM_H=!CLI_CUSTOM_H!"
+
+if "!NON_INTERACTIVE!"=="0" if not defined CLI_CUSTOM_W if not defined CLI_CUSTOM_H (
+    echo -------------------------------------------------------
+    echo  [RESOLUTION] Target Game Resolution
+    echo -------------------------------------------------------
+    echo  1. Vanilla Default ^(640x480^) [Default]
+    echo  2. SVGA High-Res   ^(800x600^)
+    echo  3. Custom Resolution
+    echo.
+    set "RES_CHOICE="
+    set /p "RES_CHOICE=Select resolution option [1-3, default=1]: "
+    if "!RES_CHOICE!"=="2" (
+        set "CUSTOM_W=800"
+        set "CUSTOM_H=600"
+    ) else if "!RES_CHOICE!"=="3" (
+        set /p "CUSTOM_W=Enter width  [min 480, default=800]: "
+        if "!CUSTOM_W!"=="" set "CUSTOM_W=800"
+        set /p "CUSTOM_H=Enter height [min 320, default=600]: "
+        if "!CUSTOM_H!"=="" set "CUSTOM_H=600"
+    ) else (
+        set "CUSTOM_W=640"
+        set "CUSTOM_H=480"
+    )
+)
+
+REM Enforce strict minimum resolution limit: 480x320
+if !CUSTOM_W! LSS 480 (
+    echo [WARNING] Requested width !CUSTOM_W! is below minimum allowed ^(480x320^). Clamping to 480.
+    set "CUSTOM_W=480"
+)
+if !CUSTOM_H! LSS 320 (
+    echo [WARNING] Requested height !CUSTOM_H! is below minimum allowed ^(480x320^). Clamping to 320.
+    set "CUSTOM_H=320"
+)
+
+set "CUSTOM_RES=0"
+if not "!CUSTOM_W!"=="640" set "CUSTOM_RES=1"
+if not "!CUSTOM_H!"=="480" set "CUSTOM_RES=1"
+
+if "!CUSTOM_RES!"=="1" (
+    echo [RESOLUTION] Target: !CUSTOM_W!x!CUSTOM_H! ^(Custom resolution engine enabled^)
+) else (
+    echo [RESOLUTION] Target: 640x480 ^(Vanilla default - Custom resolution omitted^)
+)
+echo.
+
+REM =======================================================================
 REM [PRIORITY 3] Single-Backup Architecture & Idempotency Management
 REM modules\bak\ contains strictly ONE backup file: modules\bak\Zuma.exe
 REM Decompression to uncompressed baseline is strictly an ephemeral
@@ -297,28 +399,28 @@ if not exist "!TARGET_ZUMA_DIR!\modules" (
 )
 
 REM =======================================================================
-REM [PRIORITY 4] Building Sidecar DLLs (Lite: 4 Sidecars)
-REM =======================================================================
+REM [PRIORITY 4] Building Sidecar DLLs (Lite: 6 Sidecars)
 REM Purge excluded sidecars from target modules directory so installation is strictly Lite
-for %%D in (zumawebp.dll zumaextrapath.dll zumaextracolor.dll) do (
+for %%D in (zumawebpbg.dll zumawebpsprite.dll zumaextrapath.dll zumaextracolor.dll) do (
     if exist "!TARGET_ZUMA_DIR!\modules\%%D" del /f /q "!TARGET_ZUMA_DIR!\modules\%%D" >nul 2>&1
     if exist "!TARGET_ZUMA_DIR!\%%D" del /f /q "!TARGET_ZUMA_DIR!\%%D" >nul 2>&1
 )
-for %%D in (zumadllchecker.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll) do (
+for %%D in (zumadllchecker.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll zumadisplay.dll zumareshandler.dll) do (
     if exist "!TARGET_ZUMA_DIR!\%%D" del /f /q "!TARGET_ZUMA_DIR!\%%D" >nul 2>&1
 )
 
-set "DLL_STATUS_zumawebp.dll=skipped (omitted in lite)"
+set "DLL_STATUS_zumawebpbg.dll=skipped (omitted in lite)"
+set "DLL_STATUS_zumawebpsprite.dll=skipped (omitted in lite)"
 set "DLL_STATUS_zumaextrapath.dll=skipped (omitted in lite)"
 set "DLL_STATUS_zumaextracolor.dll=skipped (omitted in lite)"
 
 echo -------------------------------------------------------
-echo  [FILE 1/4] Building zumadllchecker.dll - Lite Gatekeeper ...
+echo  [FILE 1/6] Building zumadllchecker.dll - Lite Module and Dependency Checker ...
 echo -------------------------------------------------------
 set "OUT=zumadllchecker.dll"
 set "SRC=src\zumadllchecker.dll.c"
 set "EXPORT=ZDC_RunChecker"
-set "XFLAGS=-DZUCOMPLELUXE_LITE=1"
+set "XFLAGS=-DZUCOMPLELUXE_LITE=1 -DTARGET_W=!CUSTOM_W! -DTARGET_H=!CUSTOM_H!"
 set "LIBS=-lversion -luxtheme -ldwmapi -lgdi32 -luser32 -ladvapi32 -lshell32 -lkernel32"
 call builder\bootstrap.bat compile_dll
 if errorlevel 1 (
@@ -329,7 +431,8 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 2/4] Building zumacustommap.dll - Gauntlet custom map sidecar ...
+echo  [FILE 2/6] Building zumacustommap.dll - Gauntlet custom map sidecar ...
+echo -------------------------------------------------------
 echo -------------------------------------------------------
 set "OUT=zumacustommap.dll"
 set "SRC=src\zumacustommap.dll.c"
@@ -345,7 +448,9 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 3/4] Building zumacplxcredit.dll - Developer Credits sidecar ...
+echo -------------------------------------------------------
+echo  [FILE 3/6] Building zumacplxcredit.dll - Developer Credits sidecar ...
+echo -------------------------------------------------------
 echo -------------------------------------------------------
 set "OUT=zumacplxcredit.dll"
 set "SRC=src\zumacplxcredit.dll.c"
@@ -361,7 +466,9 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 4/4] Building zumatestingkit.dll - Developer Testing Kit sidecar ...
+echo -------------------------------------------------------
+echo  [FILE 4/6] Building zumatestingkit.dll - Developer Testing Kit sidecar ...
+echo -------------------------------------------------------
 echo -------------------------------------------------------
 set "OUT=zumatestingkit.dll"
 set "SRC=src\zumatestingkit.dll.c"
@@ -376,12 +483,46 @@ if errorlevel 1 (
 )
 echo.
 
-echo [LITE] Skipping zumawebp.dll - Omitted in Lite Edition
+echo -------------------------------------------------------
+echo -------------------------------------------------------
+echo -------------------------------------------------------
+echo  [FILE 5/6] Building zumadisplay.dll - Display ^& Window Driver ...
+echo -------------------------------------------------------
+set "OUT=zumadisplay.dll"
+set "SRC=src\zumadisplay.dll.c"
+set "EXPORT=ZDISP_IsActive"
+set "XFLAGS=-DTARGET_W=!CUSTOM_W! -DTARGET_H=!CUSTOM_H!"
+set "LIBS=-luser32 -lgdi32"
+call builder\bootstrap.bat compile_dll
+if errorlevel 1 (
+    echo [ERROR] zumadisplay.dll build failed.
+    if "!NON_INTERACTIVE!"=="0" pause
+    exit /b 1
+)
+echo.
+
+echo -------------------------------------------------------
+echo  [FILE 6/6] Building zumareshandler.dll - Resolution ^& UI Layout Patcher ...
+echo -------------------------------------------------------
+set "OUT=zumareshandler.dll"
+set "SRC=src\zumareshandler.dll.c"
+set "EXPORT=ZRH_IsActive"
+set "XFLAGS=-DTARGET_W=!CUSTOM_W! -DTARGET_H=!CUSTOM_H!"
+set "LIBS=-luser32 -lgdi32"
+call builder\bootstrap.bat compile_dll
+if errorlevel 1 (
+    echo [ERROR] zumareshandler.dll build failed.
+    if "!NON_INTERACTIVE!"=="0" pause
+    exit /b 1
+)
+echo.
+
+REM =======================================================================
+echo [LITE] Skipping zumawebpbg.dll and zumawebpsprite.dll - Omitted in Lite Edition
 echo [LITE] Skipping zumaextrapath.dll - Omitted in Lite Edition
 echo [LITE] Skipping zumaextracolor.dll - Omitted in Lite Edition
 echo.
 
-REM =======================================================================
 REM [PRIORITY 5] Synthesizing and Patching Executable
 REM =======================================================================
 echo -------------------------------------------------------
@@ -393,48 +534,12 @@ set "ALL_OK=1"
 
 REM 1. Inject static sidecar imports into .zdata
 echo [PATCHING] Injecting static sidecar imports into .zdata...
-"!PYTHON_BIN!" "builder\patch_imports.py" "!SRC_VANILLA!" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
+"!PYTHON_BIN!" "builder\patch_imports.py" "!SRC_VANILLA!" "!BUILD_TMP!\Zuma.exe" --lite >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_imports.py"
     goto PatchFailed
 )
 echo [OK] Static sidecar imports injected.
-
-REM 2. Apply 11-ball colors mod via .zcol and zumaextracolor.dll
-echo [PATCHING] Applying 11-ball colors mod via .zcol and zumaextracolor.dll...
-"!PYTHON_BIN!" "builder\patch_extracolor.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
-if errorlevel 1 (
-    set "FAILED_PATCH_STEP=builder\patch_extracolor.py"
-    goto PatchFailed
-)
-echo [OK] Extra colors mod applied.
-
-REM 3. Install animated WebP hooks into Zuma.exe
-echo [PATCHING] Applying animated WebP hook...
-"!PYTHON_BIN!" "builder\patch_anim_hook.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
-if errorlevel 1 (
-    set "FAILED_PATCH_STEP=builder\patch_anim_hook.py"
-    goto PatchFailed
-)
-echo [OK] Animated WebP hook applied.
-
-REM 4. Extra paths STAGE 1: Board curve heap array expansion
-echo [PATCHING] Applying extra-path stage 1 - Board curve arrays...
-"!PYTHON_BIN!" "builder\patch_extrapath.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" "!SRC_VANILLA!" >"!PATCH_LOG!" 2>&1
-if errorlevel 1 (
-    set "FAILED_PATCH_STEP=builder\patch_extrapath.py"
-    goto PatchFailed
-)
-echo [OK] Extra-path stage 1 applied.
-
-REM 5. Extra paths STAGE 2: Curve4..10 runtime activation
-echo [PATCHING] Applying extra-path stage 2 - Curve4..10 runtime activation...
-"!PYTHON_BIN!" "builder\patch_extrapath_stage2.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" "!SRC_VANILLA!" >"!PATCH_LOG!" 2>&1
-if errorlevel 1 (
-    set "FAILED_PATCH_STEP=builder\patch_extrapath_stage2.py"
-    goto PatchFailed
-)
-echo [OK] Extra-path stage 2 applied.
 
 REM 6. Custom Map Gauntlet support via .zcm and zumacustommap.dll
 echo [PATCHING] Applying Custom Map Gauntlet support via .zcm and zumacustommap.dll...
@@ -462,6 +567,15 @@ if errorlevel 1 (
     goto PatchFailed
 )
 echo [OK] Developer Testing Kit support applied.
+
+REM 9. Resolution ^& Viewport Config via .zres and zumareshandler.dll
+echo [PATCHING] Applying Resolution ^& Viewport Config ^(!CUSTOM_W!x!CUSTOM_H!^) via .zres and zumareshandler.dll...
+"!PYTHON_BIN!" "builder\patch_customres.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" -W !CUSTOM_W! -H !CUSTOM_H! >"!PATCH_LOG!" 2>&1
+if errorlevel 1 (
+    set "FAILED_PATCH_STEP=builder\patch_customres.py"
+    goto PatchFailed
+)
+echo [OK] Resolution ^& Viewport Config applied.
 
 REM Deploy patched executable to target folder
 copy /y "!BUILD_TMP!\Zuma.exe" "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" >nul
@@ -511,6 +625,28 @@ if exist "builder\patch_assets.py" (
     set "ALL_OK=0"
 )
 echo.
+
+if "!CUSTOM_RES!"=="1" (
+    echo -------------------------------------------------------
+    echo  Generating Scaled Assets for !CUSTOM_W!x!CUSTOM_H! into imagescustomres ...
+    echo -------------------------------------------------------
+    if exist "builder\patch_customres_assets.py" (
+        "!PYTHON_BIN!" "builder\patch_customres_assets.py" "!TARGET_ZUMA_DIR!" -W !CUSTOM_W! -H !CUSTOM_H! >"!BUILD_TMP!\patch_customres_assets.log" 2>&1
+        if errorlevel 1 (
+            echo [ERROR] Custom resolution asset generation failed! Detailed log from !BUILD_TMP!\patch_customres_assets.log:
+            echo -------------------------------------------------------
+            type "!BUILD_TMP!\patch_customres_assets.log"
+            echo -------------------------------------------------------
+            set "ALL_OK=0"
+        ) else (
+            echo [OK] Scaled visual assets generated into "!TARGET_ZUMA_DIR!\imagescustomres".
+        )
+    ) else (
+        echo [ERROR] builder\patch_customres_assets.py not found!
+        set "ALL_OK=0"
+    )
+    echo.
+)
 
 REM =======================================================================
 REM [PRIORITY 7] Verification Summary & Integrity Check
