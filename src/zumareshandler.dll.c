@@ -359,7 +359,7 @@ static int FC hk_ddinit(void *dd, void *edx, HWND h, int win)
     return r;
 }
 
-/* H5: ctor Graphics root di DrawScreen */
+/* H5: ctor Graphics root in DrawScreen */
 static void *FC hk_rootgfx(void *g, void *edx, void *img)
 {
     (void)edx;
