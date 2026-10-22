@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1] - 2026-10-22
+
+### Added
+- **Dual-Manifest Asset Architecture (`properties/resources.xml` vs `properties/resource_extra.xml`)**:
+  - `properties/resources.xml` is strictly preserved as the clean vanilla 6-color manifest (`NEXT_BALL` with `path="baDotz"` and `cols=6`).
+  - Full Edition 11-color definitions are completely isolated into `properties/resource_extra.xml` (and mirrored to `resources_extra.xml`), mapping `NEXT_BALL` to `path="baDotz_extra"` and `cols=11`.
+- **Discrete Frog Dotz Indicator Assets (`baDotz.gif` vs `baDotz_extra.gif`)**:
+  - Preserves untouched native 6-color `images/baDotz.gif` (`90x15` at 6 frames).
+  - Isolates 11-color dotz into `images/baDotz_extra.gif` (`165x15` at 11 frames) for the Full Edition.
+- **Dynamic Runtime Hooking in `zumaextracolor.dll`**:
+  - When `zumaextracolor.dll` is active, its `DllMain` dynamically redirects `Zuma.exe`'s resource manifest pointer (`FUN_0046e3b0`) to `properties/resource_extra.xml` and patches the frog-dots divisor (`0x0040499E`) from `DIV6` to `DIV11`.
+  - When `zumaextracolor.dll` is absent, disabled, or removed, `Zuma.exe` automatically executes with native `DIV6` and loads clean `resources.xml` and `baDotz.gif`, falling back 100% seamlessly to 6-color gameplay with zero texture misalignment or crashes.
+
+### Changed
+- **Pristine Single-Binary Backup Architecture (`modules\bak\Zuma.exe`)**:
+  - `modules\bak\` strictly preserves only the pristine original executable (`Zuma.exe`).
+  - Extraneous asset backups (`baDotz.gif`, `resources.xml`) have been completely eliminated from `modules\bak\`.
+- **Lite Edition 6-Color Integrity Enforcement (`build_lite.bat`)**:
+  - Asset pipeline in `--lite` mode strictly bypasses 11-color asset synthesis, automatically restoring native 6-dot `baDotz.gif` dimensions and eliminating dotz frame offset errors in Lite builds.
+
 ## [0.5.0] - 2026-10-22
 
 ### Added

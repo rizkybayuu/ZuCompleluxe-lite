@@ -1,6 +1,6 @@
-# ZuCompleluxe Lite (v0.5.0)
+# ZuCompleluxe Lite (v0.5.1)
 
-> **Version:** 0.5.0 (Lite Edition)  
+> **Version:** 0.5.1 (Lite Edition)  
 > **Target Game:** *Zuma Deluxe* v1.0.0.1 (GameHouse / PopCap / Regional PE Builds)  
 > **Project Scope:** Lightweight Core Engine Framework for Zuma Deluxe Modding  
 > **Developer:** [Rizky Bayuu](https://github.com/rizkybayuu)  
@@ -10,7 +10,7 @@
 
 **ZuCompleluxe Lite** is the official lightweight edition of the ZuCompleluxe reverse-engineering and modding framework for *Zuma Deluxe* (v1.0.0.1). It delivers the core engine enhancements—the pre-launch integrity gatekeeper (`zumadllchecker.dll`), Gauntlet custom map subsystem (`zumacustommap.dll`), developer credits mod (`zumacplxcredit.dll`), developer testing kit (`zumatestingkit.dll`), display driver with F11 borderless fullscreen (`zumadisplay.dll`), and the arbitrary custom resolution engine (`zumareshandler.dll`)—while omitting experimental multi-path, 11-ball color palettes, and animated WebP rendering.
 
-This framework represents the foundational engine layer (**v0.5.0**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
+This framework represents the foundational engine layer (**v0.5.1**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
 
 > [!NOTE]
 > **Full Edition Status & Availability:**  
@@ -32,7 +32,7 @@ Modifications are isolated cleanly from vanilla game files:
 Unlike the optional feature sidecars, `modules\zumadllchecker.dll` is a **strictly binding dependency**:
 - **Hard Gatekeeper Enforcement in `.zldr` (`0x0058C000`)**: Before loading any optional feature modules or executing game code, `.zldr` enforces `modules\zumadllchecker.dll`. If `zumadllchecker.dll` is missing or fails to load, `Zuma.exe` displays a modal error dialog and immediately terminates via `ExitProcess(1)`.
 - **Dynamic PE Version Metadata Extraction**: Reads `ProductName`, `CompanyName`, `FileVersion`, `SpecialBuild`, and `FileName` dynamically from `Zuma.exe`'s Win32 PE Version Resource (`VS_FIXEDFILEINFO` and `\VarFileInfo\Translation`) with zero hardcoded game strings.
-- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.5.0 Lite`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), aspect ratio, resolution, and real-time presence checks for all sidecars in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
+- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.5.1 Lite`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), aspect ratio, resolution, and real-time presence checks for all sidecars in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
 
 ### 3. 100% Independent & Optional Feature Sidecars (Zero-Dependency Graceful Degradation)
 Every feature sidecar DLL in ZuCompleluxe Lite is completely optional and independent:
@@ -52,23 +52,23 @@ ZuCompleluxe replaces static address patching with **Dynamic AOB (Array of Bytes
 
 ## Key Features
 
-- **Arbitrary Custom Resolution Engine (`zumareshandler.dll` & `.zres`)** *(New in v0.5.0)*:
+- **Arbitrary Custom Resolution Engine (`zumareshandler.dll` & `.zres`)** *(New in v0.5.1)*:
   - Scales all UI coordinates, fonts, and gameplay viewports uniformly to any target resolution $\ge 480 \times 320$ (e.g. 800×600 SVGA, 1080p, 1440p, 4K, 21:9 Ultrawide).
   - Letterboxed aspect-ratio fit: `scale = min(W/640, H/480)` with symmetric `X_offset`/`Y_offset` pillarbox margins.
   - Repositions 20+ screens with zero hardcoded virtual addresses.
   - Generates scaled visual assets into `imagescustomres/` via Bicubic interpolation with automatic fallback to `images/`.
-- **Borderless Fullscreen Mode & F11 Toggle (`zumadisplay.dll`)** *(New in v0.5.0)*:
+- **Borderless Fullscreen Mode & F11 Toggle (`zumadisplay.dll`)** *(New in v0.5.1)*:
   - Press **F11** (or **Alt+Enter**) during gameplay to toggle between windowed and borderless fullscreen without restarting the game.
   - **3D Acceleration 100% Preserved**: Hardware 3D acceleration is strictly preserved across fullscreen toggles.
   - Seamless outscreen brick border fill (`outscreen_data.h`) for letterbox/pillarbox margins.
   - Pixel-exact mouse coordinate remapping through `ScreenToClient` and `ClientToScreen` hooks.
-- **Modernized True 32-bit ARGB GPU Hardware Cursors (`HCURSOR`)** *(New in v0.5.0)*:
+- **Modernized True 32-bit ARGB GPU Hardware Cursors (`HCURSOR`)** *(New in v0.5.1)*:
   - Replaced legacy 2003 DirectDraw software cursor surface blits (`DDInterface::DrawCursor` & 10ms thread polling) with native Win32 hardware `HCURSOR`s.
   - Silenced `DDInterface::SetCursorPos` to eliminate DirectDraw critical section contention.
   - Completely eliminates cursor movement lag and top-right ghost cursor artifacts in fullscreen.
 - **Pre-Launch Module & Dependency Checker (`zumadllchecker.dll`)**:
   - Mandatory gatekeeper dialog executed prior to engine initialization.
-  - Dynamically queries PE version resources alongside `ZuCompleluxe v0.5.0 Lite` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
+  - Dynamically queries PE version resources alongside `ZuCompleluxe v0.5.1 Lite` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
   - Verifies presence and health of all sidecars in `modules\` with interactive checkbox toggles.
 - **1-Click Direct Installation Folder Patcher (`build_lite.bat`)**:
   - Opens a modern Windows Explorer folder selection dialog (`builder/select_folder.ps1`) or accepts CLI arguments (`build_lite.bat /yes -d "<path>" -w 800 -h 600`).

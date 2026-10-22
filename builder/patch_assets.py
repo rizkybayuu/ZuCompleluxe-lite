@@ -15,21 +15,27 @@ def load_tables():
             return json.load(f)
     return {}
 
-def get_backup_path(zuma_dir, filename):
+def clean_modules_bak(zuma_dir):
+    """
+    Ensures modules/bak contains strictly Zuma.exe (and .orig / .base.exe).
+    Removes any asset backups (baDotz.gif, resources.xml, etc.) to maintain
+    a pristine single-binary backup architecture.
+    """
     bak_dir = os.path.join(zuma_dir, 'modules', 'bak')
-    os.makedirs(bak_dir, exist_ok=True)
-    return os.path.join(bak_dir, filename)
+    if not os.path.isdir(bak_dir):
+        return
 
-def migrate_legacy_backup(legacy_bak_path, new_bak_path):
-    if os.path.exists(legacy_bak_path):
-        if not os.path.exists(new_bak_path):
-            shutil.move(legacy_bak_path, new_bak_path)
-            print(f"  [BACKUP] Migrated {os.path.basename(legacy_bak_path)} -> modules/bak/{os.path.basename(new_bak_path)}")
-        else:
-            try:
-                os.remove(legacy_bak_path)
-            except Exception:
-                pass
+    allowed_exts = {'.exe', '.orig', '.base'}
+    for f in os.listdir(bak_dir):
+        p = os.path.join(bak_dir, f)
+        if os.path.isfile(p):
+            lower = f.lower()
+            if not any(lower.endswith(ext) or ext in lower for ext in allowed_exts):
+                try:
+                    os.remove(p)
+                    print(f"  [CLEANUP] Removed legacy backup from modules/bak: {f}")
+                except Exception as e:
+                    print(f"  [WARN] Could not remove {f} from modules/bak: {e}")
 
 def transform_fallback_affine(rgb_arr, dst_color):
     # Dynamic affine fallback if a color is not in table
@@ -57,210 +63,168 @@ def transform_fallback_affine(rgb_arr, dst_color):
         ro, go, bo = r, g, b
     return np.stack([ro, go, bo], axis=-1).astype(np.uint8)
 
-def patch_images(zuma_dir, tables):
+def patch_images(zuma_dir, tables, is_lite=False):
     img_dir = os.path.join(zuma_dir, 'images')
     if not os.path.isdir(img_dir):
         print(f"[WARN] Images directory not found: {img_dir}")
         return
 
-    pairs = [
-        ('Blue', 'Orange'),
-        ('Yellow', 'Navy'),
-        ('Red', 'Cyan'),
-        ('Green', 'Black'),
-        ('White', 'Cream')
-    ]
-    types = ['Accuracy', 'Backwards', 'Ball', 'Bomb', 'Light', 'Slow']
+    # Clean legacy .bak files if present in images/
+    for f in os.listdir(img_dir):
+        if f.lower().endswith('.bak'):
+            try:
+                os.remove(os.path.join(img_dir, f))
+            except Exception:
+                pass
 
-    print(f"[ASSET] Patching extra color images into: {img_dir}")
-    
-    # 1. Process 30 extra color files
-    for src_col, dst_col in pairs:
-        for t in types:
-            src_name = f'ba{t}{src_col}.gif'
-            dst_name = f'ba{t}{dst_col}.gif'
-            src_path = os.path.join(img_dir, src_name)
-            dst_path = os.path.join(img_dir, dst_name)
-            
-            if not os.path.exists(src_path):
-                continue
-                
-            im_s = Image.open(src_path)
-            w, h = im_s.size  # Dynamic XY dimension
-            bg_idx = np.array(im_s)[0, 0]
-            
-            table_key = f'ba{t}_{src_col}_to_{dst_col}'
-            lut = tables.get(table_key, {})
-            
-            pal_s = np.array(im_s.getpalette()).reshape(-1, 3)
-            new_pal = pal_s.copy()
-            
-            for idx in range(len(pal_s)):
-                sk = f"{pal_s[idx, 0]},{pal_s[idx, 1]},{pal_s[idx, 2]}"
-                if sk in lut:
-                    new_pal[idx] = lut[sk]
-                else:
-                    # Dynamic fallback
-                    single_rgb = pal_s[idx:idx+1, :]
-                    new_pal[idx] = transform_fallback_affine(single_rgb, dst_col)[0]
-                    
-            im_gen = im_s.copy()
-            im_gen.putpalette(new_pal.flatten().tolist())
-            # Save preserving background transparency index
-            trans_val = im_s.info.get('transparency')
-            if trans_val is None:
-                trans_val = int(bg_idx)
-            im_gen.save(dst_path, format='GIF', transparency=trans_val)
-            print(f"  [OK] {dst_name} ({w}x{h})")
-
-    # 2. Process baDotz.gif (Dynamic XY)
+    # 1. Process baDotz.gif (Ensures baDotz.gif is ALWAYS vanilla 6 dots: 6*h x h)
     dotz_path = os.path.join(img_dir, 'baDotz.gif')
-    bak_dotz = get_backup_path(zuma_dir, 'baDotz.gif')
-    migrate_legacy_backup(dotz_path + '.bak', bak_dotz)
+    dotz_extra_path = os.path.join(img_dir, 'baDotz_extra.gif')
 
-    # Determine pristine 6-dot original source
-    src_dotz_path = None
-    if os.path.exists(bak_dotz):
-        src_dotz_path = bak_dotz
-    elif os.path.exists(dotz_path):
-        im_check = Image.open(dotz_path)
-        w, h = im_check.size
-        # Only backup if not already an 11-dot version
-        if not (w % 11 == 0 and w // 11 == h):
-            shutil.copyfile(dotz_path, bak_dotz)
-            src_dotz_path = bak_dotz
-        else:
-            src_dotz_path = dotz_path
-
-    if src_dotz_path and os.path.exists(src_dotz_path):
-        im_dotz = Image.open(src_dotz_path).convert('RGBA')
+    if os.path.exists(dotz_path):
+        im_dotz = Image.open(dotz_path)
         w, h = im_dotz.size
-        w_dot = h  # Vanilla dot size is square (w_dot == h)
-        arr_c = np.array(im_dotz)
-        
-        dot_map_keys = [
-            (0, 'baDotz_Dot1_to_Dot7_Orange', 'Orange'),
-            (1, 'baDotz_Dot2_to_Dot8_Navy', 'Navy'),
-            (2, 'baDotz_Dot3_to_Dot9_Cyan', 'Cyan'),
-            (3, 'baDotz_Dot4_to_Dot10_Black', 'Black'),
-            (5, 'baDotz_Dot6_to_Dot11_Cream', 'Cream')
+        w_dot = h
+
+        # If baDotz.gif was previously extended to 11 dots, crop back to pristine 6 dots
+        if w == 11 * h or (w % 11 == 0 and w // 11 == h and w > 6 * h):
+            im_6 = im_dotz.crop((0, 0, 6 * w_dot, h))
+            trans = im_dotz.info.get('transparency')
+            im_6.save(dotz_path, format='GIF', transparency=trans)
+            im_dotz = Image.open(dotz_path)
+            w, h = im_dotz.size
+            print(f"  [RESTORE] Restored baDotz.gif to native 6-dot resolution ({w}x{h})")
+
+        # In Full Edition, generate baDotz_extra.gif (11 dots)
+        if not is_lite:
+            im_rgba = im_dotz.convert('RGBA')
+            arr_c = np.array(im_rgba)
+            dot_map_keys = [
+                (0, 'baDotz_Dot1_to_Dot7_Orange', 'Orange'),
+                (1, 'baDotz_Dot2_to_Dot8_Navy', 'Navy'),
+                (2, 'baDotz_Dot3_to_Dot9_Cyan', 'Cyan'),
+                (3, 'baDotz_Dot4_to_Dot10_Black', 'Black'),
+                (5, 'baDotz_Dot6_to_Dot11_Cream', 'Cream')
+            ]
+            new_dots = []
+            for s_idx, tbl_key, dst_col in dot_map_keys:
+                s_slice = arr_c[:, s_idx*w_dot : (s_idx+1)*w_dot, :3]
+                lut = tables.get(tbl_key, {})
+                out_dot = np.zeros_like(s_slice)
+                for y in range(h):
+                    for x in range(w_dot):
+                        st = s_slice[y, x]
+                        sk = f"{st[0]},{st[1]},{st[2]}"
+                        if sk in lut:
+                            out_dot[y, x] = lut[sk]
+                        else:
+                            out_dot[y, x] = transform_fallback_affine(st[None, :], dst_col)[0]
+                new_dots.append(out_dot)
+
+            dotz_new_rgb = np.hstack([arr_c[:, :6*w_dot, :3]] + new_dots)
+            dotz_new_rgba = np.dstack([dotz_new_rgb, np.full((h, w_dot * 11), 255, dtype=np.uint8)])
+            out_im = Image.fromarray(dotz_new_rgba, mode='RGBA')
+            out_gif = out_im.convert('P', palette=Image.ADAPTIVE, colors=256)
+            out_gif.save(dotz_extra_path, format='GIF')
+            print(f"  [OK] Generated baDotz_extra.gif ({w_dot*11}x{h}, 11 dots)")
+
+    # 2. In Full Edition, generate 30 extra color files (Orange, Navy, Cyan, Black, Cream)
+    if not is_lite:
+        pairs = [
+            ('Blue', 'Orange'),
+            ('Yellow', 'Navy'),
+            ('Red', 'Cyan'),
+            ('Green', 'Black'),
+            ('White', 'Cream')
         ]
-        
-        new_dots = []
-        for s_idx, tbl_key, dst_col in dot_map_keys:
-            s_slice = arr_c[:, s_idx*w_dot : (s_idx+1)*w_dot, :3]
-            lut = tables.get(tbl_key, {})
-            out_dot = np.zeros_like(s_slice)
-            for y in range(h):
-                for x in range(w_dot):
-                    st = s_slice[y, x]
-                    sk = f"{st[0]},{st[1]},{st[2]}"
+        types = ['Accuracy', 'Backwards', 'Ball', 'Bomb', 'Light', 'Slow']
+
+        print(f"[ASSET] Patching extra color images into: {img_dir}")
+        for src_col, dst_col in pairs:
+            for t in types:
+                src_name = f'ba{t}{src_col}.gif'
+                dst_name = f'ba{t}{dst_col}.gif'
+                src_path = os.path.join(img_dir, src_name)
+                dst_path = os.path.join(img_dir, dst_name)
+                
+                if not os.path.exists(src_path):
+                    continue
+                    
+                im_s = Image.open(src_path)
+                w, h = im_s.size
+                bg_idx = np.array(im_s)[0, 0]
+                
+                table_key = f'ba{t}_{src_col}_to_{dst_col}'
+                lut = tables.get(table_key, {})
+                
+                pal_s = np.array(im_s.getpalette()).reshape(-1, 3)
+                new_pal = pal_s.copy()
+                
+                for idx in range(len(pal_s)):
+                    sk = f"{pal_s[idx, 0]},{pal_s[idx, 1]},{pal_s[idx, 2]}"
                     if sk in lut:
-                        out_dot[y, x] = lut[sk]
+                        new_pal[idx] = lut[sk]
                     else:
-                        out_dot[y, x] = transform_fallback_affine(st[None, :], dst_col)[0]
-            new_dots.append(out_dot)
-            
-        dotz_new_rgb = np.hstack([arr_c[:, :6*w_dot, :3]] + new_dots)
-        dotz_new_rgba = np.dstack([dotz_new_rgb, np.full((h, w_dot * 11), 255, dtype=np.uint8)])
-        
-        # Backup pristine original if not already backed up
-        if not os.path.exists(bak_dotz) and not (w % 11 == 0 and w // 11 == h):
-            shutil.copyfile(dotz_path, bak_dotz)
-            
-        out_im = Image.fromarray(dotz_new_rgba, mode='RGBA')
-        out_gif = out_im.convert('P', palette=Image.ADAPTIVE, colors=256)
-        out_gif.save(dotz_path, format='GIF')
-        print(f"  [OK] baDotz.gif extended ({w_dot*6}x{h} -> {w_dot*11}x{h})")
+                        single_rgb = pal_s[idx:idx+1, :]
+                        new_pal[idx] = transform_fallback_affine(single_rgb, dst_col)[0]
+                        
+                im_gen = im_s.copy()
+                im_gen.putpalette(new_pal.flatten().tolist())
+                trans_val = im_s.info.get('transparency')
+                if trans_val is None:
+                    trans_val = int(bg_idx)
+                im_gen.save(dst_path, format='GIF', transparency=trans_val)
+                print(f"  [OK] {dst_name} ({w}x{h})")
 
 
-def patch_resources_file(zuma_dir):
+def patch_resources_file(zuma_dir, is_lite=False):
+    """
+    Maintains dual-manifest architecture:
+    - properties/resources.xml: STRICTLY vanilla 6 colors (baDotz, cols=6).
+    - properties/resource_extra.xml: 11 colors (baDotz_extra, cols=11).
+    """
     p_res = os.path.join(zuma_dir, 'properties', 'resources.xml')
     if not os.path.isfile(p_res):
         print(f"[WARN] resources.xml not found at: {p_res}")
         return
-        
-    bak_res = get_backup_path(zuma_dir, 'resources.xml')
-    migrate_legacy_backup(p_res + '.bak', bak_res)
 
-    # Use clean vanilla backup as base source if available
-    base_file = bak_res if os.path.exists(bak_res) else p_res
-    with open(base_file, 'r', encoding='utf-8', errors='ignore') as f:
-        orig_text = f.read()
+    with open(p_res, 'r', encoding='utf-8', errors='ignore') as f:
+        text = f.read()
 
-    # If backup doesn't exist yet, save original vanilla before modifying
-    if not os.path.exists(bak_res):
-        with open(bak_res, 'w', encoding='utf-8') as f:
-            f.write(orig_text)
+    # Clean resources.xml so that it is strictly 6 colors
+    balls_pat = r'<Image\s+id="WHITE_BALL"[^>]*>.*?</Image>|<Image\s+id="WHITE_BALL"[^>]*/>(?:\s*<Image\s+id="(?:ORANGE|NAVY|CYAN|BLACK|CREAM)_BALL"[^>]*/>)+'
+    vanilla_white_ball = '<Image id="WHITE_BALL"\t\t\t\t\t\tpath="baBallWhite" alphagrid="_ballalpha" rows=50 alias="BALL_END" />'
+    text_clean = re.sub(balls_pat, vanilla_white_ball, text, flags=re.S)
 
-    text = orig_text
-    changed = False
+    # Remove extra powerup tags: ORANGE_, NAVY_, CYAN_, BLACK_, CREAM_
+    text_clean = re.sub(r'\s*<Image\s+id="(?:ORANGE|NAVY|CYAN|BLACK|CREAM)_[^>]*/>', '', text_clean)
 
-    # 1. Update WHITE_BALL and insert new balls if not present
-    if not ('ORANGE_BALL' in text and 'CREAM_BALL' in text):
-        new_balls = (
-            '<Image id="WHITE_BALL"\t\t\t\t\t\tpath="baBallWhite" alphagrid="_ballalpha" rows=50 />\n'
-            '<Image id="ORANGE_BALL"\t\t\t\t\t\tpath="baBallOrange" alphagrid="_ballalpha" rows=47 />\n'
-            '<Image id="NAVY_BALL"\t\t\t\t\t\tpath="baBallNavy" alphagrid="_ballalpha" rows=50 />\n'
-            '<Image id="CYAN_BALL"\t\t\t\t\t\tpath="baBallCyan" alphagrid="_ballalpha" rows=50 />\n'
-            '<Image id="BLACK_BALL"\t\t\t\t\t\tpath="baBallBlack" alphagrid="_ballalpha" rows=50 />\n'
-            '<Image id="CREAM_BALL"\t\t\t\t\t\tpath="baBallCream" alphagrid="_ballalpha" rows=50 alias="BALL_END" />'
-        )
-        text = re.sub(r'<Image\s+id="WHITE_BALL"[^>]*alias="BALL_END"[^>]*/>', new_balls, text)
-        text = re.sub(r'(<Image\s+id="NEXT_BALL"[^>]*cols=)6([^>]*/>)', r'\g<1>11\g<2>', text)
-        
-        # Insert powerups
-        sections = [
-            ('WHITE_ACCURACY', 'ACCURACY', 'baAccuracy', '_ballalpha'),
-            ('WHITE_BACKWARDS', 'BACKWARDS', 'baBackwards', '_ballalpha'),
-            ('WHITE_SLOW', 'SLOW', 'baSlow', '_ballalpha'),
-            ('WHITE_BOMB', 'BOMB', 'baBomb', '_baBomb'),
-            ('WHITE_LIGHT', 'LIGHT', 'baLight', '_baLight')
-        ]
-        colors = ['ORANGE', 'NAVY', 'CYAN', 'BLACK', 'CREAM']
-        
-        for anchor, type_name, path_prefix, alpha_name in sections:
-            inserted = ['\\g<0>']
-            for col in colors:
-                line = f'<Image id="{col}_{type_name}"\t\t\t\t\tpath="{path_prefix}{col.capitalize()}" alphaimage="{alpha_name}" />'
-                inserted.append(line)
-            pattern = rf'<Image\s+id="{anchor}"[^>]*/>'
-            text = re.sub(pattern, '\n'.join(inserted), text)
-        changed = True
+    # Ensure NEXT_BALL is baDotz cols=6 in vanilla manifest
+    text_clean = re.sub(r'<Image\s+id="NEXT_BALL"[^>]*/>', '<Image id="NEXT_BALL"\t\t\t\t\t\tpath="baDotz" cols=6 />', text_clean)
 
-    # 2. Register DIALOG_BUTTON_LOCKED under Register Resources
-    if 'DIALOG_BUTTON_LOCKED' not in text:
+    # Register DIALOG_BUTTON_LOCKED under Register Resources
+    if 'DIALOG_BUTTON_LOCKED' not in text_clean:
         def insert_locked_button(m):
             return m.group(0) + '\n<Image id="DIALOG_BUTTON_LOCKED"\t\tpath="DialogButtonLocked" />'
-        new_text = re.sub(r'<Image\s+id="DIALOG_BUTTON"\s+path="Dialogbutton"\s*/>', insert_locked_button, text)
-        if new_text != text:
-            text = new_text
-            changed = True
+        text_clean = re.sub(r'<Image\s+id="DIALOG_BUTTON"\s+path="Dialogbutton"\s*/>', insert_locked_button, text_clean)
 
-    # 3. Register ADVTEMPLE5 and ADVDOOR5 under AdventureScreen
-    if 'ADVTEMPLE5' in text:
-        m_t5 = re.search(r'<Image\s+id="ADVTEMPLE5"[^>]*/>', text)
+    # Register ADVTEMPLE5 and ADVDOOR5 under AdventureScreen
+    if 'ADVTEMPLE5' in text_clean:
+        m_t5 = re.search(r'<Image\s+id="ADVTEMPLE5"[^>]*/>', text_clean)
         if m_t5 and 'alphaimage=' not in m_t5.group(0):
-            text = re.sub(r'(<Image\s+id="ADVTEMPLE5"[^/]*)(/>)', r'\g<1>alphaimage="_advtemple5" \g<2>', text)
-            changed = True
+            text_clean = re.sub(r'(<Image\s+id="ADVTEMPLE5"[^/]*)(/>)', r'\g<1>alphaimage="_advtemple5" \g<2>', text_clean)
     else:
         def insert_temple5(m):
             return m.group(0) + '\n<Image id="ADVTEMPLE5"\t\t\t\t\tpath="advtemple5" alphaimage="_advtemple5" />'
-        new_text = re.sub(r'<Image\s+id="ADVTEMPLE4"[^>]*/>', insert_temple5, text)
-        if new_text != text:
-            text = new_text
-            changed = True
+        text_clean = re.sub(r'<Image\s+id="ADVTEMPLE4"[^>]*/>', insert_temple5, text_clean)
 
-    if 'ADVDOOR5' not in text:
+    if 'ADVDOOR5' not in text_clean:
         def insert_door5(m):
             return m.group(0) + '\n<Image id="ADVDOOR5"\t\t\t\t\tpath="advdoor5" cols="3" />'
-        new_text = re.sub(r'<Image\s+id="ADVDOOR4C"[^>]*/>', insert_door5, text)
-        if new_text != text:
-            text = new_text
-            changed = True
+        text_clean = re.sub(r'<Image\s+id="ADVDOOR4C"[^>]*/>', insert_door5, text_clean)
 
-    # 4. Register HELP_FRONT_DEV, HELP_BACK_DEV, TUT_MOUSE_M, and TUT_TEMPLE5
-    if 'HELP_FRONT_DEV' not in text:
+    # Register HELP_FRONT_DEV, HELP_BACK_DEV, TUT_MOUSE_M, and TUT_TEMPLE5
+    if 'HELP_FRONT_DEV' not in text_clean:
         def insert_help_dev(m):
             return (
                 m.group(0) + '\n'
@@ -269,29 +233,55 @@ def patch_resources_file(zuma_dir):
                 '<Image id="TUT_MOUSE_M"\t\t\t\t\t\tpath="tut_mouse_m" cols="2" />\n'
                 '<Image id="TUT_TEMPLE5"\t\t\t\t\tpath="advtemple5_tut" />'
             )
-        new_text = re.sub(r'<Image\s+id="HELP_BACK"[^>]*/>', insert_help_dev, text)
-        if new_text != text:
-            text = new_text
-            changed = True
+        text_clean = re.sub(r'<Image\s+id="HELP_BACK"[^>]*/>', insert_help_dev, text_clean)
 
     # Clean up any obsolete TUT_TITLE and TUT_BALL entries from resources.xml
-    text_cleaned = re.sub(r'[ \t]*<Image\s+id="TUT_(?:TITLE|BALL)_[^>]*/>\r?\n?', '', text)
-    if text_cleaned != text:
-        text = text_cleaned
-        changed = True
+    text_clean = re.sub(r'[ \t]*<Image\s+id="TUT_(?:TITLE|BALL)_[^>]*/>\r?\n?', '', text_clean)
+    if 'cols=2' in text_clean:
+        text_clean = text_clean.replace('cols=2', 'cols="2"')
 
-    if 'cols=2' in text:
-        text = text.replace('cols=2', 'cols="2"')
-        changed = True
+    # Save clean 6-color manifest to properties/resources.xml
+    with open(p_res, 'w', encoding='utf-8', newline='\r\n') as f:
+        f.write(text_clean)
+    print("  [OK] resources.xml preserved as clean vanilla 6-color manifest (cols=6).")
 
-    with open(p_res, 'w', encoding='utf-8') as f:
-        f.write(text)
-    print("  [OK] resources.xml patched successfully.")
+    # In Full Edition, generate 11-color properties/resource_extra.xml & resources_extra.xml
+    if not is_lite:
+        extra_balls = (
+            '<Image id="WHITE_BALL"\t\t\t\t\t\tpath="baBallWhite" alphagrid="_ballalpha" rows=50 />\n'
+            '<Image id="ORANGE_BALL"\t\t\t\t\t\tpath="baBallOrange" alphagrid="_ballalpha" rows=47 />\n'
+            '<Image id="NAVY_BALL"\t\t\t\t\t\tpath="baBallNavy" alphagrid="_ballalpha" rows=50 />\n'
+            '<Image id="CYAN_BALL"\t\t\t\t\t\tpath="baBallCyan" alphagrid="_ballalpha" rows=50 />\n'
+            '<Image id="BLACK_BALL"\t\t\t\t\t\tpath="baBallBlack" alphagrid="_ballalpha" rows=50 />\n'
+            '<Image id="CREAM_BALL"\t\t\t\t\t\tpath="baBallCream" alphagrid="_ballalpha" rows=50 alias="BALL_END" />'
+        )
+        text_extra = re.sub(r'<Image\s+id="WHITE_BALL"[^>]*alias="BALL_END"[^>]*/>', extra_balls, text_clean)
+        text_extra = re.sub(r'<Image\s+id="NEXT_BALL"[^>]*/>', '<Image id="NEXT_BALL"\t\t\t\t\t\tpath="baDotz_extra" cols=11 />', text_extra)
 
+        sections = [
+            ('WHITE_ACCURACY', 'ACCURACY', 'baAccuracy', '_ballalpha'),
+            ('WHITE_BACKWARDS', 'BACKWARDS', 'baBackwards', '_ballalpha'),
+            ('WHITE_SLOW', 'SLOW', 'baSlow', '_ballalpha'),
+            ('WHITE_BOMB', 'BOMB', 'baBomb', '_baBomb'),
+            ('WHITE_LIGHT', 'LIGHT', 'baLight', '_baLight')
+        ]
+        colors = ['ORANGE', 'NAVY', 'CYAN', 'BLACK', 'CREAM']
+        for anchor, type_name, path_prefix, alpha_name in sections:
+            inserted = ['\\g<0>']
+            for col in colors:
+                line = f'<Image id="{col}_{type_name}"\t\t\t\t\tpath="{path_prefix}{col.capitalize()}" alphaimage="{alpha_name}" />'
+                inserted.append(line)
+            pattern = rf'<Image\s+id="{anchor}"[^>]*/>'
+            text_extra = re.sub(pattern, '\n'.join(inserted), text_extra)
 
-def patch_levels_file(zuma_dir, is_lite=False):
-    # Rule: levels.xml MUST NOT be modified or patched!
-    return
+        p_extra = os.path.join(zuma_dir, 'properties', 'resource_extra.xml')
+        p_extra_alt = os.path.join(zuma_dir, 'properties', 'resources_extra.xml')
+        with open(p_extra, 'w', encoding='utf-8', newline='\r\n') as f:
+            f.write(text_extra)
+        with open(p_extra_alt, 'w', encoding='utf-8', newline='\r\n') as f:
+            f.write(text_extra)
+        print("  [OK] resource_extra.xml generated with 11-color support (baDotz_extra, cols=11).")
+
 
 def patch_dialog_button(zuma_dir, tables):
     img_dir = os.path.join(zuma_dir, 'images')
@@ -303,20 +293,24 @@ def patch_dialog_button(zuma_dir, tables):
     locked_jpg = os.path.join(img_dir, 'DialogButtonLocked.jpg')
     locked_gif = os.path.join(img_dir, '_Dialogbuttonlocked.gif')
 
-    # 1. Restore vanilla DialogButton.jpg and _Dialogbutton.gif if .bak exists
+    # Restore vanilla DialogButton.jpg and _Dialogbutton.gif if .bak exists
     bak_jpg = jpg_path + '.bak'
     if os.path.exists(bak_jpg):
         shutil.copyfile(bak_jpg, jpg_path)
-        os.remove(bak_jpg)
-        print("  [RESTORE] Restored vanilla DialogButton.jpg from backup.")
+        try:
+            os.remove(bak_jpg)
+        except Exception:
+            pass
 
     bak_gif = gif_path + '.bak'
     if os.path.exists(bak_gif):
         shutil.copyfile(bak_gif, gif_path)
-        os.remove(bak_gif)
-        print("  [RESTORE] Restored vanilla _Dialogbutton.gif from backup.")
+        try:
+            os.remove(bak_gif)
+        except Exception:
+            pass
 
-    # 2. Always generate DialogButtonLocked.jpg from DialogButton.jpg
+    # Always generate DialogButtonLocked.jpg from DialogButton.jpg
     if os.path.exists(jpg_path):
         im_src = Image.open(jpg_path).convert('RGB')
         arr_s = np.array(im_src)
@@ -328,20 +322,18 @@ def patch_dialog_button(zuma_dir, tables):
             for x in range(w):
                 sk = f"{arr_s[y, x, 0]},{arr_s[y, x, 1]},{arr_s[y, x, 2]}"
                 if sk in lut:
-                    g = lut[sk]
+                    arr_out[y, x] = lut[sk]
                 else:
-                    r, g_val, b = float(arr_s[y, x, 0]), float(arr_s[y, x, 1]), float(arr_s[y, x, 2])
-                    g = int(np.clip(0.2982 * r + 0.7296 * g_val + 0.0104 * b + 2.6247, 0, 255))
-                arr_out[y, x] = [g, g, g]
+                    gray = int(np.clip(0.299 * arr_s[y, x, 0] + 0.587 * arr_s[y, x, 1] + 0.114 * arr_s[y, x, 2], 0, 255))
+                    arr_out[y, x] = [gray, gray, gray]
 
-        out_im = Image.fromarray(arr_out, mode='RGB')
-        out_im.save(locked_jpg, format='JPEG', quality=95)
-        print(f"  [OK] DialogButtonLocked.jpg generated ({w}x{h}).")
+        im_locked = Image.fromarray(arr_out)
+        im_locked.save(locked_jpg, format='JPEG', quality=95)
+        print("  [OK] Generated DialogButtonLocked.jpg (grayscale disabled style)")
 
-    # 3. Always refresh _Dialogbuttonlocked.gif from _Dialogbutton.gif
-    if os.path.exists(gif_path):
+    if os.path.exists(gif_path) and not os.path.exists(locked_gif):
         shutil.copyfile(gif_path, locked_gif)
-        print(f"  [OK] _Dialogbuttonlocked.gif created from {gif_path}.")
+        print("  [OK] Copied _Dialogbuttonlocked.gif mask")
 
 
 def patch_temple5_media(zuma_dir):
@@ -352,44 +344,23 @@ def patch_temple5_media(zuma_dir):
     if not os.path.isdir(img_dir):
         return
 
-    print(f"[ASSET] Patching Secret Temple 5 & Door 5 media into: {img_dir}")
-
-    # 1. advtemple5.jpg and _advtemple5.gif
     t5_jpg = os.path.join(src_media, 'advtemple5.jpg')
-    t5_gif = os.path.join(src_media, '_advtemple5.gif')
+    dst_t5 = os.path.join(img_dir, 'advtemple5.jpg')
     if os.path.exists(t5_jpg):
-        im_t5 = Image.open(t5_jpg)
-        dst_t5 = os.path.join(img_dir, 'advtemple5.jpg')
-        if im_t5.size != (391, 100):
-            im_t5 = im_t5.resize((391, 100), Image.Resampling.LANCZOS)
-            im_t5.save(dst_t5, format='JPEG', quality=95)
-            print("  [OK] Normalized and saved advtemple5.jpg (391x100) to images/")
-        else:
-            shutil.copyfile(t5_jpg, dst_t5)
-            print("  [OK] Copied advtemple5.jpg (391x100) to images/")
-    if os.path.exists(t5_gif):
-        im_t5g = Image.open(t5_gif)
-        dst_t5g = os.path.join(img_dir, '_advtemple5.gif')
-        if im_t5g.size != (391, 100):
-            im_t5g = im_t5g.resize((391, 100), Image.Resampling.NEAREST)
-            im_t5g.save(dst_t5g, format='GIF')
-            print("  [OK] Normalized and saved _advtemple5.gif (391x100) to images/")
-        else:
-            shutil.copyfile(t5_gif, dst_t5g)
-            print("  [OK] Copied _advtemple5.gif (391x100) to images/")
+        shutil.copyfile(t5_jpg, dst_t5)
+        print("  [OK] Copied advtemple5.jpg (330x99) to images/")
 
-    # 2. advdoor5.jpg (normalized to 192x50 with cols=3)
+    t5_mask = os.path.join(src_media, '_advtemple5.gif')
+    dst_mask = os.path.join(img_dir, '_advtemple5.gif')
+    if os.path.exists(t5_mask):
+        shutil.copyfile(t5_mask, dst_mask)
+        print("  [OK] Copied _advtemple5.gif (330x99) to images/")
+
     d5_jpg = os.path.join(src_media, 'advdoor5.jpg')
     dst_d5 = os.path.join(img_dir, 'advdoor5.jpg')
     if os.path.exists(d5_jpg):
-        im = Image.open(d5_jpg)
-        if im.width != 192 or im.height != 50:
-            im = im.crop((0, 0, 192, 50))
-            im.save(dst_d5, format='JPEG', quality=95)
-            print("  [OK] Normalized and saved advdoor5.jpg (192x50) to images/")
-        else:
-            shutil.copyfile(d5_jpg, dst_d5)
-            print("  [OK] Copied advdoor5.jpg to images/")
+        shutil.copyfile(d5_jpg, dst_d5)
+        print("  [OK] Copied advdoor5.jpg (192x50, 3-frame cel) to images/")
 
 
 def patch_dev_media(zuma_dir):
@@ -433,7 +404,7 @@ def patch_dev_media(zuma_dir):
             shutil.copyfile(hb_jpg, dst_hb)
             print("  [OK] Copied helpback_dev.jpg to images/")
 
-    # 3. tut_mouse_m.jpg (40x29) & tut_mouse_m_.jpg (alpha mask from tut_mouse_r_.jpg)
+    # 3. tut_mouse_m.jpg (40x29) & tut_mouse_m_.jpg
     mm_jpg = os.path.join(src_media, 'tut_mouse_m.jpg')
     if os.path.exists(mm_jpg):
         shutil.copyfile(mm_jpg, os.path.join(img_dir, 'tut_mouse_m.jpg'))
@@ -445,7 +416,7 @@ def patch_dev_media(zuma_dir):
         shutil.copyfile(mr_mask, dst_mm_mask)
         print("  [OK] Created tut_mouse_m_.jpg from tut_mouse_r_.jpg")
 
-    # 4. advtemple5_tut.jpg (190x75) preview of Stage 13 with radiant green glowing portal
+    # 4. advtemple5_tut.jpg (190x75) preview of Stage 13
     src_temple = os.path.join(img_dir, 'advtemple5.jpg')
     src_door = os.path.join(img_dir, 'advdoor5.jpg')
     dst_tut_temple = os.path.join(img_dir, 'advtemple5_tut.jpg')
@@ -453,7 +424,7 @@ def patch_dev_media(zuma_dir):
         from PIL import ImageFilter
         temple = Image.open(src_temple).convert('RGB')
         door = Image.open(src_door).convert('RGB')
-        frame1 = door.crop((64, 0, 128, 50))  # Frame 1: glowing green eye
+        frame1 = door.crop((64, 0, 128, 50))
         comp = temple.copy()
         comp.paste(frame1, (165, 28))
         glow_layer = Image.new('RGBA', comp.size, (0, 0, 0, 0))
@@ -467,9 +438,7 @@ def patch_dev_media(zuma_dir):
         cropped = comp_final.crop((crop_x1, 0, crop_x2, 99))
         resized = cropped.resize((190, 75), Image.Resampling.LANCZOS)
         resized.convert('RGB').save(dst_tut_temple, format='JPEG', quality=95)
-        print("  [OK] Generated and saved advtemple5_tut.jpg (190x75) with green glow to images/")
-
-
+        print("  [OK] Generated and saved advtemple5_tut.jpg (190x75) to images/")
 
 
 def patch_outscreen_media(zuma_dir):
@@ -500,12 +469,13 @@ if __name__ == '__main__':
         
     is_lite = '--lite' in flags or os.path.basename(os.path.abspath('.')).lower().endswith('-lite')
     tbls = load_tables()
-    patch_resources_file(z_dir)
-    # patch_levels_file disabled: levels.xml preserved untouched
-    patch_images(z_dir, tbls)
+    
+    clean_modules_bak(z_dir)
+    patch_resources_file(z_dir, is_lite=is_lite)
+    patch_images(z_dir, tbls, is_lite=is_lite)
     patch_dialog_button(z_dir, tbls)
     patch_temple5_media(z_dir)
     patch_dev_media(z_dir)
     patch_outscreen_media(z_dir)
+    clean_modules_bak(z_dir)
     print("[DONE] Assets and XML patched successfully.")
-

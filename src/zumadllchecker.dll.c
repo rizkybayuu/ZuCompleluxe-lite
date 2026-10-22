@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 #ifndef ZUCOMPLELUXE_VERSION
-#define ZUCOMPLELUXE_VERSION "v0.5"
+#define ZUCOMPLELUXE_VERSION "v0.5.1"
 #endif
 
 #ifndef TARGET_W
@@ -1136,9 +1136,9 @@ __declspec(dllexport) int __cdecl ZDC_RunChecker(void) {
         dwExStyle,
         wc.lpszClassName,
 #ifdef ZUCOMPLELUXE_LITE
-        "ZuCompleluxe v0.5 Lite - Module & Dependency Checker",
+        "ZuCompleluxe v0.5.1 Lite - Module & Dependency Checker",
 #else
-        "ZuCompleluxe v0.5 - Module & Dependency Checker",
+        "ZuCompleluxe v0.5.1 - Module & Dependency Checker",
 #endif
         dwStyle | WS_VISIBLE,
         posX, posY, winW, winH,
