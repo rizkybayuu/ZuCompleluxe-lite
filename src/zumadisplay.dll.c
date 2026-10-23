@@ -295,11 +295,43 @@ static HCURSOR CreateHardwareCursorFromPopCapImage(void *img) {
     int h = *(int *)((char *)img + 8);
     if (w <= 0 || h <= 0 || w > 256 || h > 256) return NULL;
 
-    uint32_t *src_bits = *(uint32_t **)((char *)img + 0x14);
-    if (!src_bits) {
-        src_bits = *(uint32_t **)((char *)img + 0x24);
+    uint32_t *src_bits = NULL;
+    int allocated = 0;
+
+    /* 1. Try invoking PopCap MemoryImage::GetBits() via vftable[22] (offset +0x58) to unpack paletted images */
+    void **vftable = *(void ***)img;
+    if (vftable && !IsBadReadPtr(vftable, 0x60)) {
+        typedef uint32_t * (THISCALL *GetBitsFn)(void *self);
+        GetBitsFn fnGetBits = (GetBitsFn)vftable[22];
+        if (fnGetBits && !IsBadCodePtr((FARPROC)fnGetBits)) {
+            src_bits = fnGetBits(img);
+        }
     }
-    if (!src_bits || IsBadReadPtr(src_bits, (size_t)w * (size_t)h * sizeof(uint32_t))) return NULL;
+
+    /* 2. Direct read of mBits if already populated */
+    if (!src_bits) {
+        src_bits = *(uint32_t **)((char *)img + 0x14);
+    }
+
+    /* 3. Fallback: manual unpack from paletted buffer (mColorTable @ 0x24 + mColorIndices @ 0x28) */
+    if (!src_bits) {
+        uint32_t *pal = *(uint32_t **)((char *)img + 0x24);
+        uint8_t *idx = *(uint8_t **)((char *)img + 0x28);
+        if (pal && idx && !IsBadReadPtr(pal, 64 * sizeof(uint32_t)) && !IsBadReadPtr(idx, (size_t)w * h)) {
+            src_bits = (uint32_t *)malloc((size_t)w * h * sizeof(uint32_t));
+            if (src_bits) {
+                allocated = 1;
+                for (int i = 0; i < w * h; i++) {
+                    src_bits[i] = pal[idx[i]];
+                }
+            }
+        }
+    }
+
+    if (!src_bits || IsBadReadPtr(src_bits, (size_t)w * (size_t)h * sizeof(uint32_t))) {
+        if (allocated && src_bits) free(src_bits);
+        return NULL;
+    }
 
     BITMAPV5HEADER bi;
     ZeroMemory(&bi, sizeof(bi));
@@ -317,16 +349,43 @@ static HCURSOR CreateHardwareCursorFromPopCapImage(void *img) {
     HDC hdc = GetDC(NULL);
     void *lpBits = NULL;
     HBITMAP hColorBmp = CreateDIBSection(hdc, (BITMAPINFO *)&bi, DIB_RGB_COLORS, &lpBits, NULL, 0);
-    HBITMAP hMaskBmp  = CreateBitmap(w, h, 1, 1, NULL);
+
+    /* Zero-initialize monochrome mask to guarantee proper per-pixel 32-bit alpha blending */
+    int mask_stride = ((w + 15) / 16) * 2;
+    size_t mask_size = (size_t)mask_stride * h;
+    void *mask_bits = calloc(1, mask_size);
+    HBITMAP hMaskBmp = CreateBitmap(w, h, 1, 1, mask_bits);
+    if (mask_bits) free(mask_bits);
+
     ReleaseDC(NULL, hdc);
 
     if (!hColorBmp || !hMaskBmp || !lpBits) {
         if (hColorBmp) DeleteObject(hColorBmp);
         if (hMaskBmp)  DeleteObject(hMaskBmp);
+        if (allocated && src_bits) free(src_bits);
         return NULL;
     }
 
-    memcpy(lpBits, src_bits, (size_t)w * (size_t)h * sizeof(uint32_t));
+    /* Convert to premultiplied 32-bit ARGB */
+    uint32_t *dst = (uint32_t *)lpBits;
+    for (int i = 0; i < w * h; i++) {
+        uint32_t p = src_bits[i];
+        uint32_t a = (p >> 24) & 0xFF;
+        if (a == 0) {
+            dst[i] = 0;
+        } else if (a == 255) {
+            dst[i] = p;
+        } else {
+            uint32_t r = ((p >> 16) & 0xFF) * a / 255;
+            uint32_t g = ((p >> 8)  & 0xFF) * a / 255;
+            uint32_t b = (p         & 0xFF) * a / 255;
+            dst[i] = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+    }
+
+    if (allocated && src_bits) {
+        free(src_bits);
+    }
 
     ICONINFO ii;
     ZeroMemory(&ii, sizeof(ii));
