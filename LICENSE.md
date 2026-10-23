@@ -34,15 +34,12 @@ This repository and its contents are created strictly for **non-commercial, educ
 
 ## 4. License for Original Contributions
 
-The original code, scripts, and documentation authored specifically as part of the *ZuCompleluxe Lite* project—namely:
-- PE binary patchers, AOB signature resolvers, asset synthesizers, and code cave injector scripts in `builder/`
-- Sidecar runtime library source files in `src/`:
-  - `zumadllchecker.dll.c` (mandatory pre-launch gatekeeper, PE metadata reader & dependency checker)
-  - `zumacustommap.dll.c` (Gauntlet custom map extender & rank progression)
-  - `zumacplxcredit.dll.c` (standalone developer credits & interactive GitHub button)
-  - `zumatestingkit.dll.c` (virtual DevTester profile, Secret Temple 5, MMB cheat & DevTester Guide)
-- Reverse engineering documentation and memory maps in `docs/`
-- Master automated 1-click patcher and build script (`build_lite.bat`)
+The original code, scripts, tools, and documentation authored specifically as part of the *ZuCompleluxe Lite* project—namely:
+- All build automation, PE binary patching, AOB signature resolution, and code cave injection scripts in `builder/`
+- All native C source files, headers, and runtime sidecar implementations in `src/`
+- All reverse engineering technical documentation, memory layout specifications, and architecture audits in `docs/`
+- All custom reference assets, menubar templates, and auxiliary media authored for the project in `assets/`
+- All root build and orchestration scripts (`build_lite.bat` and related automation)
 
 are distributed under the terms of the **MIT License**:
 

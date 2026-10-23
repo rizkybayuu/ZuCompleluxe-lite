@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1.1] - 2026-10-23
+
+### Fixed
+- **Button Hover Hardware Custom Cursor Visual Corruption (`zumadisplay.dll`)**:
+  - Fixed visual static and corruption occurring when hovering over interactive UI buttons (switching from the default arrow cursor to `CURSOR_HAND`).
+  - PopCap `MemoryImage` initializes loaded GIF assets (such as `cursor_hand.gif`) as 8-bit paletted images with `mBits` (`+0x14`) initially set to `NULL` until explicitly unpacked.
+  - The hardware cursor synthesizer previously mistook the palette table pointer (`mColorTable` @ `+0x24`) for raw 32-bit pixel data, reading out-of-bounds heap memory and corrupting the cursor bitmap.
+  - Resolved by invoking `MemoryImage::GetBits()` via virtual method `vftable[22]` (`+0x58`) using `__thiscall` calling convention to trigger PopCap's native palette unpacking into a clean 32-bit ARGB buffer.
+  - Added robust fallback to manual palette unpacking (`pal[idx[i]]`) if `mBits` cannot be resolved.
+  - Zero-initializes the 1-bpp monochrome mask bitmap (`hbmMask`) with `calloc` instead of `CreateBitmap(..., NULL)` and converts colors to premultiplied 32-bit ARGB before passing to `CreateIconIndirect`.
+
+### Changed
+- **Unified Repository Licensing Scope (`LICENSE.md`)**:
+  - Streamlined Section 4 of `LICENSE.md` to reference top-level architectural directories (`builder/`, `src/`, `docs/`, `assets/`, and root build scripts) rather than listing individual filenames, ensuring permanent, maintenance-free forward compatibility for future releases.
+- **Diagnostic Gatekeeper Version Bump (`zumadllchecker.dll`)**:
+  - Bumped version metadata to `v0.5.1.1` across pre-launch diagnostic UI and window headers.
 ## [0.5.1] - 2026-10-22
 
 ### Added
