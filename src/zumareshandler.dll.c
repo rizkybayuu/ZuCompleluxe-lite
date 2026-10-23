@@ -2502,6 +2502,12 @@ static void ApplyUIPatches(void) {
         VerifyAndPatchCall((char *)pCachedThumbScale + 25, (void *)g_pfnDrawImageStretch, (void *)hk_cached_thumbnail_scale, "CachedThumbnailScale");
     }
 
+    /* 9w. Force HoleMgr::DrawHole to always use rotated drawing (supporting curve tangent & skullrot in software/thumbnails) */
+    void *pHoleRotCheck = FindPattern("84 C0 8B 7D 08 75 37 8B 46 10");
+    if (pHoleRotCheck) {
+        VerifyAndPatchByte((char *)pHoleRotCheck + 5, 0x75, 0xEB, "HoleMgr_ForceRotatedDraw");
+    }
+
     LogF("[ZRES] Applied all UI layout patches dynamically for %dx%d (scale=%.2f)", TARGET_W, TARGET_H, scale);
     HookZTKIAT();
 }
