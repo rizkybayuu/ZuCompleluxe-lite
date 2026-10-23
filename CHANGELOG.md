@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Patched opcode at `0x00404D9B` from `75 37` (`JNZ`) to `EB 37` (`JMP`), forcing `HoleMgr::DrawHole` to unconditionally route through the rotated drawing pipeline (`Graphics::DrawImageRotated` at `0x004515C0`), fully supported in software by `MemoryImage::BltRotated`.
     - Both `IMAGE_HOLE` (sun disc) and `IMAGE_HOLE_COVER` (closed golden skull) are now rendered with accurate orientation matching curve geometry.
   - Implemented safe, automated headless batch thumbnail generator triggered via `gen_thumbs.flag` after 90 frames of startup initialization.
+- **Aspect-Fill Thumbnail Scaling & Centered Cover Blit (`zumareshandler.dll`)**:
+  - Replaced stretching and distortion of non-4:3 map preview thumbnails (e.g., 16:9 1200x675 backgrounds) with dynamic aspect-fill (`cover`) cropping.
+  - Intercepted `CreateCachedThumbnail` (`0x0040CD8E`) via `hk_cached_thumbnail_scale` and `GauntletScreen` preview rendering (`0x00439202`) via `hk_draw_gauntlet_thumbnail` with symmetric crop calculations, preserving 1:1 circular geometric proportions in Gauntlet doorway previews with zero distortion.
+- **In-Game Floating Text Banners Centering (`zumareshandler.dll`)**:
+  - Dynamically patched `Board::SpawnFloatingBanner` (`0x00428C60`) using unique AOB signature scanning to center `"%d LIVES LEFT"`, `"LAST LIFE!"`, and `"GAME OVER"` floating banners dead-center at `(TARGET_W / 2, TARGET_H / 2)` instead of hardcoded vanilla `(320, 240)`.
 
 ### Added
 - **Comprehensive Reverse-Engineering Documentation (`docs/cached_thumbnail_and_skull_rotation.md`)**:
@@ -31,11 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.1.1] - 2026-10-23
 
 ### Fixed
-- **Aspect-Fill Thumbnail Scaling & Centered Cover Blit (`zumareshandler.dll`)**:
-  - Replaced stretching and distortion of non-4:3 map preview thumbnails (e.g., 16:9 1200x675 backgrounds) with dynamic aspect-fill (`cover`) cropping.
-  - Intercepted `CreateCachedThumbnail` (`0x0040CD8E`) via `hk_cached_thumbnail_scale` and `GauntletScreen` preview rendering (`0x00439202`) via `hk_draw_gauntlet_thumbnail` with symmetric crop calculations, preserving 1:1 circular geometric proportions in Gauntlet doorway previews with zero distortion.
-- **In-Game Floating Text Banners Centering (`zumareshandler.dll`)**:
-  - Dynamically patched `Board::SpawnFloatingBanner` (`0x00428C60`) using unique AOB signature scanning to center `"%d LIVES LEFT"`, `"LAST LIFE!"`, and `"GAME OVER"` floating banners dead-center at `(TARGET_W / 2, TARGET_H / 2)` instead of hardcoded vanilla `(320, 240)`.
 - **Button Hover Hardware Custom Cursor Visual Corruption (`zumadisplay.dll`)**:
   - Fixed visual static and corruption occurring when hovering over interactive UI buttons (switching from the default arrow cursor to `CURSOR_HAND`).
   - PopCap `MemoryImage` initializes loaded GIF assets (such as `cursor_hand.gif`) as 8-bit paletted images with `mBits` (`+0x14`) initially set to `NULL` until explicitly unpacked.
