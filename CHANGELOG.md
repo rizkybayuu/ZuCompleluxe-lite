@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1.2] - 2026-10-23
+
+### Fixed
+- **Cached Thumbnail Golden Skull Holes & Full Tangent/Fixed Rotation Pipeline (`zumareshandler.dll`)**:
+  - Fixed missing skull holes on generated map thumbnails (`levels/cached_thumbnails/*.png`) caused by `zumaextrapath.dll`'s Cave M detour bypassing `HoleMgr::Draw` when `va_ptr_checkholeprio != 0`.
+  - Intercepted `CreateCachedThumbnail` downscaling call site (`0x0040CD8E`) via `hk_cached_thumbnail_scale` to explicitly render all active skull holes onto the staging canvas before downscaling.
+  - Fixed skull holes rendering unrotated (facing strictly upright) on software `MemoryImage` canvases:
+    - Zuma engine resolves skull hole rotation via XML attribute `skullrot` (degrees to radians) or falls back to the curve tangent of the entering waypoint (`curve.points[last].mTangent`).
+    - The legacy 2003 software branch at `0x00404D9B` in `HoleMgr::DrawHole` (`0x00404D50`) bypassed `Graphics::DrawImageRotated` whenever `gApp->Is3DAccelerated()` returned false.
+    - Patched opcode at `0x00404D9B` from `75 37` (`JNZ`) to `EB 37` (`JMP`), forcing `HoleMgr::DrawHole` to unconditionally route through the rotated drawing pipeline (`Graphics::DrawImageRotated` at `0x004515C0`), fully supported in software by `MemoryImage::BltRotated`.
+    - Both `IMAGE_HOLE` (sun disc) and `IMAGE_HOLE_COVER` (closed golden skull) are now rendered with accurate orientation matching curve geometry.
+  - Implemented safe, automated headless batch thumbnail generator triggered via `gen_thumbs.flag` after 90 frames of startup initialization.
+
+### Added
+- **Comprehensive Reverse-Engineering Documentation (`docs/cached_thumbnail_and_skull_rotation.md`)**:
+  - Added full technical documentation detailing the cached thumbnail pipeline, Cave M root cause analysis, skull hole rotation resolution algorithms (`skullrot` vs curve tangent fallback), 2D software limitations, reverse-engineered dynamic patches, and verification results.
+
+### Changed
+- **Diagnostic Gatekeeper Version Bump (`zumadllchecker.dll`)**:
+  - Bumped version metadata to `v0.5.1.2` across pre-launch diagnostic UI and window headers.
+
 ## [0.5.1.1] - 2026-10-23
 
 ### Fixed
