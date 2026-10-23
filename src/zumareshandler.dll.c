@@ -455,6 +455,45 @@ static unsigned char FC hk_drawscreen(void *wm, void *edx)
     n = Unclip(wm, sv, 16);
     r = ((fDrawScreen)P->drawscreen)(wm, 0);
     for (i = 0; i < n; i++) sv[i].w[sv[i].off] = sv[i].old;
+
+    static int s_done_thumb_gen = 0;
+    static int s_frame_count = 0;
+    s_frame_count++;
+    if (!s_done_thumb_gen && s_frame_count > 90 && GetFileAttributesA("gen_thumbs.flag") != INVALID_FILE_ATTRIBUTES) {
+        s_done_thumb_gen = 1;
+        DeleteFileA("gen_thumbs.flag");
+        void **app_ptr = GetAppPtr();
+        if (app_ptr && *app_ptr) {
+            void *app = *app_ptr;
+            LogF("[ZRES] gen_thumbs.flag detected: Triggering safe thumbnail generation with temporary Board...");
+            void* pLevelMgr = *(void**)((char*)app + 0x608);
+            if (pLevelMgr) {
+                char* pDescStart = *(char**)((char*)pLevelMgr + 0x2C);
+                char* pDescEnd   = *(char**)((char*)pLevelMgr + 0x30);
+                if (pDescStart && pDescEnd && pDescEnd > pDescStart) {
+                    int totalLevels = (int)((pDescEnd - pDescStart) / 0x220);
+                    LogF("[ZRES] LevelMgr has %d levels. Iterating to generate missing cached thumbnails...", totalLevels);
+                    void *temp_board = malloc(0x400);
+                    if (temp_board) {
+                        memset(temp_board, 0, 0x400);
+                        typedef void* (THISCALL *fBoardCtor)(void *board, void *app);
+                        ((fBoardCtor)0x004186D0)(temp_board, app);
+
+                        typedef void (THISCALL *fCreateCachedThumb)(void *board);
+                        fCreateCachedThumb pfnCreateThumb = (fCreateCachedThumb)0x00418C40;
+
+                        for (int i = 0; i < totalLevels; i++) {
+                            char *pDesc = pDescStart + i * 0x220;
+                            *(void **)((char *)temp_board + 0xfc) = pDesc;
+                            *(int *)((char *)temp_board + 0x88) = 0;
+                            pfnCreateThumb(temp_board);
+                        }
+                        LogF("[ZRES] All %d levels processed! Missing thumbnails generated successfully.", totalLevels);
+                    }
+                }
+            }
+        }
+    }
     return r;
 }
 
@@ -824,6 +863,27 @@ static void THISCALL hk_draw_gauntlet_thumbnail(void *g, void *img, int x, int y
 
 static void THISCALL hk_cached_thumbnail_scale(void *g, void *img, const int *destRect, const int *srcRect) {
     if (!g || !img || !g_pfnDrawImageStretch) return;
+
+    /* Render golden skull hole(s) onto canvas before downscaling to thumbnail */
+    void *caller_ebp = (char *)img + 0x100;
+    char *level = *(char **)((char *)caller_ebp + 8);
+    void *gCanvas = (void *)((char *)caller_ebp - 0x1B0);
+    int num_holes = level ? *(int *)(level + 0x74) : 0;
+    LogF("[ZRES] hk_cached_thumbnail_scale: img=%p, ebp=%p, level=%p, gCanvas=%p, num_holes=%d",
+         img, caller_ebp, level, gCanvas, num_holes);
+
+    if (level && gCanvas && num_holes > 0 && num_holes <= 32) {
+        typedef void (THISCALL *LevelDrawHoleFn)(void *level, void *g, int hole_idx);
+        LevelDrawHoleFn pfnDrawHole = (LevelDrawHoleFn)0x00404D50;
+        for (int i = 0; i < num_holes; i++) {
+            int hx = *(int *)(level + 0x90 + i * 0x38);
+            int hy = *(int *)(level + 0x94 + i * 0x38);
+            float hr = *(float *)(level + 0xA0 + i * 0x38);
+            LogF("[ZRES]   Rendering skull hole[%d]: x=%d, y=%d, rot=%.3f onto canvas %p", i, hx, hy, hr, gCanvas);
+            pfnDrawHole(level, gCanvas, i);
+        }
+    }
+
     int img_w = *(int *)((char *)img + 4);
     int img_h = *(int *)((char *)img + 8);
     int crop_src[4] = { 0, 0, img_w, img_h };
