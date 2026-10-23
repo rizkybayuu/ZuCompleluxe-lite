@@ -795,10 +795,66 @@ static void THISCALL hk_draw_gauntlet_thumbnail(void *g, void *img, int x, int y
     if (g_pfnDrawImageStretch) {
         int dest[4] = { x, y, SDIM_VAL(320), SDIM_VAL(240) };
         int src[4]  = { 0, 0, img_w, img_h };
+        int dest_w  = dest[2];
+        int dest_h  = dest[3];
+        if (dest_w > 0 && dest_h > 0) {
+            long long lhs = (long long)img_w * dest_h;
+            long long rhs = (long long)dest_w * img_h;
+            if (lhs > rhs) {
+                /* Source image is wider than target frame: crop width symmetrically (aspect-fill) */
+                int scw = (int)(((long long)img_h * dest_w) / dest_h);
+                src[0] = (img_w - scw) / 2;
+                src[1] = 0;
+                src[2] = scw;
+                src[3] = img_h;
+            } else if (lhs < rhs) {
+                /* Source image is taller than target frame: crop height symmetrically (aspect-fill) */
+                int sch = (int)(((long long)img_w * dest_h) / dest_w);
+                src[0] = 0;
+                src[1] = (img_h - sch) / 2;
+                src[2] = img_w;
+                src[3] = sch;
+            }
+        }
         g_pfnDrawImageStretch(g, img, dest, src);
     } else {
         DrawImg(g, img, x, y);
     }
+}
+
+static void THISCALL hk_cached_thumbnail_scale(void *g, void *img, const int *destRect, const int *srcRect) {
+    if (!g || !img || !g_pfnDrawImageStretch) return;
+    int img_w = *(int *)((char *)img + 4);
+    int img_h = *(int *)((char *)img + 8);
+    int crop_src[4] = { 0, 0, img_w, img_h };
+    if (srcRect) {
+        crop_src[0] = srcRect[0];
+        crop_src[1] = srcRect[1];
+        crop_src[2] = srcRect[2];
+        crop_src[3] = srcRect[3];
+    }
+    if (destRect && img_w > 0 && img_h > 0 && destRect[2] > 0 && destRect[3] > 0) {
+        int dest_w = destRect[2];
+        int dest_h = destRect[3];
+        long long lhs = (long long)img_w * dest_h;
+        long long rhs = (long long)dest_w * img_h;
+        if (lhs > rhs) {
+            /* Source canvas is wider than thumbnail target (e.g. 16:9 -> 4:3) */
+            int scw = (int)(((long long)img_h * dest_w) / dest_h);
+            crop_src[0] = (img_w - scw) / 2;
+            crop_src[1] = 0;
+            crop_src[2] = scw;
+            crop_src[3] = img_h;
+        } else if (lhs < rhs) {
+            /* Source canvas is taller than thumbnail target */
+            int sch = (int)(((long long)img_w * dest_h) / dest_w);
+            crop_src[0] = 0;
+            crop_src[1] = (img_h - sch) / 2;
+            crop_src[2] = img_w;
+            crop_src[3] = sch;
+        }
+    }
+    g_pfnDrawImageStretch(g, img, destRect, crop_src);
 }
 
 static void THISCALL hk_DrawHappyEnding(void *g, void *img, int x, int y);
@@ -2371,6 +2427,19 @@ static void ApplyUIPatches(void) {
         VerifyAndPatchDword((char *)pAdvLevelBanner + 12, 600, (DWORD)(TARGET_W - 40), "AdvLevelBannerMaxX_2");
         VerifyAndPatchDword((char *)pAdvLevelBanner + 25, 440, (DWORD)(TARGET_H - 40), "AdvLevelBannerMaxY_1");
         VerifyAndPatchDword((char *)pAdvLevelBanner + 32, 440, (DWORD)(TARGET_H - 40), "AdvLevelBannerMaxY_2");
+    }
+
+    /* 9u. In-Game Lives Banner ("%d LIVES LEFT", "LAST LIFE!", "GAME OVER") Centering */
+    void *pLivesBanner = FindPattern("68 F0 00 00 00 8D 4D B0 51 8B CF FF 50 1C 99 2B C2 D1 F8 BA 40 01 00 00 2B D0 52");
+    if (pLivesBanner) {
+        VerifyAndPatchDword((char *)pLivesBanner + 1,  240, (DWORD)(TARGET_H / 2), "LivesBannerCenterY");
+        VerifyAndPatchDword((char *)pLivesBanner + 20, 320, (DWORD)(TARGET_W / 2), "LivesBannerCenterX");
+    }
+
+    /* 9v. Cached Thumbnail Generation Aspect-Fill Blit Hook */
+    void *pCachedThumbScale = FindPattern("8D 85 00 FF FF FF 50 8D 8D A8 FE FF FF 89 5D 98 89 5D 9C 89 5D 88 89 5D 8C E8");
+    if (pCachedThumbScale) {
+        VerifyAndPatchCall((char *)pCachedThumbScale + 25, (void *)g_pfnDrawImageStretch, (void *)hk_cached_thumbnail_scale, "CachedThumbnailScale");
     }
 
     LogF("[ZRES] Applied all UI layout patches dynamically for %dx%d (scale=%.2f)", TARGET_W, TARGET_H, scale);
