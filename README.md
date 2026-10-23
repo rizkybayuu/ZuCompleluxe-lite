@@ -146,35 +146,120 @@ ZuCompleluxe-lite/
 ## Build & Installation Instructions
 
 ### Prerequisites
-1. **Windows OS** (Windows 7 / 8 / 10 / 11).
-2. **Zuma Deluxe Installation Folder**: A working installation of *Zuma Deluxe* v1.0.0.1 (GameHouse / PopCap retail, unpacked DRM-free, or compatible build).
-3. **Zero-Dependency Automated Toolchain**:
-   - The pipeline automatically provisions host Python 3.11+ or downloads self-contained portable embedded Python 3.11.9 amd64 with SHA-256 verification.
-   - Pinned dependencies (`builder/requirements.txt`: capstone, numpy, packaging, pefile, pillow, ziglang).
-   - 32-bit GCC or Zig cross-compiler (`ziglang cc -target x86-windows-gnu`).
+1. **Windows OS**: Windows 7, 8, 10, or 11 (32-bit or 64-bit).
+2. **Authentic Zuma Deluxe Game**: A working installation of *Zuma Deluxe* v1.0.0.1 (GameHouse, PopCap retail, Steam, or compatible regional build).
+3. **Zero Manual Toolchain Setup**:
+   - The patcher runs out-of-the-box with zero prior development setup.
+   - If Python or a C compiler is not installed on your system, the automated bootstrap engine (`builder/bootstrap.bat`) transparently provisions portable embedded Python 3.11.9 and a 32-bit Zig cross-compiler (`ziglang cc -target x86-windows-gnu`) with SHA-256 integrity verification inside `.build\tools\`.
 
-### 1-Click Lite Edition Patching (`build_lite.bat`)
-Double-click `build_lite.bat` or run it from the terminal:
+---
 
-```cmd
-build_lite.bat
-```
-*(Or pass arguments directly: `build_lite.bat /yes -d "D:\Games\Zuma Deluxe" -w 800 -h 600`)*.
+### Step-by-Step Installation Guide (Quick Start)
 
-The builder pipeline will automatically:
-1. Open the modern File Explorer folder selector.
-2. Back up original vanilla `Zuma.exe`, `resources.xml`, `levels.xml`, and `baDotz.gif` into `<ZumaDir>\modules\bak\`.
-3. Detect your 32-bit C compiler and Python runtime adaptively.
-4. Compile all 6 Lite sidecar DLLs into `<ZumaDir>\modules\`:
+> [!IMPORTANT]
+> **Do NOT extract the patcher files directly into your Zuma Deluxe folder!**  
+> Extract the downloaded release archive (`ZuCompleluxe-lite-v0.5.1.2-windows.zip`) into its own separate folder (e.g. `Downloads\ZuCompleluxe-lite\` or `Desktop\ZuCompleluxe-lite\`). The patcher will safely inject the necessary modules, assets, and code caves into your target game directory.
+
+#### Step 1: Close the Game
+Ensure *Zuma Deluxe* (`Zuma.exe`) is completely closed and not running in the background.
+
+#### Step 2: Run the Patcher
+Navigate to your extracted patcher folder and double-click:
+- **`build_lite.bat`** for the **Lite Edition** (lightweight core engine with 6-ball colors, 3 curves, arbitrary custom resolutions, and F11 borderless fullscreen).
+
+*(Tip: If your Zuma Deluxe is installed under protected system paths like `C:\Program Files (x86)\...`, right-click `build_lite.bat` and select **"Run as administrator"**).*
+
+#### Step 3: Select Your Zuma Deluxe Folder
+1. A Windows Explorer folder selection window will appear automatically.
+2. Browse to and select your *Zuma Deluxe* installation directory (the folder containing `Zuma.exe`).
+3. Click the **"Patch Folder"** (or **"Select Folder"**) button.
+
+*(Note: If the graphical folder picker is closed or unavailable, the console will safely prompt you to paste your game path manually).*
+
+#### Step 4: Choose Display Resolution
+The console will ask you to select your preferred display resolution:
+- **Option 1 (Default):** `640x480` — Authentic vanilla 4:3 resolution.
+- **Option 2:** `800x600` — High-definition SVGA 4:3 with automatically synthesized high-res UI textures (`imagescustomres/`).
+- **Option 3:** `Custom Resolution` — Enter any custom width and height $\ge 480 \times 320$ (e.g., `1280x720`, `1920x1080` FHD, `2560x1440` QHD, `3840x2160` 4K, or 21:9 Ultrawide).
+
+#### Step 5: Automated Build & PE Injection
+The builder pipeline automatically handles the entire installation process:
+1. **Safety Backup**: Creates an untouched, byte-exact backup of your original executable at `<ZumaDir>\modules\bak\Zuma.exe` and archives vanilla manifests (`resources.xml`, `levels.xml`, `baDotz.gif`).
+2. **Decompression**: Transparently decompresses UPX-packed executables to a clean baseline PE.
+3. **Module Compilation**: Compiles the 6 Lite sidecar DLLs into `<ZumaDir>\modules\`:
    - `modules\zumadllchecker.dll` *(Mandatory Gatekeeper)*
    - `modules\zumacustommap.dll` *(Optional — Gauntlet Custom Maps)*
    - `modules\zumacplxcredit.dll` *(Optional — Developer Credits)*
    - `modules\zumatestingkit.dll` *(Optional — DevTester & Temple 5)*
    - `modules\zumadisplay.dll` *(Optional — Display Driver, F11 Fullscreen, Hardware Cursors)*
    - `modules\zumareshandler.dll` *(Optional — Resolution Engine & Asset Router)*
-5. Synthesize and patch `<ZumaDir>\Zuma.exe` with sections `.zdata`, `.zldr`, `.zcm`, `.zcc`, `.ztk`, and `.zres`.
-6. Generate locked button textures, Secret Temple 5 media, DevTester HelpScreen assets, and scaled UI graphics (`imagescustomres/`) if using custom resolutions.
-7. Execute `verify_pe.py --lite` to confirm PE section permissions, entry point integrity, and export tables.
+4. **PE Injection**: Injects native code cave sections (`.zdata`, `.zldr`, `.zcm`, `.zcc`, `.ztk`, `.zres`) directly into `Zuma.exe`.
+5. **Asset Synthesis**: Generates locked button sprites, Secret Temple 5 media, DevTester HelpScreen assets, and high-res UI graphics (`imagescustomres/`).
+6. **Integrity Audit**: Runs `verify_pe.py --lite` to ensure 100% clean PE header compliance and export validity.
+
+#### Step 6: Launch & Play!
+1. Open your *Zuma Deluxe* game folder.
+2. Launch **`Zuma.exe`**.
+3. The **ZuCompleluxe Pre-Launch Gatekeeper** (`zumadllchecker.dll`) dialog will appear:
+   - It displays detected game metadata, patch version (`ZuCompleluxe v0.5.1.2 Lite`), and the real-time presence of all modules in `modules\`.
+   - Click **Run** to start the game!
+
+---
+
+### Restoring Vanilla Game (Unpatching)
+
+ZuCompleluxe Lite uses a strictly non-destructive **Single-Backup Architecture**. If you ever wish to revert your game to 100% vanilla:
+1. Navigate to your Zuma Deluxe folder: `<ZumaDir>\modules\bak\`.
+2. Copy `Zuma.exe` from `modules\bak\` back into your root Zuma Deluxe folder, replacing the patched `Zuma.exe`.
+3. *(Optional)* Delete the `modules\` and `imagescustomres\` folders.
+4. Your game is now restored to its authentic vanilla state.
+
+---
+
+### Command-Line & Automation Interface (CLI)
+
+For headless deployments, batch modding, or automated testing, you can pass parameters directly to bypass all interactive prompts:
+
+```cmd
+:: Patch Lite Edition with 1080p resolution in non-interactive mode
+build_lite.bat -d "C:\Games\Zuma Deluxe" -w 1920 -h 1080 /yes
+
+:: Patch Lite Edition at 800x600 SVGA
+build_lite.bat -d "C:\Games\Zuma Deluxe" --res 800x600 -y
+```
+
+#### Supported CLI Options:
+
+| Option | Shorthand | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `--dir <path>` | `-d <path>` | Path to the target Zuma Deluxe installation folder | Interactive Picker |
+| `--width <w>` | `-w <w>` | Target game width in pixels (minimum: `480`) | `640` |
+| `--height <h>`| `-h <h>` | Target game height in pixels (minimum: `320`) | `480` |
+| `--res <WxH>`  | | Combined resolution shortcut (e.g. `--res 1920x1080`) | `640x480` |
+| `--non-interactive` | `/yes`, `-y` | Run silently without any interactive prompts | Disabled |
+
+---
+
+### Troubleshooting & FAQ
+
+- **Error: "Target executable is already patched with ZuCompleluxe sections"**:
+  - The patcher prevents double-patching an already-modified executable to protect binary integrity.
+  - *Solution:* If you want to change resolutions or re-patch, copy the clean backup from `modules\bak\Zuma.exe` back to the root folder first, or delete the patched `Zuma.exe` and restore it from `modules\bak\`.
+- **Antivirus warning on `upx.exe`**:
+  - `builder/.tools/upx.exe` is fetched directly from the official UPX GitHub repository with SHA-256 verification solely to decompress retail Zuma executables. Some antivirus software flags UPX with heuristic false positives. It is completely safe.
+- **Permission Denied / Access Denied when patching**:
+  - If your game is in `C:\Program Files (x86)\...`, Windows restricts write access to regular user accounts.
+  - *Solution:* Right-click `build_lite.bat` and choose **"Run as administrator"**.
+- **Can I run `build_lite.bat` multiple times?**
+  - Yes! Because the original vanilla executable is safely archived in `modules\bak\Zuma.exe`, the patcher always uses the clean backup as its source baseline whenever re-patching.
+
+---
+
+### Activating Developer Testing Mode (`DevTester`)
+To enable the built-in **`DevTester`** profile (unlocking all 12 Adventure stages, Secret Stage 13 / Temple 5, all Gauntlet maps at Sun God rank, Middle Mouse Button instant win, and the custom DevTester Guide without modifying your save files):
+- Create an empty file named `zumatest.log` in your Zuma Deluxe root folder.
+- Launch `Zuma.exe`, click **Run** in the Dependency Checker dialog, open **Change User**, and select **`DevTester`**.
+- Delete or rename `zumatest.log` at any time to return to normal gameplay.
 
 ---
 
