@@ -20,7 +20,7 @@ ZuCompleluxe injects ten modular sidecar DLLs into Zuma Deluxe (v1.0.0.1) at run
 | `zumacplxcredit.dll` | `src/zumacplxcredit.dll.c` | `.zcc`, `.zdata` | `ZCC_GetCreditsTable`, `ZCC_PreDrawCreditLine`, `ZCC_OnMouseDown` | Developer credits screen mod. Adds extended credits entries (entries 39–41 including an interactive GitHub button), intercepts the credits draw loop, and preserves `__thiscall` `ecx`/`edx` registers in Cave C. |
 | `zumatestingkit.dll` | `src/zumatestingkit.dll.c` | `.ztk`, `.zdata` | `ZTK_IsActive`, `ZTK_OnUserDialogInit`, `ZTK_DrawHelpScreen` | Developer testing kit & Secret Temple 5. Provides dev HUD, middle-click score differential popup, stage selector, unlock cheat, Secret Temple 5 gauntlet doors, and custom 2-column DevTester Guide. |
 | `zumadisplay.dll` | `src/zumadisplay.dll.c` | `.zdata` (`.zldr`) | `ZDISP_IsActive`, `ZDISP_ScreenToGameCoords` | Display & window driver. DirectDraw windowed mode initialization (DDSCL_NORMAL), F11 & Alt+Enter borderless fullscreen toggle, 3D acceleration preservation (`mIs3D`), native 32-bit ARGB GPU Hardware Cursors (`HCURSOR`), PrimarySurface::Blt letterbox fit blit hook, ScreenToClient/ClientToScreen remapping, and outscreen stone border rendering. |
-| `zumareshandler.dll` | `src/zumareshandler.dll.c` | `.zres` | `ZRH_IsActive` | Resolution & UI layout patcher. Dynamically scales viewports to any resolution >= 480x320 via AOB memory scanning across 20+ screens, modal dialog universal centering (`SetupDialog`), board clip rect expansion, stone menubar HUD margin synchronization, and dynamic asset redirection (`imagescustomres/` with automatic fallback to `images/`). |
+| `zumareshandler.dll` | `src/zumareshandler.dll.c` | `.zres` (`[RX]`), `.zdata` (`[RW]`) | `ZRH_IsActive` | Resolution & UI layout patcher. Dynamically scales viewports to any resolution >= 480x320 via AOB memory scanning across 20+ screens, modal dialog universal centering (`SetupDialog`), board clip rect expansion, stone menubar HUD margin synchronization, and dynamic asset redirection (`imagescustomres/` with automatic fallback to `images/`). Mutable `ZTable` lives at `.zdata + 0x1800` while `.zres` is strictly `[RX]`. |
 
 ---
 
@@ -35,6 +35,7 @@ In v0.5, resolution management is decoupled into two specialized modules:
 WebP animation rendering is decoupled into:
 - **`zumawebpbg.dll`**: Level background animation (`bg.webp`), native 1:1 scale decoding, and PopCap ImageLib asset loading interception.
 - **`zumawebpsprite.dll`**: Multi-layer sprite playback across sprite layers 0..4, `LevelDesc` coordinate matching, and alpha transparency blending.
+- Both WebP modules link against the bundled 32-bit `libwebp` static archives in `builder/libwebp/lib/` (`libwebpdemux.a` and `libwebpdecoder.a`), supporting both MinGW32 GCC and Zig CC out-of-the-box.
 
 ### Build Variants
 - **`build_full.bat`** (Full Edition) — Compiles all 10 sidecars, applies all binary PE patches, generates assets, and verifies PE structural integrity.

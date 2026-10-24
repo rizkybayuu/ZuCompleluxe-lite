@@ -1,19 +1,24 @@
 # Toolchain Setup and DLL Build Verification
 
-## 1. Compiler: MinGW32 GCC (Primary)
+## 1. Compilers & Bundled `libwebp` SDK
 
-The primary compiler for all sidecar DLLs is **MinGW32 GCC** (`C:\msys64\mingw32\bin\gcc.exe`).
+The primary compiler for all sidecar DLLs is **MinGW32 GCC** (`C:\msys64\mingw32\bin\gcc.exe`), with **Zig CC** (`python -m ziglang cc -target x86-windows-gnu`) as an automatic zero-dependency fallback on clean machines.
 
-- **Working build command**:
+- **Working GCC build command**:
   ```bash
   gcc -m32 -O2 -s -shared -static-libgcc -o <output>.dll <source>.c
   ```
   - Produces a valid PE32 DLL (Machine: `0x14c` / i386).
   - `-static-libgcc` ensures no external `libgcc_s` runtime dependency.
 
-- **Fallback compiler**: `python -m ziglang cc -target x86-windows-gnu -O2 -shared`
-  - Used automatically by `build_full.bat` if MinGW32 GCC is not found on PATH.
+- **Fallback compiler (Zig CC)**: `python -m ziglang cc -target x86-windows-gnu -O2 -s -shared`
+  - Used automatically by `build_full.bat` / `build_lite.bat` if MinGW32 GCC is not found on PATH.
   - Zig accepts `__attribute__((thiscall))` and `__attribute__((fastcall))` correctly.
+  - Configured with `ZIG_GLOBAL_CACHE_DIR` and `ZIG_LOCAL_CACHE_DIR` in `.build\zigcache` for isolated execution.
+
+- **Bundled 32-Bit `libwebp` Development SDK (`builder/libwebp/`, Full Edition)**:
+  - `builder/libwebp/include/webp/` (`decode.h`, `demux.h`, `mux_types.h`, `types.h`) and `builder/libwebp/lib/` (`libwebpdemux.a`, `libwebpdecoder.a`) are bundled directly in the repository.
+  - `:ProbeWebp` in `builder/bootstrap.bat` automatically detects `builder\libwebp` and compiles `zumawebpbg.dll` and `zumawebpsprite.dll` with either MinGW32 GCC or Zig CC without requiring external system-installed `libwebp` libraries.
 
 > [!NOTE]
 > **Keystone Assembler is no longer used.** All byte-level patches are generated using raw bytecode arrays in the Python builder scripts (`builder/patch_*.py`). There is no dependency on `keystone-engine`.

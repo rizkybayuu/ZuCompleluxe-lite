@@ -47,8 +47,8 @@ flowchart TD
     PresenterHook -->|Blits & Scales| HostPE
 ```
 
-1. **Host Executable Injection (`.zres` PE Section)**:
-   A lightweight, self-contained PE section (`.zres`, 0x1000 bytes virtual size) is appended to `Zuma.exe`. This section contains a descriptor table (`ZTable`), lazy-loading trampolines for core DirectDraw/Graphics calls, and immediate value overrides.
+1. **Host Executable Injection (`.zres` `[RX]` & `.zdata + 0x1800` `[RW]` PE Sections)**:
+   A lightweight, self-contained executable PE section (`.zres`, `0x1000` bytes virtual size, strictly `0x60000020 [RX]`) is appended to `Zuma.exe`. This section contains read-only resolution metadata (`magic = 0x53455A52`, `ztable_va` at `+0x04`, and `w, h` at `+0x48`), lazy-loading trampolines for core DirectDraw/Graphics calls, and immediate value overrides. All mutable runtime state (the 72-byte `ZTable` block containing `SLOT`, `TRIED`, and dynamic boundary limits) resides at `.zdata + 0x1800` (`0xC0000040 [RW]`), ensuring 100% W+X security compliance.
 2. **Dynamic Sidecar DLL (`modules\\zumareshandler.dll`)**:
    Upon the first graphics invocation, the `.zres` trampoline executes a thread-safe `LoadLibraryA` call to inject the sidecar DLL. The sidecar installs an Import Address Table (IAT) hook for filesystem redirection, dynamically resolves UI coordinates using signature scans, overrides virtual function tables (V-Tables) for widget containers, and manages coordinate transformation.
 
@@ -133,8 +133,8 @@ The root container managing screen states (`MainMenu`, `AdventureScreen`, `Gaunt
 
 ## 3. PE Modification and Section `.zres` Specifications
 
-### 3.1 Data Structure Specification: `ZTable`
-The initial $0x48$ bytes of the `.zres` section represent the shared synchronization and configuration block between the host PE and the sidecar DLL:
+### 3.1 Data Structure Specification: `ZTable` (`.zdata + 0x1800` `[RW]`) & `.zres` Header (`[RX]`)
+To enforce strict W+X memory protection (`0x60000020 [RX]` on `.zres`), the 72-byte ($0x48$) mutable `ZTable` synchronization and configuration block is placed in the read-write `.zdata` section at offset `+0x1800` (followed by `w, h` at `+0x1848`), while `.zres` retains read-only metadata (`magic = 0x53455A52` at `+0x00`, `ztable_va` at `+0x04`, and `w, h` at `+0x48`) alongside executable hook trampolines at `+0x80`:
 
 ```c
 typedef struct {

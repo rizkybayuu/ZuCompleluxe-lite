@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1.3] - 2026-10-24
+
+### Fixed
+- **Pure `[RX]` (`0x60000020`) Enforcement on `.zres` Section (`builder/patch_customres.py`, `src/zumareshandler.dll.c`, `builder/verify_pe.py`)**:
+  - Eliminated the `0xE0000060` (`[RWX]`) section characteristic on `.zres` that triggered `[WARN] Section .zres is both WRITABLE and EXECUTABLE (W+X)` during `verify_pe.py --lite`.
+  - Relocated the 72-byte mutable `ZTable` synchronization block (`SLOT` at `+0x18`, `TRIED` at `+0x1C`, and dynamic boundary floats/ints) from `.zres` into `.zdata + 0x1800` (`0xC0000040 [RW]`), while retaining read-only metadata (`magic = 0x53455A52`, `ztable_va` at `+0x04`, and `w, h` at `+0x48`) inside `.zres`.
+  - Updated `.zres` section characteristics to pure `0x60000020` (`IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ` — `[RX]`).
+  - Updated `LoadTable()` in `src/zumareshandler.dll.c` to resolve `ZTable` from `.zdata + 0x1800` first (with backward-compatible fallback to `.zres`).
+  - Removed the `.zres` W+X exemption from `builder/verify_pe.py`, leaving only the original PopCap `GARR` section exempted.
+- **Python Windows Shim Target Resolution & Zig Local Cache Hardening (`builder/bootstrap.bat`)**:
+  - Hardened `:EnsurePython` to resolve `.exe.__target__` shim redirects (e.g. `AppData\Local\Python\bin\python.exe.__target__`) to the underlying real `python.exe` binary, preventing unquoted path-with-spaces spawn errors.
+  - Added `ZIG_LOCAL_CACHE_DIR=%CD%\.build\zigcache` alongside `ZIG_GLOBAL_CACHE_DIR` to prevent `error: CacheCheckFailed` when invoking `python -m ziglang cc` in isolated environments.
+
+### Changed
+- **Diagnostic Gatekeeper Version Bump (`zumadllchecker.dll`)**:
+  - Bumped version metadata to `v0.5.1.3` across pre-launch diagnostic UI and window headers.
+
 ## [0.5.1.2] - 2026-10-23
 
 ### Fixed
