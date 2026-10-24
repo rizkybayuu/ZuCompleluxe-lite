@@ -40,8 +40,10 @@ if "!PYTHON_BIN!"=="" (
         if "!PYTHON_BIN!"=="" (
             echo "%%p" | findstr /i "WindowsApps" >nul
             if errorlevel 1 (
-                "%%p" -c "import sys; assert sys.version_info >= (3, 11)" >nul 2>&1
-                if not errorlevel 1 set "PYTHON_BIN=%%p"
+                set "CAND_PY=%%p"
+                if exist "%%p.__target__" set /p CAND_PY=<"%%p.__target__"
+                "!CAND_PY!" -c "import sys; assert sys.version_info >= (3, 11)" >nul 2>&1
+                if not errorlevel 1 set "PYTHON_BIN=!CAND_PY!"
             )
         )
     )
@@ -64,7 +66,7 @@ if "!PYTHON_BIN!"=="" (
             if "!PYTHON_BIN!"=="" if exist "%%d\Users" (
                 for /d %%u in ("%%d\Users\*") do (
                     if exist "%%u\AppData\Local\Programs\Python" if "!PYTHON_BIN!"=="" (
-                        for /d %%w in ("%%u\AppData\Local\Programs\Python\Python31*") do (
+                        for /d %%w in ("%%u\AppData\Local\Programs\Python\Python31*" "%%u\AppData\Local\Python\pythoncore-3.1*") do (
                             if exist "%%w\python.exe" if "!PYTHON_BIN!"=="" (
                                 "%%w\python.exe" -c "import sys; assert sys.version_info >= (3, 11)" >nul 2>&1
                                 if not errorlevel 1 set "PYTHON_BIN=%%w\python.exe"
@@ -283,6 +285,7 @@ exit /b 0
 set "GCC32="
 set "ZIG_OK=0"
 set "ZIG_GLOBAL_CACHE_DIR=%CD%\.build\zigcache"
+set "ZIG_LOCAL_CACHE_DIR=%CD%\.build\zigcache"
 
 REM 1. Probe PATH compilers
 for %%c in (gcc.exe clang.exe) do (

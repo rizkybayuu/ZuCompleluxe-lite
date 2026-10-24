@@ -236,12 +236,19 @@ def patch_customres(input_exe, output_exe, width=800, height=600, sigs_path=None
         raise RuntimeError("kernel32!LoadLibraryA not found in import table")
 
     # Section layout
+    zdata = next((s for s in P["secs"] if s["name"] == ".zdata"), None)
+    if not zdata:
+        raise RuntimeError("Section .zdata not found - run patch_imports.py first!")
+    ZRES_DATA_OFF = 0x1800
+    ztable_va = base + zdata["va"] + ZRES_DATA_OFF
+    ztable_foff = zdata["rp"] + ZRES_DATA_OFF
+
     sec_rva = align(max(s["va"] + max(s["vs"], s["rs"]) for s in P["secs"]), P["sal"])
     sec_va = base + sec_rva
-    SLOT, TRIED = sec_va + 0x18, sec_va + 0x1C
-    NEGX, NEGY, RLIM, BLIM = sec_va + 0x20, sec_va + 0x24, sec_va + 0x28, sec_va + 0x2C
-    DMINX, DMAXX, DMINY, DMAXY = sec_va + 0x30, sec_va + 0x34, sec_va + 0x38, sec_va + 0x3C
-    BW, BH = sec_va + 0x40, sec_va + 0x44
+    SLOT, TRIED = ztable_va + 0x18, ztable_va + 0x1C
+    NEGX, NEGY, RLIM, BLIM = ztable_va + 0x20, ztable_va + 0x24, ztable_va + 0x28, ztable_va + 0x2C
+    DMINX, DMAXX, DMINY, DMAXY = ztable_va + 0x30, ztable_va + 0x34, ztable_va + 0x38, ztable_va + 0x3C
+    BW, BH = ztable_va + 0x40, ztable_va + 0x44
     OFF_NAME = 0x50
     name = (moddir + "\\" + dllfile).encode("latin1") + b"\0"
     OFF_CODE = align(OFF_NAME + len(name), 16)
@@ -327,9 +334,16 @@ def patch_customres(input_exe, output_exe, width=800, height=600, sigs_path=None
     code = A.done()
     size = OFF_CODE + len(code)
     blob = bytearray(size)
+    # Initialize mutable ZTable inside section .zdata (RW)
+    struct.pack_into("<6I", d, ztable_foff + 0x00, 0x53455A52, INITDX, DDINIT, GFX, FILL, DS)
+    struct.pack_into("<2I", d, ztable_foff + 0x40, 640, 480)
+    struct.pack_into("<2I", d, ztable_foff + 0x48, w, h)
+
+    # Read-only metadata in .zres (RX)
     struct.pack_into("<6I", blob, 0, 0x53455A52, INITDX, DDINIT, GFX, FILL, DS)
+    struct.pack_into("<I", blob, 4, ztable_va)       # Pointer to active ZTable in .zdata
     struct.pack_into("<2I", blob, 0x40, 640, 480)   # default vanilla when DLL not active
-    struct.pack_into("<2I", blob, 0x48, w, h)         # target custom resolution metadata (min 480x320)
+    struct.pack_into("<2I", blob, 0x48, w, h)         # target custom resolution metadata for checker
     blob[OFF_NAME:OFF_NAME + len(name)] = name
     blob[OFF_CODE:] = code
 
@@ -343,7 +357,7 @@ def patch_customres(input_exe, output_exe, width=800, height=600, sigs_path=None
     d.extend(b"\0" * (fo - len(d)))
     rawsz = align(size, P["fal"])
     d.extend(bytes(blob) + b"\0" * (rawsz - size))
-    struct.pack_into("<8sIIIIIIHHI", d, hdr, b".zres\0\0\0", size, sec_rva, rawsz, fo, 0, 0, 0, 0, 0xE0000060)
+    struct.pack_into("<8sIIIIIIHHI", d, hdr, b".zres\0\0\0", size, sec_rva, rawsz, fo, 0, 0, 0, 0, 0x60000020)
     struct.pack_into("<H", d, P["pe"] + 6, P["nsec"] + 1)
     struct.pack_into("<I", d, P["opt"] + 56, align(sec_rva + size, P["sal"]))   # SizeOfImage
 

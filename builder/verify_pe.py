@@ -38,7 +38,7 @@ def verify_pe(target_exe_path, vanilla_exe_path, binary_dir, is_lite=False):
         print(f"{sec.name_str:<10} 0x{pe.image_base + sec.virtual_address:08X}   0x{sec.virtual_size:08X}     0x{sec.raw_size:06X}   0x{sec.characteristics:08X}   [{access_str}]")
 
         # Check W+X
-        if w and x and sec.name_str not in ("GARR", ".zres"):  # GARR is original PopCap retail DRM stub, .zres is customres engine
+        if w and x and sec.name_str != "GARR":  # GARR is original PopCap retail DRM stub
             errors.append(f"Section '{sec.name_str}' has both WRITE and EXECUTE flags (Chars=0x{sec.characteristics:08X})!")
 
     # 2. Check .rdata is read-only

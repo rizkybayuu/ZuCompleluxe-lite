@@ -504,12 +504,23 @@ static int LoadTable(void)
     IMAGE_NT_HEADERS *n = (IMAGE_NT_HEADERS *)(m + d->e_lfanew);
     IMAGE_SECTION_HEADER *s = IMAGE_FIRST_SECTION(n);
     WORD i;
-    for (i = 0; i < n->FileHeader.NumberOfSections; i++)
+    for (i = 0; i < n->FileHeader.NumberOfSections; i++) {
+        if (!memcmp(s[i].Name, ".zdata\0\0", 8) && s[i].Misc.VirtualSize >= 0x1848) {
+            ZTable *cand = (ZTable *)(m + s[i].VirtualAddress + 0x1800);
+            if (cand->magic == 0x53455A52) {
+                P = cand;
+                return 1;
+            }
+        }
+    }
+    /* Fallback for legacy .zres layout */
+    for (i = 0; i < n->FileHeader.NumberOfSections; i++) {
         if (!memcmp(s[i].Name, ".zres\0\0\0", 8)) {
             P = (ZTable *)(m + s[i].VirtualAddress);
             if (P->magic != 0x53455A52) { P = 0; return 0; }
             return 1;
         }
+    }
     return 0;
 }
 
