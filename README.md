@@ -1,6 +1,6 @@
-# ZuCompleluxe Lite (v0.5.1.3)
+# ZuCompleluxe Lite (v0.5.1.4)
 
-> **Version:** 0.5.1.3 (Lite Edition)  
+> **Version:** 0.5.1.4 (Lite Edition)  
 > **Target Game:** *Zuma Deluxe* v1.0.0.1 (GameHouse / PopCap / Regional PE Builds)  
 > **Project Scope:** Lightweight Core Engine Framework for Zuma Deluxe Modding  
 > **Developer:** [Rizky Bayuu](https://github.com/rizkybayuu)  
@@ -10,7 +10,7 @@
 
 **ZuCompleluxe Lite** is the official lightweight edition of the ZuCompleluxe reverse-engineering and modding framework for *Zuma Deluxe* (v1.0.0.1). It delivers the core engine enhancements—the pre-launch integrity gatekeeper (`zumadllchecker.dll`), Gauntlet custom map subsystem (`zumacustommap.dll`), developer credits mod (`zumacplxcredit.dll`), developer testing kit (`zumatestingkit.dll`), display driver with F11 borderless fullscreen (`zumadisplay.dll`), and the arbitrary custom resolution engine (`zumareshandler.dll`)—while omitting experimental multi-path, 11-ball color palettes, and animated WebP rendering.
 
-This framework represents the foundational engine layer (**v0.5.1.3**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
+This framework represents the foundational engine layer (**v0.5.1.4**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
 
 > [!NOTE]
 > **Full Edition Status & Availability:**  
@@ -32,7 +32,7 @@ Modifications are isolated cleanly from vanilla game files:
 Unlike the optional feature sidecars, `modules\zumadllchecker.dll` is a **strictly binding dependency**:
 - **Hard Gatekeeper Enforcement in `.zldr` (`0x0058C000`)**: Before loading any optional feature modules or executing game code, `.zldr` enforces `modules\zumadllchecker.dll`. If `zumadllchecker.dll` is missing or fails to load, `Zuma.exe` displays a modal error dialog and immediately terminates via `ExitProcess(1)`.
 - **Dynamic PE Version Metadata Extraction**: Reads `ProductName`, `CompanyName`, `FileVersion`, `SpecialBuild`, and `FileName` dynamically from `Zuma.exe`'s Win32 PE Version Resource (`VS_FIXEDFILEINFO` and `\VarFileInfo\Translation`) with zero hardcoded game strings.
-- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.5.1.3 Lite`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), aspect ratio, resolution, and real-time presence checks for all sidecars in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
+- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.5.1.4 Lite`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), aspect ratio, resolution, and real-time presence checks for all sidecars in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
 
 ### 3. 100% Independent & Optional Feature Sidecars (Zero-Dependency Graceful Degradation)
 Every feature sidecar DLL in ZuCompleluxe Lite is completely optional and independent:
@@ -68,7 +68,7 @@ ZuCompleluxe replaces static address patching with **Dynamic AOB (Array of Bytes
   - Completely eliminates cursor movement lag and top-right ghost cursor artifacts in fullscreen.
 - **Pre-Launch Module & Dependency Checker (`zumadllchecker.dll`)**:
   - Mandatory gatekeeper dialog executed prior to engine initialization.
-  - Dynamically queries PE version resources alongside `ZuCompleluxe v0.5.1.3 Lite` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
+  - Dynamically queries PE version resources alongside `ZuCompleluxe v0.5.1.4 Lite` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
   - Verifies presence and health of all sidecars in `modules\` with interactive checkbox toggles.
 - **1-Click Direct Installation Folder Patcher (`build_lite.bat`)**:
   - Opens a modern Windows Explorer folder selection dialog (`builder/select_folder.ps1`) or accepts CLI arguments (`build_lite.bat /yes -d "<path>" -w 800 -h 600`).
@@ -159,7 +159,7 @@ ZuCompleluxe-lite/
 
 > [!IMPORTANT]
 > **Do NOT extract the patcher files directly into your Zuma Deluxe folder!**  
-> Extract the downloaded release archive (`ZuCompleluxe-lite-v0.5.1.3-windows.zip`) into its own separate folder (e.g. `Downloads\ZuCompleluxe-lite\` or `Desktop\ZuCompleluxe-lite\`). The patcher will safely inject the necessary modules, assets, and code caves into your target game directory.
+> Extract the downloaded release archive (`ZuCompleluxe-lite-v0.5.1.4-windows.zip`) into its own separate folder (e.g. `Downloads\ZuCompleluxe-lite\` or `Desktop\ZuCompleluxe-lite\`). The patcher will safely inject the necessary modules, assets, and code caves into your target game directory.
 
 #### Step 1: Close the Game
 Ensure *Zuma Deluxe* (`Zuma.exe`) is completely closed and not running in the background.
@@ -202,7 +202,7 @@ The builder pipeline automatically handles the entire installation process:
 1. Open your *Zuma Deluxe* game folder.
 2. Launch **`Zuma.exe`**.
 3. The **ZuCompleluxe Pre-Launch Gatekeeper** (`zumadllchecker.dll`) dialog will appear:
-   - It displays detected game metadata, patch version (`ZuCompleluxe v0.5.1.3 Lite`), and the real-time presence of all modules in `modules\`.
+   - It displays detected game metadata, patch version (`ZuCompleluxe v0.5.1.4 Lite`), and the real-time presence of all modules in `modules\`.
    - Click **Run** to start the game!
 
 ---

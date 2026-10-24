@@ -171,9 +171,10 @@ def patch_images(zuma_dir, tables, is_lite=False):
                 im_gen = im_s.copy()
                 im_gen.putpalette(new_pal.flatten().tolist())
                 trans_val = im_s.info.get('transparency')
-                if trans_val is None:
-                    trans_val = int(bg_idx)
-                im_gen.save(dst_path, format='GIF', transparency=trans_val)
+                if trans_val is not None:
+                    im_gen.save(dst_path, format='GIF', transparency=trans_val)
+                else:
+                    im_gen.save(dst_path, format='GIF')
                 print(f"  [OK] {dst_name} ({w}x{h})")
 
 

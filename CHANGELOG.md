@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1.4] - 2026-10-24
+
+### Fixed
+- **Asset Synthesizer Palette Cleanliness (`builder/patch_assets.py`)**:
+  - Removed erroneous fallback `trans_val = int(bg_idx)` when synthesizing images without explicit GIF transparency, aligning asset generation cleanly with PopCap vanilla conventions.
+
+### Changed
+- **Diagnostic Gatekeeper Version Bump (`zumadllchecker.dll`)**:
+  - Synchronized pre-launch diagnostic window title, internal version macro, and telemetry to `v0.5.1.4 Lite`.
+
 ## [0.5.1.3] - 2026-10-24
 
 ### Fixed
