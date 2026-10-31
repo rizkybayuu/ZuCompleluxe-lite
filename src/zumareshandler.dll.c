@@ -636,6 +636,98 @@ static void *VerifyAndPatchCall(void *site, void *expected_target, void *new_tar
     return current_tgt;
 }
 
+static void *g_pCodeCave = NULL;
+static size_t g_codeCaveOffset = 0;
+
+static void *AllocCodeCave(size_t size) {
+    if (!g_pCodeCave) {
+        g_pCodeCave = VirtualAlloc(NULL, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        g_codeCaveOffset = 0;
+    }
+    if (!g_pCodeCave || g_codeCaveOffset + size > 4096) return NULL;
+    void *ptr = (char *)g_pCodeCave + g_codeCaveOffset;
+    g_codeCaveOffset += (size + 15) & ~15; /* 16-byte alignment */
+    return ptr;
+}
+
+static int InstallCodeCave5(void *site, void *cave, const char *name) {
+    DWORD old_prot;
+    if (!VirtualProtect(site, 5, PAGE_EXECUTE_READWRITE, &old_prot)) return 0;
+    *(BYTE *)site = 0xE9;
+    *(DWORD *)((char *)site + 1) = (DWORD)((char *)cave - ((char *)site + 5));
+    VirtualProtect(site, 5, old_prot, &old_prot);
+    LogF("[ZRES] Hooked %s (5-byte) @ %p -> cave %p", name, site, cave);
+    return 1;
+}
+
+static int InstallCodeCave7(void *site, void *cave, const char *name) {
+    DWORD old_prot;
+    if (!VirtualProtect(site, 7, PAGE_EXECUTE_READWRITE, &old_prot)) return 0;
+    *(BYTE *)site = 0xE9;
+    *(DWORD *)((char *)site + 1) = (DWORD)((char *)cave - ((char *)site + 5));
+    *(BYTE *)((char *)site + 5) = 0x90;
+    *(BYTE *)((char *)site + 6) = 0x90;
+    VirtualProtect(site, 7, old_prot, &old_prot);
+    LogF("[ZRES] Hooked %s (7-byte) @ %p -> cave %p", name, site, cave);
+    return 1;
+}
+
+static inline int ProjectLocalX(int xml_x, int ref_w, int ref_h, int run_w, int run_h) {
+    if (ref_w <= 0 || ref_h <= 0) {
+        float scale = ((float)run_w / 640.0f < (float)run_h / 480.0f) ? (float)run_w / 640.0f : (float)run_h / 480.0f;
+        return (int)((float)xml_x * scale + (xml_x < 0 ? -0.5f : 0.5f));
+    }
+    float ref_scale = ((float)ref_w / 640.0f < (float)ref_h / 480.0f) ? (float)ref_w / 640.0f : (float)ref_h / 480.0f;
+    float ref_xo    = ((float)ref_w - 640.0f * ref_scale) / 2.0f;
+    float canon_x   = ((float)xml_x - ref_xo) / ref_scale;
+    
+    float run_scale = ((float)run_w / 640.0f < (float)run_h / 480.0f) ? (float)run_w / 640.0f : (float)run_h / 480.0f;
+    return (int)(canon_x * run_scale + (canon_x < 0 ? -0.5f : 0.5f));
+}
+
+static inline int ProjectLocalY(int xml_y, int ref_w, int ref_h, int run_w, int run_h) {
+    if (ref_w <= 0 || ref_h <= 0) {
+        float scale = ((float)run_w / 640.0f < (float)run_h / 480.0f) ? (float)run_w / 640.0f : (float)run_h / 480.0f;
+        return (int)((float)xml_y * scale + (xml_y < 0 ? -0.5f : 0.5f));
+    }
+    float ref_scale = ((float)ref_w / 640.0f < (float)ref_h / 480.0f) ? (float)ref_w / 640.0f : (float)ref_h / 480.0f;
+    float ref_yo    = ((float)ref_h - 480.0f * ref_scale) / 2.0f;
+    float canon_y   = ((float)xml_y - ref_yo) / ref_scale;
+    
+    float run_scale = ((float)run_w / 640.0f < (float)run_h / 480.0f) ? (float)run_w / 640.0f : (float)run_h / 480.0f;
+    return (int)(canon_y * run_scale + (canon_y < 0 ? -0.5f : 0.5f));
+}
+
+static inline int ProjectScreenX(int xml_x, int ref_w, int ref_h, int run_w, int run_h) {
+    if (ref_w <= 0 || ref_h <= 0) {
+        float scale = ((float)run_w / 640.0f < (float)run_h / 480.0f) ? (float)run_w / 640.0f : (float)run_h / 480.0f;
+        float xo = ((float)run_w - 640.0f * scale) / 2.0f;
+        return (int)(xo + (float)xml_x * scale + (xml_x < 0 ? -0.5f : 0.5f));
+    }
+    float ref_scale = ((float)ref_w / 640.0f < (float)ref_h / 480.0f) ? (float)ref_w / 640.0f : (float)ref_h / 480.0f;
+    float ref_xo    = ((float)ref_w - 640.0f * ref_scale) / 2.0f;
+    float canon_x   = ((float)xml_x - ref_xo) / ref_scale;
+    
+    float run_scale = ((float)run_w / 640.0f < (float)run_h / 480.0f) ? (float)run_w / 640.0f : (float)run_h / 480.0f;
+    float run_xo    = ((float)run_w - 640.0f * run_scale) / 2.0f;
+    return (int)(run_xo + canon_x * run_scale + (canon_x < 0 ? -0.5f : 0.5f));
+}
+
+static inline int ProjectScreenY(int xml_y, int ref_w, int ref_h, int run_w, int run_h) {
+    if (ref_w <= 0 || ref_h <= 0) {
+        float scale = ((float)run_w / 640.0f < (float)run_h / 480.0f) ? (float)run_w / 640.0f : (float)run_h / 480.0f;
+        float yo = ((float)run_h - 480.0f * scale) / 2.0f;
+        return (int)(yo + (float)xml_y * scale + (xml_y < 0 ? -0.5f : 0.5f));
+    }
+    float ref_scale = ((float)ref_w / 640.0f < (float)ref_h / 480.0f) ? (float)ref_w / 640.0f : (float)ref_h / 480.0f;
+    float ref_yo    = ((float)ref_h - 480.0f * ref_scale) / 2.0f;
+    float canon_y   = ((float)xml_y - ref_yo) / ref_scale;
+    
+    float run_scale = ((float)run_w / 640.0f < (float)run_h / 480.0f) ? (float)run_w / 640.0f : (float)run_h / 480.0f;
+    float run_yo    = ((float)run_h - 480.0f * run_scale) / 2.0f;
+    return (int)(run_yo + canon_y * run_scale + (canon_y < 0 ? -0.5f : 0.5f));
+}
+
 static inline int SDIM_VAL(int v) {
     float sw = (float)TARGET_W / 640.0f;
     float sh = (float)TARGET_H / 480.0f;
@@ -1721,15 +1813,24 @@ static void ApplyUIPatches(void) {
     LogF("[ZRES] Engine funcs: DrawImg=%p DrawDoors=%p SetDrawMode=%p SetColor=%p ColorCtor=%p Translate=%p WidgetResize=%p WMResize=%p DrawImgStretch=%p DrawStr=%p",
          g_pfnDrawImage, g_pfnDrawDoors, g_pfnSetDrawMode, g_pfnSetColor, g_pfnColorCtor, g_pfnTranslate, g_pfnWidgetResize, g_pfnWMResize, g_pfnDrawImageStretch, g_pfnDrawString);
 
-    /* 1. LoadingScreen (loaderbar & "Click Here To Play!" button) - Pure Local Coordinates */
+    /* 1. LoadingScreen (loaderbar & "Click Here To Play!" button) - Space Project */
     void *pLoadBarY = FindPattern("5D 01 00 00 68 80");
-    if (pLoadBarY) VerifyAndPatchDword(pLoadBarY, 349, PARENT_LOCAL_Y(g_layout.load_bar_y), "LoadingBarY");
+    if (pLoadBarY) {
+        int lb_y = ProjectLocalY(g_layout.load_bar_y, g_layout.load_space_w, g_layout.load_space_h, TARGET_W, TARGET_H);
+        VerifyAndPatchDword(pLoadBarY, 349, lb_y, "LoadingBarY");
+    }
 
     void *pLoadBarX = FindPattern("80 00 00 00 89 4D E0 89 4D");
-    if (pLoadBarX) VerifyAndPatchDword(pLoadBarX, 128, PARENT_LOCAL_X(g_layout.load_bar_x), "LoadingBarX");
+    if (pLoadBarX) {
+        int lb_x = ProjectLocalX(g_layout.load_bar_x, g_layout.load_space_w, g_layout.load_space_h, TARGET_W, TARGET_H);
+        VerifyAndPatchDword(pLoadBarX, 128, lb_x, "LoadingBarX");
+    }
 
     void *pClickPlay = FindPattern("AE 01 00 00 03");
-    if (pClickPlay) VerifyAndPatchDword(pClickPlay, 430, PARENT_LOCAL_Y(g_layout.load_click_play_y), "ClickToPlayY");
+    if (pClickPlay) {
+        int cp_y = ProjectLocalY(g_layout.load_click_play_y, g_layout.load_space_w, g_layout.load_space_h, TARGET_W, TARGET_H);
+        VerifyAndPatchDword(pClickPlay, 430, cp_y, "ClickToPlayY");
+    }
 
     void *fnLoadResize = FindPattern("55 8B EC 8B 45 14 8B 55 0C 53 56 57 8B 7D 08 8B F1 8B 4D 10");
     if (fnLoadResize) {
@@ -1744,63 +1845,92 @@ static void ApplyUIPatches(void) {
         }
     }
 
-    /* 2. MainMenu (5 buttons) - Pure Local Coordinates relative to Parent (0,0) */
-    void *pBtn1Y = FindPattern("40 68 C4 01 00 00");
-    if (pBtn1Y) VerifyAndPatchByte(pBtn1Y, 64, (BYTE)PARENT_LOCAL_Y(g_layout.mm_btn1_y), "MainMenuBtn1Y");
-
-    void *pBtn1X = FindPattern("C4 01 00 00 56");
-    if (pBtn1X) VerifyAndPatchDword(pBtn1X, 452, PARENT_LOCAL_X(g_layout.mm_btn1_x), "MainMenuBtn1X");
+    /* 2. MainMenu (5 buttons) - Pure Local Coordinates via Space Project */
+    int b1_x = ProjectLocalX(g_layout.mm_btn1_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+    int b1_y = ProjectLocalY(g_layout.mm_btn1_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+    void *pBtn1Pattern = FindPattern("6A 40 68 C4 01 00 00");
+    if (pBtn1Pattern) {
+        void *pBtn1Cave = AllocCodeCave(16);
+        if (pBtn1Cave) {
+            BYTE *c = (BYTE *)pBtn1Cave;
+            c[0] = 0x68; *(DWORD *)(c + 1) = (DWORD)b1_y;
+            c[5] = 0x68; *(DWORD *)(c + 6) = (DWORD)b1_x;
+            c[10] = 0xE9; *(DWORD *)(c + 11) = (DWORD)((char *)0x0043232E - ((char *)c + 15));
+            InstallCodeCave7(pBtn1Pattern, pBtn1Cave, "MainMenuBtn1Cave");
+        }
+    }
 
     void *pBtn2Y = FindPattern("99 00 00 00 68 B4");
-    if (pBtn2Y) VerifyAndPatchDword(pBtn2Y, 153, PARENT_LOCAL_Y(g_layout.mm_btn2_y), "MainMenuBtn2Y");
+    if (pBtn2Y) VerifyAndPatchDword(pBtn2Y, 153, ProjectLocalY(g_layout.mm_btn2_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuBtn2Y");
 
     void *pBtn2X = FindPattern("B4 01 00 00 56");
-    if (pBtn2X) VerifyAndPatchDword(pBtn2X, 436, PARENT_LOCAL_X(g_layout.mm_btn2_x), "MainMenuBtn2X");
+    if (pBtn2X) VerifyAndPatchDword(pBtn2X, 436, ProjectLocalX(g_layout.mm_btn2_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuBtn2X");
 
     void *pBtn3Y = FindPattern("EC 00 00 00 68 A2");
-    if (pBtn3Y) VerifyAndPatchDword(pBtn3Y, 236, PARENT_LOCAL_Y(g_layout.mm_btn3_y), "MainMenuBtn3Y");
+    if (pBtn3Y) VerifyAndPatchDword(pBtn3Y, 236, ProjectLocalY(g_layout.mm_btn3_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuBtn3Y");
 
     void *pBtn3X = FindPattern("A2 01 00 00 56");
-    if (pBtn3X) VerifyAndPatchDword(pBtn3X, 418, PARENT_LOCAL_X(g_layout.mm_btn3_x), "MainMenuBtn3X");
+    if (pBtn3X) VerifyAndPatchDword(pBtn3X, 418, ProjectLocalX(g_layout.mm_btn3_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuBtn3X");
 
     void *pBtn4Y = FindPattern("31 01 00 00 68 8A 01 00 00");
-    if (pBtn4Y) VerifyAndPatchDword(pBtn4Y, 305, PARENT_LOCAL_Y(g_layout.mm_btn4_y), "MainMenuBtn4Y");
+    if (pBtn4Y) VerifyAndPatchDword(pBtn4Y, 305, ProjectLocalY(g_layout.mm_btn4_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuBtn4Y");
 
     void *pBtn4X = FindPattern("8A 01 00 00 56");
-    if (pBtn4X) VerifyAndPatchDword(pBtn4X, 394, PARENT_LOCAL_X(g_layout.mm_btn4_x), "MainMenuBtn4X");
+    if (pBtn4X) VerifyAndPatchDword(pBtn4X, 394, ProjectLocalX(g_layout.mm_btn4_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuBtn4X");
 
     void *pBtn5Y = FindPattern("3B 01 00 00 68 F0 01 00 00");
-    if (pBtn5Y) VerifyAndPatchDword(pBtn5Y, 315, PARENT_LOCAL_Y(g_layout.mm_btn5_y), "MainMenuBtn5Y");
+    if (pBtn5Y) VerifyAndPatchDword(pBtn5Y, 315, ProjectLocalY(g_layout.mm_btn5_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuBtn5Y");
 
     void *pBtn5X = FindPattern("F0 01 00 00 56 6A");
-    if (pBtn5X) VerifyAndPatchDword(pBtn5X, 496, PARENT_LOCAL_X(g_layout.mm_btn5_x), "MainMenuBtn5X");
+    if (pBtn5X) VerifyAndPatchDword(pBtn5X, 496, ProjectLocalX(g_layout.mm_btn5_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuBtn5X");
 
-    /* 3. MainMenu Frog Head & Sun Offsets - Pure Local Coordinates */
+    /* 3. MainMenu Frog Head & Sun Offsets - Pure Local Coordinates via Code Caves */
     void *pEyesInit = FindPattern("BF 00 00 00 B9 4B");
     if (pEyesInit) {
-        VerifyAndPatchDword(pEyesInit, 191, PARENT_LOCAL_X(g_layout.mm_eyes_x), "MainMenuEyesX");
-        VerifyAndPatchDword((char *)pEyesInit + 5, 331, PARENT_LOCAL_Y(g_layout.mm_eyes_y), "MainMenuEyesY");
+        VerifyAndPatchDword(pEyesInit, 191, ProjectLocalX(g_layout.mm_eyes_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuEyesX");
+        VerifyAndPatchDword((char *)pEyesInit + 5, 331, ProjectLocalY(g_layout.mm_eyes_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuEyesY");
     }
 
-    void *pSun1X = FindPattern("C1 6A BB 50");
-    if (pSun1X) {
-        VerifyAndPatchByte(pSun1X, 0xC1, (BYTE)(int)((float)g_layout.mm_sun1_x * scale + (g_layout.mm_sun1_x < 0 ? -0.5f : 0.5f)), "MainMenuSun1X");
-        VerifyAndPatchByte((char *)pSun1X + 2, 0xBB, (BYTE)(int)((float)g_layout.mm_sun1_y * scale + (g_layout.mm_sun1_y < 0 ? -0.5f : 0.5f)), "MainMenuSun1Y");
+    int sun_local_x = ProjectLocalX(g_layout.mm_sun_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+    int sun_local_y = ProjectLocalY(g_layout.mm_sun_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+
+    void *pSun3DPattern = FindPattern("6A C1 6A BB 50");
+    if (pSun3DPattern) {
+        void *pSun3DCave = AllocCodeCave(16);
+        if (pSun3DCave) {
+            BYTE *c = (BYTE *)pSun3DCave;
+            c[0] = 0x68; *(DWORD *)(c + 1) = (DWORD)sun_local_y;
+            c[5] = 0x68; *(DWORD *)(c + 6) = (DWORD)sun_local_x;
+            c[10] = 0x50; /* push eax */
+            c[11] = 0xE9; *(DWORD *)(c + 12) = (DWORD)((char *)0x0043202F - ((char *)c + 16));
+            InstallCodeCave5(pSun3DPattern, pSun3DCave, "MainMenuSun3DCave");
+        }
     }
 
-    void *pSun2X = FindPattern("C1 6A BB 51");
-    if (pSun2X) {
-        VerifyAndPatchByte(pSun2X, 0xC1, (BYTE)(int)((float)g_layout.mm_sun2_x * scale + (g_layout.mm_sun2_x < 0 ? -0.5f : 0.5f)), "MainMenuSun2X");
-        VerifyAndPatchByte((char *)pSun2X + 2, 0xBB, (BYTE)(int)((float)g_layout.mm_sun2_y * scale + (g_layout.mm_sun2_y < 0 ? -0.5f : 0.5f)), "MainMenuSun2Y");
+    void *pSun2DPattern = FindPattern("6A C1 6A BB 51");
+    if (pSun2DPattern) {
+        void *pSun2DCave = AllocCodeCave(16);
+        if (pSun2DCave) {
+            BYTE *c = (BYTE *)pSun2DCave;
+            c[0] = 0x68; *(DWORD *)(c + 1) = (DWORD)sun_local_y;
+            c[5] = 0x68; *(DWORD *)(c + 6) = (DWORD)sun_local_x;
+            c[10] = 0x51; /* push ecx */
+            c[11] = 0xE9; *(DWORD *)(c + 12) = (DWORD)((char *)0x00432041 - ((char *)c + 16));
+            InstallCodeCave5(pSun2DPattern, pSun2DCave, "MainMenuSun2DCave");
+        }
     }
 
     /* 4. MainMenu Frog Eyes: Idle coordinates, Raycast starts, Eyelid Blink */
     void *pEyeIdle = FindPattern("C7 45 DC 00 60 6B 40 8B 55 DC 89 50 04");
     if (pEyeIdle) {
-        double sc_eye1_x = (double)g_layout.mm_eye_idle1_x * scale;
-        double sc_eye1_y = (double)g_layout.mm_eye_idle1_y * scale;
-        double sc_eye2_x = (double)g_layout.mm_eye_idle2_x * scale;
-        double sc_eye2_y = (double)g_layout.mm_eye_idle2_y * scale;
+        int id1_x = ProjectLocalX(g_layout.mm_eye_idle1_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        int id1_y = ProjectLocalY(g_layout.mm_eye_idle1_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        int id2_x = ProjectLocalX(g_layout.mm_eye_idle2_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        int id2_y = ProjectLocalY(g_layout.mm_eye_idle2_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        double sc_eye1_x = (double)id1_x;
+        double sc_eye1_y = (double)id1_y;
+        double sc_eye2_x = (double)id2_x;
+        double sc_eye2_y = (double)id2_y;
         DWORD hi_eye1_x = *(DWORD*)((char*)&sc_eye1_x + 4);
         DWORD hi_eye1_y = *(DWORD*)((char*)&sc_eye1_y + 4);
         DWORD hi_eye2_x = *(DWORD*)((char*)&sc_eye2_x + 4);
@@ -1813,16 +1943,20 @@ static void ApplyUIPatches(void) {
 
     void *pEyeRay = FindPattern("C7 45 F0 1D 00 00 00 C7 45 F4 19 00 00 00 C7 45 E0 57 00 00 00 C7 45 E4 10 00 00 00");
     if (pEyeRay) {
-        VerifyAndPatchDword((char*)pEyeRay + 3,  29, (DWORD)(int)((float)g_layout.mm_eye_ray1_x * scale + 0.5f), "EyeRay1X");
-        VerifyAndPatchDword((char*)pEyeRay + 10, 25, (DWORD)(int)((float)g_layout.mm_eye_ray1_y * scale + 0.5f), "EyeRay1Y");
-        VerifyAndPatchDword((char*)pEyeRay + 17, 87, (DWORD)(int)((float)g_layout.mm_eye_ray2_x * scale + 0.5f), "EyeRay2X");
-        VerifyAndPatchDword((char*)pEyeRay + 24, 16, (DWORD)(int)((float)g_layout.mm_eye_ray2_y * scale + 0.5f), "EyeRay2Y");
+        int r1_x = ProjectLocalX(g_layout.mm_eye_ray1_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        int r1_y = ProjectLocalY(g_layout.mm_eye_ray1_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        int r2_x = ProjectLocalX(g_layout.mm_eye_ray2_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        int r2_y = ProjectLocalY(g_layout.mm_eye_ray2_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        VerifyAndPatchDword((char*)pEyeRay + 3,  29, (DWORD)r1_x, "EyeRay1X");
+        VerifyAndPatchDword((char*)pEyeRay + 10, 25, (DWORD)r1_y, "EyeRay1Y");
+        VerifyAndPatchDword((char*)pEyeRay + 17, 87, (DWORD)r2_x, "EyeRay2X");
+        VerifyAndPatchDword((char*)pEyeRay + 24, 16, (DWORD)r2_y, "EyeRay2Y");
     }
 
-    void *pBlink = FindPattern("F7 00 00 00 68 BC 00 00 00 51 8B CE");
-    if (pBlink) {
-        VerifyAndPatchDword(pBlink, 247, PARENT_LOCAL_Y(g_layout.mm_blink_y), "EyeBlinkY");
-        VerifyAndPatchDword((char*)pBlink + 5, 188, PARENT_LOCAL_X(g_layout.mm_blink_x), "EyeBlinkX");
+    void *pHat = FindPattern("F7 00 00 00 68 BC 00 00 00 51 8B CE");
+    if (pHat) {
+        VerifyAndPatchDword(pHat, 247, ProjectLocalY(g_layout.mm_hat_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuHatY");
+        VerifyAndPatchDword((char*)pHat + 5, 188, ProjectLocalX(g_layout.mm_hat_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H), "MainMenuHatX");
     }
 
     /* 5. MainMenu User and Welcome Centering */
@@ -2647,7 +2781,7 @@ static void ApplyUIPatches(void) {
         VerifyAndPatchDword((char *)pBoardDrawFill + 13, 640, (DWORD)TARGET_W, "BoardDrawFillRectW");
     }
 
-    bool hud_space_ok = (g_layout.hud_space_w == TARGET_W && g_layout.hud_space_h == TARGET_H);
+    bool has_hud_space = (g_layout.hud_space_w > 0 && g_layout.hud_space_h > 0);
 
     void *pMenubarMargins = FindPattern("8B 15 C0 7E 54 00 6A 64 6A 32 68 96 00 00 00 68 C8 00 00 00");
     if (pMenubarMargins) {
@@ -2655,7 +2789,12 @@ static void ApplyUIPatches(void) {
         int m_bottom = g_layout.hud_menubar_margin_bottom;
         int m_right  = g_layout.hud_menubar_margin_right;
         int m_left   = g_layout.hud_menubar_margin_left;
-        if (!hud_space_ok) {
+        if (has_hud_space) {
+            m_top    = ProjectLocalY(m_top,    g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+            m_bottom = ProjectLocalY(m_bottom, g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+            m_right  = ProjectLocalX(m_right,  g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+            m_left   = ProjectLocalX(m_left,   g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+        } else {
             m_top    = (int)((float)m_top    * scale + 0.5f);
             m_bottom = (int)((float)m_bottom * scale + 0.5f);
             m_right  = (int)((float)m_right  * scale + 0.5f);
@@ -2733,17 +2872,14 @@ static void ApplyUIPatches(void) {
         menu_x   = (int)(menu_x_480   + t * (menu_x_540   - menu_x_480)   + 0.5f);
     }
 
-    if (hud_space_ok) {
-        if (g_layout.has_menubar_lives_x)  lives_x  = g_layout.hud_menubar_lives_x;
-        if (g_layout.has_menubar_stage_cx) stage_cx = g_layout.hud_menubar_stage_cx;
-        if (g_layout.has_menubar_score_rx) score_rx = g_layout.hud_menubar_score_rx;
-        if (g_layout.has_menubar_zuma_x)   zuma_x   = g_layout.hud_menubar_zuma_x;
-        if (g_layout.has_menubar_menu_x)   menu_x   = g_layout.hud_menubar_menu_x;
-        LogF("[ZRES] InGameHUD space %dx%d matched: menu=%d zuma=%d score=%d stage=%d lives=%d",
-             g_layout.hud_space_w, g_layout.hud_space_h, menu_x, zuma_x, score_rx, stage_cx, lives_x);
-    } else if (g_layout.hud_space_w != 0) {
-        LogF("[ZRES] Warning: InGameHUD space %dx%d mismatch target %dx%d, fallback to procedural",
-             g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+    if (has_hud_space) {
+        if (g_layout.has_menubar_lives_x)  lives_x  = ProjectScreenX(g_layout.hud_menubar_lives_x, g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+        if (g_layout.has_menubar_stage_cx) stage_cx = ProjectScreenX(g_layout.hud_menubar_stage_cx, g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+        if (g_layout.has_menubar_score_rx) score_rx = ProjectScreenX(g_layout.hud_menubar_score_rx, g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+        if (g_layout.has_menubar_zuma_x)   zuma_x   = ProjectScreenX(g_layout.hud_menubar_zuma_x, g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+        if (g_layout.has_menubar_menu_x)   menu_x   = ProjectScreenX(g_layout.hud_menubar_menu_x, g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+        LogF("[ZRES] InGameHUD space %dx%d projected to %dx%d: menu=%d zuma=%d score=%d stage=%d lives=%d",
+             g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H, menu_x, zuma_x, score_rx, stage_cx, lives_x);
     }
 
     void *pInGameMenuBtnX = FindPattern("6A 03 68 1C 02 00 00");
@@ -2788,10 +2924,12 @@ static void ApplyUIPatches(void) {
     /* 9u. In-Game Lives Banner ("%d LIVES LEFT", "LAST LIFE!", "GAME OVER") Centering */
     void *pLivesBanner = FindPattern("68 F0 00 00 00 8D 4D B0 51 8B CF FF 50 1C 99 2B C2 D1 F8 BA 40 01 00 00 2B D0 52");
     if (pLivesBanner) {
-        DWORD target_lives_y = (hud_space_ok && g_layout.has_lives_banner_center_y)
-            ? (DWORD)g_layout.hud_lives_banner_center_y : (DWORD)(TARGET_H / 2);
-        DWORD target_lives_x = (hud_space_ok && g_layout.has_lives_banner_center_x)
-            ? (DWORD)g_layout.hud_lives_banner_center_x : (DWORD)(TARGET_W / 2);
+        DWORD target_lives_y = (has_hud_space && g_layout.has_lives_banner_center_y)
+            ? (DWORD)ProjectScreenY(g_layout.hud_lives_banner_center_y, g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H)
+            : (DWORD)(TARGET_H / 2);
+        DWORD target_lives_x = (has_hud_space && g_layout.has_lives_banner_center_x)
+            ? (DWORD)ProjectScreenX(g_layout.hud_lives_banner_center_x, g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H)
+            : (DWORD)(TARGET_W / 2);
         VerifyAndPatchDword((char *)pLivesBanner + 1,  240, target_lives_y, "LivesBannerCenterY");
         VerifyAndPatchDword((char *)pLivesBanner + 20, 320, target_lives_x, "LivesBannerCenterX");
     }

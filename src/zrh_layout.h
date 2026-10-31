@@ -88,16 +88,15 @@ typedef struct {
     int mm_btn4_x, mm_btn4_y;
     int mm_btn5_x, mm_btn5_y;
     int mm_eyes_x, mm_eyes_y;
-    int mm_blink_x, mm_blink_y;
-    int mm_sun1_x, mm_sun1_y;
-    int mm_sun2_x, mm_sun2_y;
+    int mm_hat_x, mm_hat_y;
+    int mm_sun_x, mm_sun_y;
     int mm_eye_ray1_x, mm_eye_ray1_y;
     int mm_eye_ray2_x, mm_eye_ray2_y;
     int mm_eye_idle1_x, mm_eye_idle1_y;
     int mm_eye_idle2_x, mm_eye_idle2_y;
     int mm_welcome_y;
     int mm_user_switch_y;
-    int mm_hat_x, mm_hat_y;
+    int mm_space_w, mm_space_h;
 
     /* More Games */
     int mg_t0_x, mg_t0_y, mg_t0_w, mg_t0_h;
@@ -109,6 +108,7 @@ typedef struct {
     /* Loading Screen */
     int load_bar_x, load_bar_y;
     int load_click_play_y;
+    int load_space_w, load_space_h;
 
     /* In-Game HUD & Banners */
     int hud_level_banner_offset_x, hud_level_banner_offset_y;

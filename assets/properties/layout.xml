@@ -143,26 +143,24 @@
     <!-- ===================================================================== -->
     <!-- 8. Main Menu Buttons & Frog Elements                                  -->
     <!-- ===================================================================== -->
-    <MainMenu>
-        <AdventureBtn x="452" y="64" />
-        <GauntletBtn x="436" y="153" />
-        <OptionsBtn x="418" y="236" />
-        <MoreGamesBtn x="394" y="305" />
-        <QuitBtn x="496" y="315" />
-        <WelcomeText y="-4" />
-        <UserSwitchText y="38" />
-        <FrogEyes x="191" y="331" />
-        <EyeBlink x="188" y="247" />
-        <Hat x="215" y="170" />
+    <MainMenu space="1200x675">
+        <AdventureBtn x="786" y="90" />
+        <GauntletBtn x="763" y="215" />
+        <OptionsBtn x="738" y="332" />
+        <MoreGamesBtn x="704" y="429" />
+        <QuitBtn x="848" y="443" />
+        <WelcomeText y="-6" />
+        <UserSwitchText y="53" />
+        <FrogEyes x="419" y="465" />
+        <Hat x="414" y="347" />
         <!-- Solar Flare Sun Ray Effects -->
-        <Sun1 x="-63" y="-69" />
-        <Sun2 x="-63" y="-69" />
+        <Sun x="53" y="-89" />
         <!-- Eye Raycast Starting Coordinates -->
-        <EyeRay1 x="29" y="25" />
-        <EyeRay2 x="87" y="16" />
+        <EyeRay1 x="191" y="35" />
+        <EyeRay2 x="272" y="23" />
         <!-- Eye Idle Pupil Resting Coordinates -->
-        <EyeIdle1 x="219" y="368" />
-        <EyeIdle2 x="276" y="355" />
+        <EyeIdle1 x="458" y="518" />
+        <EyeIdle2 x="538" y="499" />
     </MainMenu>
 
     <!-- ===================================================================== -->
@@ -179,11 +177,11 @@
     <!-- ===================================================================== -->
     <!-- 10. Loading Screen Elements                                           -->
     <!-- ===================================================================== -->
-    <LoadingScreen>
+    <LoadingScreen space="1200x675">
         <!-- Horizontal & Vertical position of stone loader progress bar -->
-        <LoadingBar x="128" y="349" />
+        <LoadingBar x="330" y="491" />
         <!-- Vertical baseline of "CLICK HERE TO PLAY!" button -->
-        <ClickToPlay y="430" />
+        <ClickToPlay y="605" />
     </LoadingScreen>
 
     <!-- ===================================================================== -->
