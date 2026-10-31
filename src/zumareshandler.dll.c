@@ -299,9 +299,15 @@ static fDrawString       g_pfnDrawString = NULL;
 static void EnsureGraphicsFns(void) {
     if (!g_pfnDrawImage) {
         g_pfnDrawImage        = (fDrawImage)FindPattern("55 8B EC 83 EC 20 53 56 8B F1 8B 5E 08 8B 56 0C");
+    }
+    if (!g_pfnDrawImageStretch) {
         g_pfnDrawImageStretch = (fDrawImageStretch)FindPattern("55 8B EC 83 EC 50 8B 45 0C 53 8B 18 56 8B F1 8B 56 0C");
+    }
+    if (!g_pfnDrawString) {
         g_pfnDrawString       = (fDrawString)FindPattern("55 8B EC 8B C1 8B 48 40 85 C9 74 1C 8B 11 56 8D 70 10");
         if (!g_pfnDrawString) g_pfnDrawString = (fDrawString)0x447DF0;
+    }
+    if (!g_pfnWMResize) {
         g_pfnWMResize         = (fWMResize)FindPattern("55 8B EC 8B 45 08 56 8B F1 39 46 1C 8B 4D 0C");
     }
 }
@@ -992,11 +998,16 @@ static void THISCALL hk_DrawAdventureHsTitle(void *g, void *img, int x, int y) {
 
 /* 4. Gauntlet Highscore Scores DrawString Hook */
 static void THISCALL hk_DrawGauntletScore(void *g, void *str, int x, int y) {
-    int row = (y >= 70) ? ((y - 70) / 18) : 0;
-    if (row < 0 || row > 10) row = 0;
+    EnsureGraphicsFns();
+    int diff = (y >= 70) ? (y - 70) : 0;
     int base_y = PARENT_LOCAL_Y(g_layout.gaunt_hs_base_y);
-    int spacing = g_layout.gaunt_hs_spacing ? SDIM_VAL(g_layout.gaunt_hs_spacing) : 18;
-    int real_y = base_y + row * spacing;
+    int real_y;
+    if (g_layout.gaunt_hs_spacing != 0 && g_layout.gaunt_hs_spacing != 18) {
+        int row = (diff + 7) / 14;
+        real_y = base_y + row * SDIM_VAL(g_layout.gaunt_hs_spacing);
+    } else {
+        real_y = base_y + SDIM_VAL(diff);
+    }
 
     int real_x;
     if (g_layout.gaunt_hs_scores_x != 575) {
@@ -1010,11 +1021,16 @@ static void THISCALL hk_DrawGauntletScore(void *g, void *str, int x, int y) {
 
 /* 5. Gauntlet Highscore Names DrawString Hook */
 static void THISCALL hk_DrawGauntletName(void *g, void *str, int x, int y) {
-    int row = (y >= 70) ? ((y - 70) / 18) : 0;
-    if (row < 0 || row > 10) row = 0;
+    EnsureGraphicsFns();
+    int diff = (y >= 70) ? (y - 70) : 0;
     int base_y = PARENT_LOCAL_Y(g_layout.gaunt_hs_base_y);
-    int spacing = g_layout.gaunt_hs_spacing ? SDIM_VAL(g_layout.gaunt_hs_spacing) : 18;
-    int real_y = base_y + row * spacing;
+    int real_y;
+    if (g_layout.gaunt_hs_spacing != 0 && g_layout.gaunt_hs_spacing != 18) {
+        int row = (diff + 7) / 14;
+        real_y = base_y + row * SDIM_VAL(g_layout.gaunt_hs_spacing);
+    } else {
+        real_y = base_y + SDIM_VAL(diff);
+    }
 
     int real_x;
     if (g_layout.gaunt_hs_names_x != 445) {
@@ -1028,11 +1044,16 @@ static void THISCALL hk_DrawGauntletName(void *g, void *str, int x, int y) {
 
 /* 6. Adventure Highscore Scores DrawString Hook */
 static void THISCALL hk_DrawAdventureScore(void *g, void *str, int x, int y) {
-    int row = (y >= 70) ? ((y - 70) / 18) : 0;
-    if (row < 0 || row > 10) row = 0;
+    EnsureGraphicsFns();
+    int diff = (y >= 70) ? (y - 70) : 0;
     int base_y = PARENT_LOCAL_Y(g_layout.adv_hs_base_y);
-    int spacing = g_layout.adv_hs_spacing ? SDIM_VAL(g_layout.adv_hs_spacing) : 18;
-    int real_y = base_y + row * spacing;
+    int real_y;
+    if (g_layout.adv_hs_spacing != 0 && g_layout.adv_hs_spacing != 18) {
+        int row = (diff + 7) / 14;
+        real_y = base_y + row * SDIM_VAL(g_layout.adv_hs_spacing);
+    } else {
+        real_y = base_y + SDIM_VAL(diff);
+    }
 
     int real_x;
     if (g_layout.adv_hs_scores_x != 575) {
@@ -1046,11 +1067,16 @@ static void THISCALL hk_DrawAdventureScore(void *g, void *str, int x, int y) {
 
 /* 7. Adventure Highscore Names DrawString Hook */
 static void THISCALL hk_DrawAdventureName(void *g, void *str, int x, int y) {
-    int row = (y >= 70) ? ((y - 70) / 18) : 0;
-    if (row < 0 || row > 10) row = 0;
+    EnsureGraphicsFns();
+    int diff = (y >= 70) ? (y - 70) : 0;
     int base_y = PARENT_LOCAL_Y(g_layout.adv_hs_base_y);
-    int spacing = g_layout.adv_hs_spacing ? SDIM_VAL(g_layout.adv_hs_spacing) : 18;
-    int real_y = base_y + row * spacing;
+    int real_y;
+    if (g_layout.adv_hs_spacing != 0 && g_layout.adv_hs_spacing != 18) {
+        int row = (diff + 7) / 14;
+        real_y = base_y + row * SDIM_VAL(g_layout.adv_hs_spacing);
+    } else {
+        real_y = base_y + SDIM_VAL(diff);
+    }
 
     int real_x;
     if (g_layout.adv_hs_names_x != 470) {
@@ -1689,9 +1715,11 @@ static void ApplyUIPatches(void) {
     g_pfnWidgetResize     = (fWidgetResize)FindPattern("55 8B EC 53 8B 5D 14 56 8B F1 8B 46 08 57 8B 7D");
     g_pfnWMResize         = (fWMResize)FindPattern("55 8B EC 8B 45 08 56 8B F1 39 46 1C 8B 4D 0C");
     g_pfnDrawImageStretch = (fDrawImageStretch)FindPattern("55 8B EC 83 EC 50 8B 45 0C 53 8B 18 56 8B F1 8B 56 0C");
+    g_pfnDrawString       = (fDrawString)FindPattern("55 8B EC 8B C1 8B 48 40 85 C9 74 1C 8B 11 56 8D 70 10");
+    if (!g_pfnDrawString) g_pfnDrawString = (fDrawString)0x447DF0;
 
-    LogF("[ZRES] Engine funcs: DrawImg=%p DrawDoors=%p SetDrawMode=%p SetColor=%p ColorCtor=%p Translate=%p WidgetResize=%p WMResize=%p DrawImgStretch=%p",
-         g_pfnDrawImage, g_pfnDrawDoors, g_pfnSetDrawMode, g_pfnSetColor, g_pfnColorCtor, g_pfnTranslate, g_pfnWidgetResize, g_pfnWMResize, g_pfnDrawImageStretch);
+    LogF("[ZRES] Engine funcs: DrawImg=%p DrawDoors=%p SetDrawMode=%p SetColor=%p ColorCtor=%p Translate=%p WidgetResize=%p WMResize=%p DrawImgStretch=%p DrawStr=%p",
+         g_pfnDrawImage, g_pfnDrawDoors, g_pfnSetDrawMode, g_pfnSetColor, g_pfnColorCtor, g_pfnTranslate, g_pfnWidgetResize, g_pfnWMResize, g_pfnDrawImageStretch, g_pfnDrawString);
 
     /* 1. LoadingScreen (loaderbar & "Click Here To Play!" button) - Pure Local Coordinates */
     void *pLoadBarY = FindPattern("5D 01 00 00 68 80");

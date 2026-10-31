@@ -544,6 +544,7 @@ LAYOUT_XML_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
     <!-- 4. Adventure Screen UI Labels & Stats                                 -->
     <!-- ===================================================================== -->
     <AdventureLabels>
+        <AdventureTitle x="0" y="0" />
         <HighscoreTitle x="456" y="0" />
         <BottomBox x="289" y="382" />
         <StageNum x="344" y="396" />
