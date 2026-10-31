@@ -803,22 +803,30 @@ void ZRH_LoadLayoutXml(void) {
     const char *hud_sec = strstr(buf, "<InGameHUD");
     const char *hud_sec_end = hud_sec ? strstr(hud_sec, "</InGameHUD>") : NULL;
     if (hud_sec && hud_sec_end) {
+        /* Parse coordinate space attribute, e.g. space="1200x675" */
+        const char *open_end = strchr(hud_sec, '>');
+        const char *sp = strstr(hud_sec, "space=\"");
+        if (!sp) sp = strstr(hud_sec, "space='");
+        if (open_end && sp && sp < open_end) {
+            sscanf(sp + 7, "%dx%d", &g_layout.hud_space_w, &g_layout.hud_space_h);
+        }
+
         if ((t = find_tag_start(hud_sec, hud_sec_end, "LevelBanner", &tend)) != NULL) {
             parse_xml_attr(t, tend, "offsetX", &g_layout.hud_level_banner_offset_x);
             parse_xml_attr(t, tend, "offsetY", &g_layout.hud_level_banner_offset_y);
             parse_xml_attr_align(t, tend, "align", &g_layout.hud_level_banner_align);
         }
         if ((t = find_tag_start(hud_sec, hud_sec_end, "LivesBanner", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "centerX", &g_layout.hud_lives_banner_center_x);
-            parse_xml_attr(t, tend, "centerY", &g_layout.hud_lives_banner_center_y);
+            if (parse_xml_attr(t, tend, "centerX", &g_layout.hud_lives_banner_center_x)) g_layout.has_lives_banner_center_x = true;
+            if (parse_xml_attr(t, tend, "centerY", &g_layout.hud_lives_banner_center_y)) g_layout.has_lives_banner_center_y = true;
             parse_xml_attr_align(t, tend, "align", &g_layout.hud_lives_banner_align);
         }
         if ((t = find_tag_start(hud_sec, hud_sec_end, "Menubar", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "livesX",  &g_layout.hud_menubar_lives_x);
-            parse_xml_attr(t, tend, "stageCX", &g_layout.hud_menubar_stage_cx);
-            parse_xml_attr(t, tend, "scoreRX", &g_layout.hud_menubar_score_rx);
-            parse_xml_attr(t, tend, "zumaX",   &g_layout.hud_menubar_zuma_x);
-            parse_xml_attr(t, tend, "menuX",   &g_layout.hud_menubar_menu_x);
+            if (parse_xml_attr(t, tend, "livesX",  &g_layout.hud_menubar_lives_x))  g_layout.has_menubar_lives_x = true;
+            if (parse_xml_attr(t, tend, "stageCX", &g_layout.hud_menubar_stage_cx)) g_layout.has_menubar_stage_cx = true;
+            if (parse_xml_attr(t, tend, "scoreRX", &g_layout.hud_menubar_score_rx)) g_layout.has_menubar_score_rx = true;
+            if (parse_xml_attr(t, tend, "zumaX",   &g_layout.hud_menubar_zuma_x))   g_layout.has_menubar_zuma_x = true;
+            if (parse_xml_attr(t, tend, "menuX",   &g_layout.hud_menubar_menu_x))   g_layout.has_menubar_menu_x = true;
             parse_xml_attr_align(t, tend, "align", &g_layout.hud_menubar_align);
         }
         if ((t = find_tag_start(hud_sec, hud_sec_end, "MenubarMargins", &tend)) != NULL) {
@@ -828,28 +836,28 @@ void ZRH_LoadLayoutXml(void) {
             parse_xml_attr(t, tend, "right",  &g_layout.hud_menubar_margin_right);
         }
         if ((t = find_tag_start(hud_sec, hud_sec_end, "LivesPos", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_lives_x);
+            if (parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_lives_x)) g_layout.has_menubar_lives_x = true;
             parse_xml_attr(t, tend, "y", &g_layout.hud_lives_y);
             parse_xml_attr(t, tend, "spacing", &g_layout.hud_lives_spacing);
         }
         if ((t = find_tag_start(hud_sec, hud_sec_end, "StageName", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "centerX", &g_layout.hud_menubar_stage_cx);
-            parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_stage_cx);
+            if (parse_xml_attr(t, tend, "centerX", &g_layout.hud_menubar_stage_cx) ||
+                parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_stage_cx)) g_layout.has_menubar_stage_cx = true;
             parse_xml_attr(t, tend, "y", &g_layout.hud_stage_y);
         }
         if ((t = find_tag_start(hud_sec, hud_sec_end, "ScoreText", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "rightX", &g_layout.hud_menubar_score_rx);
-            parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_score_rx);
+            if (parse_xml_attr(t, tend, "rightX", &g_layout.hud_menubar_score_rx) ||
+                parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_score_rx)) g_layout.has_menubar_score_rx = true;
             parse_xml_attr(t, tend, "y", &g_layout.hud_score_y);
         }
         if ((t = find_tag_start(hud_sec, hud_sec_end, "ProgressBar", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_zuma_x);
+            if (parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_zuma_x)) g_layout.has_menubar_zuma_x = true;
             parse_xml_attr(t, tend, "y", &g_layout.hud_zuma_y);
             parse_xml_attr(t, tend, "w", &g_layout.hud_zuma_w);
             parse_xml_attr(t, tend, "h", &g_layout.hud_zuma_h);
         }
         if ((t = find_tag_start(hud_sec, hud_sec_end, "MenuBtn", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_menu_x);
+            if (parse_xml_attr(t, tend, "x", &g_layout.hud_menubar_menu_x)) g_layout.has_menubar_menu_x = true;
             parse_xml_attr(t, tend, "y", &g_layout.hud_menu_y);
             parse_xml_attr(t, tend, "w", &g_layout.hud_menu_w);
             parse_xml_attr(t, tend, "h", &g_layout.hud_menu_h);

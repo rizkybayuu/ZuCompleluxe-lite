@@ -2647,12 +2647,24 @@ static void ApplyUIPatches(void) {
         VerifyAndPatchDword((char *)pBoardDrawFill + 13, 640, (DWORD)TARGET_W, "BoardDrawFillRectW");
     }
 
+    bool hud_space_ok = (g_layout.hud_space_w == TARGET_W && g_layout.hud_space_h == TARGET_H);
+
     void *pMenubarMargins = FindPattern("8B 15 C0 7E 54 00 6A 64 6A 32 68 96 00 00 00 68 C8 00 00 00");
     if (pMenubarMargins) {
-        VerifyAndPatchByte((char *)pMenubarMargins + 7, 100, (BYTE)((float)g_layout.hud_menubar_margin_bottom * scale + 0.5f), "MenubarMarginBottom");
-        VerifyAndPatchByte((char *)pMenubarMargins + 9, 50, (BYTE)((float)g_layout.hud_menubar_margin_top * scale + 0.5f), "MenubarMarginTop");
-        VerifyAndPatchDword((char *)pMenubarMargins + 11, 150, (DWORD)((float)g_layout.hud_menubar_margin_right * scale + 0.5f), "MenubarMarginRight");
-        VerifyAndPatchDword((char *)pMenubarMargins + 16, 200, (DWORD)((float)g_layout.hud_menubar_margin_left * scale + 0.5f), "MenubarMarginLeft");
+        int m_top    = g_layout.hud_menubar_margin_top;
+        int m_bottom = g_layout.hud_menubar_margin_bottom;
+        int m_right  = g_layout.hud_menubar_margin_right;
+        int m_left   = g_layout.hud_menubar_margin_left;
+        if (!hud_space_ok) {
+            m_top    = (int)((float)m_top    * scale + 0.5f);
+            m_bottom = (int)((float)m_bottom * scale + 0.5f);
+            m_right  = (int)((float)m_right  * scale + 0.5f);
+            m_left   = (int)((float)m_left   * scale + 0.5f);
+        }
+        VerifyAndPatchByte((char *)pMenubarMargins + 7,  100, (BYTE)m_bottom, "MenubarMarginBottom");
+        VerifyAndPatchByte((char *)pMenubarMargins + 9,  50,  (BYTE)m_top,    "MenubarMarginTop");
+        VerifyAndPatchDword((char *)pMenubarMargins + 11, 150, (DWORD)m_right, "MenubarMarginRight");
+        VerifyAndPatchDword((char *)pMenubarMargins + 16, 200, (DWORD)m_left,  "MenubarMarginLeft");
     }
 
     /* Synchronized Menubar HUD Element Repositioning (TARGET_W >= 480) */
@@ -2721,11 +2733,18 @@ static void ApplyUIPatches(void) {
         menu_x   = (int)(menu_x_480   + t * (menu_x_540   - menu_x_480)   + 0.5f);
     }
 
-    if (g_layout.hud_menubar_lives_x != 28) lives_x = g_layout.hud_menubar_lives_x;
-    if (g_layout.hud_menubar_stage_cx != 200) stage_cx = g_layout.hud_menubar_stage_cx;
-    if (g_layout.hud_menubar_score_rx != 360) score_rx = g_layout.hud_menubar_score_rx;
-    if (g_layout.hud_menubar_zuma_x != 409) zuma_x = g_layout.hud_menubar_zuma_x;
-    if (g_layout.hud_menubar_menu_x != 540) menu_x = g_layout.hud_menubar_menu_x;
+    if (hud_space_ok) {
+        if (g_layout.has_menubar_lives_x)  lives_x  = g_layout.hud_menubar_lives_x;
+        if (g_layout.has_menubar_stage_cx) stage_cx = g_layout.hud_menubar_stage_cx;
+        if (g_layout.has_menubar_score_rx) score_rx = g_layout.hud_menubar_score_rx;
+        if (g_layout.has_menubar_zuma_x)   zuma_x   = g_layout.hud_menubar_zuma_x;
+        if (g_layout.has_menubar_menu_x)   menu_x   = g_layout.hud_menubar_menu_x;
+        LogF("[ZRES] InGameHUD space %dx%d matched: menu=%d zuma=%d score=%d stage=%d lives=%d",
+             g_layout.hud_space_w, g_layout.hud_space_h, menu_x, zuma_x, score_rx, stage_cx, lives_x);
+    } else if (g_layout.hud_space_w != 0) {
+        LogF("[ZRES] Warning: InGameHUD space %dx%d mismatch target %dx%d, fallback to procedural",
+             g_layout.hud_space_w, g_layout.hud_space_h, TARGET_W, TARGET_H);
+    }
 
     void *pInGameMenuBtnX = FindPattern("6A 03 68 1C 02 00 00");
     if (pInGameMenuBtnX) {
@@ -2769,8 +2788,10 @@ static void ApplyUIPatches(void) {
     /* 9u. In-Game Lives Banner ("%d LIVES LEFT", "LAST LIFE!", "GAME OVER") Centering */
     void *pLivesBanner = FindPattern("68 F0 00 00 00 8D 4D B0 51 8B CF FF 50 1C 99 2B C2 D1 F8 BA 40 01 00 00 2B D0 52");
     if (pLivesBanner) {
-        DWORD target_lives_y = (g_layout.hud_lives_banner_center_y == 240) ? (DWORD)(TARGET_H / 2) : (DWORD)PARENT_LOCAL_Y(g_layout.hud_lives_banner_center_y);
-        DWORD target_lives_x = (g_layout.hud_lives_banner_center_x == 320) ? (DWORD)(TARGET_W / 2) : (DWORD)PARENT_LOCAL_X(g_layout.hud_lives_banner_center_x);
+        DWORD target_lives_y = (hud_space_ok && g_layout.has_lives_banner_center_y)
+            ? (DWORD)g_layout.hud_lives_banner_center_y : (DWORD)(TARGET_H / 2);
+        DWORD target_lives_x = (hud_space_ok && g_layout.has_lives_banner_center_x)
+            ? (DWORD)g_layout.hud_lives_banner_center_x : (DWORD)(TARGET_W / 2);
         VerifyAndPatchDword((char *)pLivesBanner + 1,  240, target_lives_y, "LivesBannerCenterY");
         VerifyAndPatchDword((char *)pLivesBanner + 20, 320, target_lives_x, "LivesBannerCenterX");
     }

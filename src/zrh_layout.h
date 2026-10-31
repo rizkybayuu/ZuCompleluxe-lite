@@ -2,6 +2,7 @@
 #define ZRH_LAYOUT_H
 
 #include <windows.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -128,6 +129,11 @@ typedef struct {
     int hud_score_y;
     int hud_zuma_y, hud_zuma_w, hud_zuma_h;
     int hud_menu_y, hud_menu_w, hud_menu_h;
+    /* Ruang koordinat InGameHUD & flag kehadiran atribut */
+    int  hud_space_w, hud_space_h;
+    bool has_menubar_lives_x, has_menubar_stage_cx, has_menubar_score_rx;
+    bool has_menubar_zuma_x, has_menubar_menu_x;
+    bool has_lives_banner_center_x, has_lives_banner_center_y;
 
     /* Stage Complete Cutscene */
     int stage_complete_text_x, stage_complete_text_y, stage_complete_text_align;

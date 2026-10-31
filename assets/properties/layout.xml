@@ -189,21 +189,16 @@
     <!-- ===================================================================== -->
     <!-- 11. In-Game HUD & Banners                                             -->
     <!-- ===================================================================== -->
-    <InGameHUD>
-        <!-- Offset in pixels from bottom-right screen edge for level banner (e.g. "RABBIT 1") -->
+    <InGameHUD space="1200x675">
         <LevelBanner offsetX="40" offsetY="40" />
-        <!-- Center coordinates in 640x480 space for lives banner ("%d LIVES LEFT", "LAST LIFE!") -->
-        <LivesBanner centerX="320" centerY="240" />
-        <!-- In-Game Stone Menubar HUD Positions (livesX, stageCX, scoreRX, zumaX, menuX) -->
-        <Menubar livesX="28" stageCX="200" scoreRX="360" zumaX="409" menuX="540" />
-        <!-- Granular Menubar widgets -->
+        <LivesBanner centerX="600" centerY="337" />
+        <Menubar livesX="28" stageCX="290" scoreRX="640" zumaX="879" menuX="1100" />
         <LivesPos x="28" y="6" spacing="26" />
-        <StageName centerX="200" y="8" font="Cancun12" color="#FFF000" />
-        <ScoreText rightX="360" y="8" font="Cancun12" color="#FFF000" />
-        <ProgressBar x="409" y="2" w="178" h="24" />
-        <MenuBtn x="540" y="4" w="67" h="27" />
-        <!-- Menubar Safety Margins (top, bottom, left, right) -->
-        <MenubarMargins top="50" bottom="100" left="200" right="150" />
+        <StageName centerX="290" y="8" font="Cancun12" color="#FFF000" />
+        <ScoreText rightX="640" y="8" font="Cancun12" color="#FFF000" />
+        <ProgressBar x="879" y="2" w="178" h="24" />
+        <MenuBtn x="1100" y="4" w="67" h="27" />
+        <MenubarMargins top="70" bottom="141" left="281" right="211" />
     </InGameHUD>
 
     <!-- ===================================================================== -->
