@@ -12,6 +12,24 @@
  */
 
 #include <windows.h>
+#include "zrh_layout.h"
+
+typedef const ZRH_LayoutConfig* (__cdecl *fn_ZRH_GetLayout)(void);
+static const ZRH_LayoutConfig* ztk_get_layout(void)
+{
+    static fn_ZRH_GetLayout s_fn = NULL;
+    static int s_resolved = 0;
+    if (!s_resolved) {
+        s_resolved = 1;
+        HMODULE hMod = GetModuleHandleA("zumareshandler.dll");
+        if (hMod) {
+            s_fn = (fn_ZRH_GetLayout)GetProcAddress(hMod, "ZRH_GetLayout");
+        }
+    }
+    if (s_fn) return s_fn();
+    return NULL;
+}
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -487,11 +505,30 @@ static void ztk_center_dialog(void *dlg, int width)
         }
     }
 
+    void *app_obj = (app_ptr && *app_ptr) ? *app_ptr : NULL;
+    void *board = app_obj ? *(void **)((char *)app_obj + 0x5E4) : NULL;
+
     int w = *(int *)((char *)dlg + 0x10);
     int h = *(int *)((char *)dlg + 0x14);
     if (w > 0 && h > 0) {
-        int cx = (screen_w - w) / 2;
-        int cy = (screen_h - h) / 2;
+        int cx = 0, cy = 0;
+        if (board) {
+            cx = (screen_w - w) / 2;
+            cy = (screen_h - h) / 2;
+        } else {
+            int xo = 0, yo = 0, cw = screen_w, ch = screen_h;
+            if (screen_w * 3 > screen_h * 4) {
+                float s = (float)screen_h / 480.0f;
+                cw = (int)(640.0f * s + 0.5f);
+                xo = (screen_w - cw) / 2;
+            } else if (screen_w * 3 < screen_h * 4) {
+                float s = (float)screen_w / 640.0f;
+                ch = (int)(480.0f * s + 0.5f);
+                yo = (screen_h - ch) / 2;
+            }
+            cx = (cw - w) / 2;
+            cy = (ch - h) / 2;
+        }
         if (cy < 10) cy = 10;
 
         void **vt = *(void ***)dlg;
@@ -1101,9 +1138,12 @@ __declspec(dllexport) int __cdecl ZTK_CheckDoor5Hit(void *mapScreen, int mouseX,
         return vanilla_hit;
     }
 
-    /* advdoor5: center(x=323, y=201), frame size=64x50 -> x=[291, 355), y=[176, 226) */
-    int d5_x1 = ztk_sx(291), d5_x2 = ztk_sx(355);
-    int d5_y1 = ztk_sy(176), d5_y2 = ztk_sy(226);
+    /* advdoor5 bounding box: retrieved dynamically from layout.xml (door 12) */
+    const ZRH_LayoutConfig *cfg_hit = ztk_get_layout();
+    int d5_door_x = (cfg_hit && cfg_hit->adv_doors[12].x1 != 0) ? cfg_hit->adv_doors[12].x1 : 291;
+    int d5_door_y = (cfg_hit && cfg_hit->adv_doors[12].y1 != 0) ? cfg_hit->adv_doors[12].y1 : 176;
+    int d5_x1 = ztk_sx(d5_door_x), d5_x2 = ztk_sx(d5_door_x + 64);
+    int d5_y1 = ztk_sy(d5_door_y), d5_y2 = ztk_sy(d5_door_y + 50);
     if (mouseX >= d5_x1 && mouseX < d5_x2 && mouseY >= d5_y1 && mouseY < d5_y2) {
         g_Door5Hover = 1;
         return 12; /* Hand cursor trigger in Zuma MapScreen */
@@ -1117,9 +1157,12 @@ __declspec(dllexport) int __cdecl ZTK_CheckDoor5Click(void *mapScreen, int mouse
 {
     if (!is_current_user_dev_tester()) return 0;
 
-    /* advdoor5 bounding box: x in [291, 355), y in [176, 226) */
-    int d5_x1 = ztk_sx(291), d5_x2 = ztk_sx(355);
-    int d5_y1 = ztk_sy(176), d5_y2 = ztk_sy(226);
+    /* advdoor5 bounding box: retrieved dynamically from layout.xml (door 12) */
+    const ZRH_LayoutConfig *cfg_clk = ztk_get_layout();
+    int d5_door_x = (cfg_clk && cfg_clk->adv_doors[12].x1 != 0) ? cfg_clk->adv_doors[12].x1 : 291;
+    int d5_door_y = (cfg_clk && cfg_clk->adv_doors[12].y1 != 0) ? cfg_clk->adv_doors[12].y1 : 176;
+    int d5_x1 = ztk_sx(d5_door_x), d5_x2 = ztk_sx(d5_door_x + 64);
+    int d5_y1 = ztk_sy(d5_door_y), d5_y2 = ztk_sy(d5_door_y + 50);
     if (mouseX >= d5_x1 && mouseX < d5_x2 && mouseY >= d5_y1 && mouseY < d5_y2) {
         if (!g_Door5Selected) {
             /* First click: select Door 5 */
@@ -1196,17 +1239,23 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
     fn_SetColorizeImages setColorize = (fn_SetColorizeImages)0x004478B0;
     fn_SetColor setColor = (fn_SetColor)0x00447850;
 
-    /* 1. Render advtemple5 at center(321, 198), size(391, 100) -> top-left (126, 148) */
-    drawImage(graphics, g_ImageAdvTemple5, ztk_sx(126), ztk_sy(148));
+    const ZRH_LayoutConfig *cfg_t5 = ztk_get_layout();
+    int t5_render_x = cfg_t5 ? cfg_t5->adv_temple5_x : 126;
+    int t5_render_y = cfg_t5 ? cfg_t5->adv_temple5_y : 148;
+    int d5_render_x = (cfg_t5 && cfg_t5->adv_doors[12].x1 != 0) ? cfg_t5->adv_doors[12].x1 : 291;
+    int d5_render_y = (cfg_t5 && cfg_t5->adv_doors[12].y1 != 0) ? cfg_t5->adv_doors[12].y1 : 176;
 
-    /* 2. Render advdoor5 at center(323, 201), size(64, 50) -> top-left (291, 176) */
+    /* 1. Render advtemple5 configured from layout.xml */
+    drawImage(graphics, g_ImageAdvTemple5, ztk_sx(t5_render_x), ztk_sy(t5_render_y));
+
+    /* 2. Render advdoor5 configured from layout.xml */
     int door_cel = 0; /* Frame 0: Open (Black) */
     if (g_Door5Selected) {
         door_cel = 2; /* Frame 2: Click (Red) */
     } else if (g_Door5Hover) {
         door_cel = 1; /* Frame 1: Hover (Green) */
     }
-    drawImageCel(graphics, g_ImageAdvDoor5, ztk_sx(291), ztk_sy(176), door_cel);
+    drawImageCel(graphics, g_ImageAdvDoor5, ztk_sx(d5_render_x), ztk_sy(d5_render_y), door_cel);
 
     /* 3. Re-apply 50% Fog via IMAGE_ADVMIDDLE overlay */
     void *advmiddle = *(void**)0x00547EB4;
@@ -1237,29 +1286,39 @@ __declspec(dllexport) void __cdecl ZTK_DrawStage13Banner(void *mapScreen, void *
     PopCapColor colorWhite = { 255, 255, 255, 255 };
     PopCapColor colorGold  = { 255, 234, 1, 255 }; /* 0xFFEA01 matching vanilla description color */
 
-    /* 1. Stage Badge: IMAGE_ADVSTAGE at (289, 382) -> (0x121, 0x17E) */
+    const ZRH_LayoutConfig *cfg_b = ztk_get_layout();
+    int b_badge_x = cfg_b ? cfg_b->adv_s13_badge_x : 289;
+    int b_badge_y = cfg_b ? cfg_b->adv_s13_badge_y : 382;
+    int b_num_x   = cfg_b ? cfg_b->adv_s13_num_x   : 344;
+    int b_num_y   = cfg_b ? cfg_b->adv_s13_num_y   : 396;
+    int b_title_x = cfg_b ? cfg_b->adv_s13_title_x : 326;
+    int b_title_y = cfg_b ? cfg_b->adv_s13_title_y : 422;
+    int b_sub_x   = cfg_b ? cfg_b->adv_s13_sub_x   : 326;
+    int b_sub_y   = cfg_b ? cfg_b->adv_s13_sub_y   : 456;
+
+    /* 1. Stage Badge: IMAGE_ADVSTAGE configured from layout.xml */
     if (stageBadge) {
-        drawImage(graphics, stageBadge, ztk_sx(289), ztk_sy(382));
+        drawImage(graphics, stageBadge, ztk_sx(b_badge_x), ztk_sy(b_badge_y));
     }
 
-    /* 2. Stage number "13" beside STAGE badge at (344, 396) -> (0x158, 0x18C) */
+    /* 2. Stage number "13" beside STAGE badge */
     if (fontMain14) {
         char str_num[32];
         ztk_init_string(str_num, "13");
         setFont(graphics, fontMain14);
         setColor(graphics, &colorWhite);
-        drawStr(graphics, str_num, ztk_sx(344), ztk_sy(396));
+        drawStr(graphics, str_num, ztk_sx(b_num_x), ztk_sy(b_num_y));
         ztk_free_string(str_num);
     }
 
-    /* 3. Temple Title: "THE VOID" centered at (326, 422) in white (matches vanilla Title style) */
+    /* 3. Temple Title: "THE VOID" centered */
     if (fontTitle32) {
-        ztk_draw_text_centered(graphics, fontTitle32, "THE VOID", ztk_sx(326), ztk_sy(422), &colorWhite);
+        ztk_draw_text_centered(graphics, fontTitle32, "THE VOID", ztk_sx(b_title_x), ztk_sy(b_title_y), &colorWhite);
     }
 
-    /* 4. Door Description: "THE PLACE OF NO ENDING" centered at (326, 456) in gold 0xFFEA01 */
+    /* 4. Door Description: "THE PLACE OF NO ENDING" centered */
     if (fontBrowser) {
-        ztk_draw_text_centered(graphics, fontBrowser, "THE PLACE OF NO ENDING", ztk_sx(326), ztk_sy(456), &colorGold);
+        ztk_draw_text_centered(graphics, fontBrowser, "THE PLACE OF NO ENDING", ztk_sx(b_sub_x), ztk_sy(b_sub_y), &colorGold);
     }
 }
 
@@ -1607,7 +1666,7 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     fn_DrawImage drawImage       = (fn_DrawImage)g_fn_DrawImage;
     fn_DrawImageCel drawImageCel = (fn_DrawImageCel)g_fn_DrawImageCel;
 
-    /* 3. Dynamic Resolution Scaling: Adaptively retrieve HelpScreen dimensions */
+    /* 3. Dynamic Resolution Scaling: Adaptively retrieve HelpScreen dimensions across all resolutions */
     int scr_w = *(int*)((char*)helpScreen + 0x10);
     int scr_h = *(int*)((char*)helpScreen + 0x14);
     if (scr_w <= 0 || scr_h <= 0) {
@@ -1628,8 +1687,12 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     #define D_LX(v) ((int)((float)(v) * s + 0.5f))
     #define D_LY(v) ((int)((float)(v) * s + 0.5f))
 
+    const ZRH_LayoutConfig *cfg = ztk_get_layout();
+
     int cx = scr_w / 2;
-    int col1_cx = (int)(162.0f * s + 0.5f);
+    int col1_base = (cfg && cfg->dev_help_col1_x > 0) ? cfg->dev_help_col1_x : 162;
+    int col2_base = (cfg && cfg->dev_help_col2_x > 0) ? cfg->dev_help_col2_x : 478;
+    int col1_cx = (int)((float)col1_base * s + 0.5f);
     int col2_cx = scr_w - col1_cx;
 
     /* Render solid stone background and gold masked frame in local coordinate space */
@@ -1659,67 +1722,86 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
      * HEADER: "DEVELOPER MODE" adaptively centered (cx = scr_w / 2)
      * Effect: Sandy Grain Glow (Aztec sand granular texture)
      * ========================================================================= */
+    int title_y = cfg ? cfg->dev_help_title_y : 28;
+    int subtitle_y = cfg ? cfg->dev_help_subtitle_y : 78;
+
     if (fontTitle) {
-        ztk_draw_text_sandy_glow(graphics, fontTitle, "DEVELOPER MODE", cx, D_LY(28));
+        ztk_draw_text_sandy_glow(graphics, fontTitle, "DEVELOPER MODE", cx, D_LY(title_y));
     }
     if (fontBody) {
         ztk_draw_text_centered(graphics, fontBody,
-            "Special Testing Profile  -  Unrestricted Game Access", cx, D_LY(78), &colGold);
+            "Special Testing Profile  -  Unrestricted Game Access", cx, D_LY(subtitle_y), &colGold);
     }
 
     /* =========================================================================
      * SECTION 1 (LEFT): ADVENTURE MODE (Center: col1_cx)
      * ========================================================================= */
+    int adv_hdr_y = cfg ? cfg->dev_help_adv_header_y : 108;
     if (fontHeading) {
-        ztk_draw_text_centered(graphics, fontHeading, "ADVENTURE MODE", col1_cx, D_LY(108), &colYellow);
+        ztk_draw_text_centered(graphics, fontHeading, "ADVENTURE MODE", col1_cx, D_LY(adv_hdr_y), &colYellow);
     }
 
     /* Temple 5 preview graphic with glowing green door (190x75, centered at col1_cx) */
     if (imgTutTemple5) {
-        int temple_x = col1_cx - 190 / 2;
-        drawImage(graphics, imgTutTemple5, temple_x, D_LY(114));
+        int temple_x = (cfg && cfg->help_dev_temple5_x != 225 && cfg->help_dev_temple5_x != 0) ? D_LX(cfg->help_dev_temple5_x) : (col1_cx - 190 / 2);
+        int temple_y = (cfg && cfg->help_dev_temple5_y != 114 && cfg->help_dev_temple5_y != 0) ? D_LY(cfg->help_dev_temple5_y) : D_LY(114);
+        drawImage(graphics, imgTutTemple5, temple_x, temple_y);
     }
 
+    int adv_text_x = cfg ? cfg->dev_help_adv_text_x : 30;
+    int adv_text_y = cfg ? cfg->dev_help_adv_text_y : 206;
+    int adv_spacing = cfg ? cfg->dev_help_adv_text_spacing : 18;
+
     if (fontBody) {
-        ztk_draw_text_left(graphics, fontBody, "* All 13 Stages Unlocked From Start", D_LX(30), D_LY(206), &colWhite);
-        ztk_draw_text_left(graphics, fontBody, "* Direct Temple 5 Access to Secret", D_LX(30), D_LY(224), &colWhite);
-        ztk_draw_text_left(graphics, fontBody, "  Stage 13 (\"The Void\")", D_LX(30), D_LY(242), &colCyan);
+        ztk_draw_text_left(graphics, fontBody, "* All 13 Stages Unlocked From Start", D_LX(adv_text_x), D_LY(adv_text_y), &colWhite);
+        ztk_draw_text_left(graphics, fontBody, "* Direct Temple 5 Access to Secret", D_LX(adv_text_x), D_LY(adv_text_y + adv_spacing), &colWhite);
+        ztk_draw_text_left(graphics, fontBody, "  Stage 13 (\"The Void\")", D_LX(adv_text_x), D_LY(adv_text_y + adv_spacing * 2), &colCyan);
     }
 
     /* =========================================================================
      * SECTION 2 (RIGHT): GAUNTLET MODE (Center: col2_cx)
      * ========================================================================= */
+    int gaunt_hdr_y = cfg ? cfg->dev_help_gaunt_header_y : 108;
     if (fontHeading) {
-        ztk_draw_text_centered(graphics, fontHeading, "GAUNTLET MODE", col2_cx, D_LY(108), &colYellow);
+        ztk_draw_text_centered(graphics, fontHeading, "GAUNTLET MODE", col2_cx, D_LY(gaunt_hdr_y), &colYellow);
     }
 
+    int gaunt_text_x = cfg ? cfg->dev_help_gaunt_text_x : 343;
+    int gaunt_text_y = cfg ? cfg->dev_help_gaunt_text_y : 132;
+    int gaunt_spacing = cfg ? cfg->dev_help_gaunt_text_spacing : 21;
+
     if (fontBody) {
-        int g_text_x = col2_cx - D_LX(135);
-        ztk_draw_text_left(graphics, fontBody, "* All Levels Unlocked in Gauntlet", g_text_x, D_LY(132), &colWhite);
-        ztk_draw_text_left(graphics, fontBody, "* Practice & Survival Modes Active", g_text_x, D_LY(153), &colWhite);
-        ztk_draw_text_left(graphics, fontBody, "* Full Sun God Rank Access Unlocked", g_text_x, D_LY(172), &colGold);
-        ztk_draw_text_left(graphics, fontBody, "* Jump to Any Difficulty Tier or Map", g_text_x, D_LY(191), &colAmber);
+        int g_text_x = col2_cx - D_LX(col2_base - gaunt_text_x);
+        ztk_draw_text_left(graphics, fontBody, "* All Levels Unlocked in Gauntlet", g_text_x, D_LY(gaunt_text_y), &colWhite);
+        ztk_draw_text_left(graphics, fontBody, "* Practice & Survival Modes Active", g_text_x, D_LY(gaunt_text_y + gaunt_spacing), &colWhite);
+        ztk_draw_text_left(graphics, fontBody, "* Full Sun God Rank Access Unlocked", g_text_x, D_LY(gaunt_text_y + gaunt_spacing * 2), &colGold);
+        ztk_draw_text_left(graphics, fontBody, "* Jump to Any Difficulty Tier or Map", g_text_x, D_LY(gaunt_text_y + gaunt_spacing * 3), &colAmber);
     }
 
     /* =========================================================================
      * SECTION 3 (BOTTOM): MIDDLE MOUSE BUTTON CHEAT (Center: col1_cx)
      * ========================================================================= */
+    int cheat_hdr_y = cfg ? cfg->dev_help_cheat_header_y : 282;
     if (fontHeading) {
         ztk_draw_text_centered(graphics, fontHeading,
-            "MIDDLE MOUSE BUTTON", col1_cx, D_LY(282), &colCyan);
+            "MIDDLE MOUSE BUTTON", col1_cx, D_LY(cheat_hdr_y), &colCyan);
     }
+
+    int cheat_text_x = cfg ? cfg->dev_help_cheat_text_x : 30;
+    int cheat_text_y = cfg ? cfg->dev_help_cheat_text_y : 304;
+    int cheat_spacing = cfg ? cfg->dev_help_cheat_text_spacing : 18;
 
     if (fontBody) {
         ztk_draw_text_left(graphics, fontBody,
-            "Just play normally, or click Middle Mouse", D_LX(30), D_LY(304), &colWhite);
+            "Just play normally, or click Middle Mouse", D_LX(cheat_text_x), D_LY(cheat_text_y), &colWhite);
         ztk_draw_text_left(graphics, fontBody,
-            "Button at any time to end it all and advance!", D_LX(30), D_LY(322), &colWhite);
+            "Button at any time to end it all and advance!", D_LX(cheat_text_x), D_LY(cheat_text_y + cheat_spacing), &colWhite);
         ztk_draw_text_left(graphics, fontBody,
-            "* Instantly awards full target score", D_LX(30), D_LY(344), &colGold);
+            "* Instantly awards full target score", D_LX(cheat_text_x), D_LY(cheat_text_y + cheat_spacing * 2), &colGold);
         ztk_draw_text_left(graphics, fontBody,
-            "* Triggers Zuma DestroyAll & clears all balls", D_LX(30), D_LY(362), &colGold);
+            "* Triggers Zuma DestroyAll & clears all balls", D_LX(cheat_text_x), D_LY(cheat_text_y + cheat_spacing * 3), &colGold);
         ztk_draw_text_left(graphics, fontBody,
-            "* Automatically completes the current stage", D_LX(30), D_LY(380), &colAmber);
+            "* Automatically completes the current stage", D_LX(cheat_text_x), D_LY(cheat_text_y + cheat_spacing * 4), &colAmber);
     }
 
     /* =========================================================================
@@ -1729,17 +1811,18 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     int cycle = update_cnt % 180;
     int is_clicking = (cycle >= 100 && cycle <= 145);
 
-    /* 5 Zuma balls spaced 32px apart (total 160px) centered at col2_cx */
+    /* 5 Zuma balls spaced 32px apart centered at col2_cx */
+    int ball_spacing = cfg ? cfg->dev_help_demo_balls_spacing : 32;
     int ball_center_x = col2_cx;
-    int base_ball_x = ball_center_x - (5 * 32) / 2;
+    int base_ball_x = ball_center_x - (5 * ball_spacing) / 2;
     int ball_x[5] = {
         base_ball_x,
-        base_ball_x + 32,
-        base_ball_x + 64,
-        base_ball_x + 96,
-        base_ball_x + 128
+        base_ball_x + ball_spacing,
+        base_ball_x + ball_spacing * 2,
+        base_ball_x + ball_spacing * 3,
+        base_ball_x + ball_spacing * 4
     };
-    int ball_y = D_LY(295);
+    int ball_y = D_LY(cfg ? cfg->dev_help_demo_balls_y : 295);
 
     /* Clockwise ball rotation with slow cadence */
     int ball_cel = (50 - ((update_cnt / 3) % 50)) % 50;
@@ -1796,15 +1879,16 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     } else {
         /* PHASE 3: Balls fully cleared (Clear!) */
         if (fontBody) {
-            ztk_draw_text_centered(graphics, fontBody, "STAGE CLEARED!", ball_center_x, ball_y + 8, &colGold);
+            int clear_y = cfg ? cfg->dev_help_demo_clear_y : 303;
+            ztk_draw_text_centered(graphics, fontBody, "STAGE CLEARED!", ball_center_x, D_LY(clear_y), &colGold);
         }
     }
 
     /* Mouse animation icon centered beneath 5 balls (Sprite tut_mouse_m unscaled 40x29) */
     if (imgTutMouseM) {
         int cel = is_clicking ? 1 : 0;
-        int mouse_y = D_LY(350);
-        int mouse_x = ball_center_x + 30;
+        int mouse_x = (cfg && cfg->help_dev_mouse_m_x != 465 && cfg->help_dev_mouse_m_x != 0) ? D_LX(cfg->help_dev_mouse_m_x) : (ball_center_x + 30);
+        int mouse_y = (cfg && cfg->help_dev_mouse_m_y != 145 && cfg->help_dev_mouse_m_y != 0) ? D_LY(cfg->help_dev_mouse_m_y) : D_LY(350);
 
         /* Animation status label above mouse: Arial CLICK! when middle button is pressed */
         if (is_clicking && fontPlain) {

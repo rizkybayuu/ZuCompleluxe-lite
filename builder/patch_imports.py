@@ -89,6 +89,20 @@ NEW_DLLS = [
     ('zumadisplay.dll', [
         'ZDISP_IsActive',
         'ZDISP_ScreenToGameCoords'
+    ]),
+    ('zumapriolayer.dll', [
+        'ZPL_Init',
+        'ZPL_OnLoadBegin',
+        'ZPL_OnHoleMgrDestroy',
+        'ZPL_GetListBase',
+        'ZPL_DrawHigh',
+        'ZPL_DrawLow',
+        'ZPL_DrawBake',
+        'ZPL_GetPriRange',
+        'ZPL_GetList',
+        'ZPL_DrawNode',
+        'ZPL_HwBlendHook',
+        'ZPL_OnStateDraw'
     ])
 ]
 

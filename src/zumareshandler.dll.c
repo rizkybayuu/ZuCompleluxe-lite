@@ -29,7 +29,7 @@
 #define FC __attribute__((fastcall))
 #define THISCALL __attribute__((thiscall))
 
-static void LogF(const char *fmt, ...)
+void LogF(const char *fmt, ...)
 {
     char buf[512];
     va_list ap;
@@ -59,6 +59,8 @@ static void LogF(const char *fmt, ...)
     }
 }
 
+#include "zrh_layout.h"
+#include "zrh_layout.c"
 
 static int g_W = TARGET_W, g_H = TARGET_H;
 
@@ -137,6 +139,8 @@ static void InitResolutionState(void)
     ZRES_Api.dim[0] = g_W;
     ZRES_Api.dim[1] = g_H;
     Offsets(g_W, g_H, &ZRES_Api.off[0], &ZRES_Api.off[1], NULL, NULL);
+    ZRH_InitLayoutDefaults();
+    ZRH_LoadLayoutXml();
 }
 
 static void *FindPattern(const char *pattern);
@@ -279,17 +283,25 @@ static void *InitOutscreenImage(void) {
     return s_pOutscreenImg;
 }
 
+#ifndef THISCALL
+#define THISCALL __attribute__((thiscall))
+#endif
 typedef void (THISCALL *fWMResize)(void *wm, int width, int height);
 typedef void (THISCALL *fDrawImage)(void *g, void *img, int x, int y);
 typedef void (THISCALL *fDrawImageStretch)(void *g, void *img, const int *destRect, const int *srcRect);
+typedef void (THISCALL *fDrawString)(void *g, void *str, int x, int y);
+typedef void (THISCALL *fDrawStringWordWrap)(void *g, void *font, int *rect, void *str, int line_spacing, int max_lines);
 static fWMResize         g_pfnWMResize = NULL;
 static fDrawImage        g_pfnDrawImage = NULL;
 static fDrawImageStretch g_pfnDrawImageStretch = NULL;
+static fDrawString       g_pfnDrawString = NULL;
 
 static void EnsureGraphicsFns(void) {
     if (!g_pfnDrawImage) {
         g_pfnDrawImage        = (fDrawImage)FindPattern("55 8B EC 83 EC 20 53 56 8B F1 8B 5E 08 8B 56 0C");
         g_pfnDrawImageStretch = (fDrawImageStretch)FindPattern("55 8B EC 83 EC 50 8B 45 0C 53 8B 18 56 8B F1 8B 56 0C");
+        g_pfnDrawString       = (fDrawString)FindPattern("55 8B EC 8B C1 8B 48 40 85 C9 74 1C 8B 11 56 8D 70 10");
+        if (!g_pfnDrawString) g_pfnDrawString = (fDrawString)0x447DF0;
         g_pfnWMResize         = (fWMResize)FindPattern("55 8B EC 8B 45 08 56 8B F1 39 46 1C 8B 4D 0C");
     }
 }
@@ -642,7 +654,6 @@ static inline int PARENT_LOCAL_Y(int v) {
     return SDIM_VAL(v);
 }
 
-#define THISCALL __attribute__((thiscall))
 typedef void (THISCALL *fWidgetResize)(void *w, int x, int y, int width, int height);
 typedef void (THISCALL *fDrawDoors)(void *this, void *g, int start, int end);
 typedef void (THISCALL *fSetDrawMode)(void *g, int mode);
@@ -695,18 +706,12 @@ static void PopulateAdventureDoors(void *this) {
     if (!this) return;
     struct AdventureDoor *d = (struct AdventureDoor *)((char *)this + 0x68);
 
-    d[0].mX1  = PARENT_LOCAL_X(226); d[0].mY1  = PARENT_LOCAL_Y(300); d[0].mX2  = PARENT_LOCAL_X(256); d[0].mY2  = PARENT_LOCAL_Y(361);
-    d[1].mX1  = PARENT_LOCAL_X(296); d[1].mY1  = PARENT_LOCAL_Y(270); d[1].mX2  = PARENT_LOCAL_X(327); d[1].mY2  = PARENT_LOCAL_Y(364);
-    d[2].mX1  = PARENT_LOCAL_X(366); d[2].mY1  = PARENT_LOCAL_Y(300); d[2].mX2  = PARENT_LOCAL_X(398); d[2].mY2  = PARENT_LOCAL_Y(360);
-    d[3].mX1  = PARENT_LOCAL_X(0);   d[3].mY1  = PARENT_LOCAL_Y(164); d[3].mX2  = PARENT_LOCAL_X(56);  d[3].mY2  = PARENT_LOCAL_Y(218);
-    d[4].mX1  = PARENT_LOCAL_X(69);  d[4].mY1  = PARENT_LOCAL_Y(159); d[4].mX2  = PARENT_LOCAL_X(116); d[4].mY2  = PARENT_LOCAL_Y(201);
-    d[5].mX1  = PARENT_LOCAL_X(120); d[5].mY1  = PARENT_LOCAL_Y(155); d[5].mX2  = PARENT_LOCAL_X(167); d[5].mY2  = PARENT_LOCAL_Y(188);
-    d[6].mX1  = PARENT_LOCAL_X(452); d[6].mY1  = PARENT_LOCAL_Y(154); d[6].mX2  = PARENT_LOCAL_X(462); d[6].mY2  = PARENT_LOCAL_Y(188);
-    d[7].mX1  = PARENT_LOCAL_X(509); d[7].mY1  = PARENT_LOCAL_Y(154); d[7].mX2  = PARENT_LOCAL_X(521); d[7].mY2  = PARENT_LOCAL_Y(192);
-    d[8].mX1  = PARENT_LOCAL_X(568); d[8].mY1  = PARENT_LOCAL_Y(154); d[8].mX2  = PARENT_LOCAL_X(584); d[8].mY2  = PARENT_LOCAL_Y(196);
-    d[9].mX1  = PARENT_LOCAL_X(220); d[9].mY1  = PARENT_LOCAL_Y(35);  d[9].mX2  = PARENT_LOCAL_X(248); d[9].mY2  = PARENT_LOCAL_Y(86);
-    d[10].mX1 = PARENT_LOCAL_X(291); d[10].mY1 = PARENT_LOCAL_Y(35);  d[10].mX2 = PARENT_LOCAL_X(324); d[10].mY2 = PARENT_LOCAL_Y(86);
-    d[11].mX1 = PARENT_LOCAL_X(369); d[11].mY1 = PARENT_LOCAL_Y(35);  d[11].mX2 = PARENT_LOCAL_X(408); d[11].mY2 = PARENT_LOCAL_Y(85);
+    for (int i = 0; i < 12; i++) {
+        d[i].mX1 = PARENT_LOCAL_X(g_layout.adv_doors[i].x1);
+        d[i].mY1 = PARENT_LOCAL_Y(g_layout.adv_doors[i].y1);
+        d[i].mX2 = PARENT_LOCAL_X(g_layout.adv_doors[i].x2);
+        d[i].mY2 = PARENT_LOCAL_Y(g_layout.adv_doors[i].y2);
+    }
 }
 
 struct GauntletDoor {
@@ -720,17 +725,17 @@ struct GauntletDoor {
 static void PopulateGauntletDoors(void *this) {
     if (!this) return;
     struct GauntletDoor *gd = (struct GauntletDoor *)((char *)this + 0x9C);
-    gd[0].mX = PARENT_LOCAL_X(209); gd[0].mY = PARENT_LOCAL_Y(179);
-    gd[1].mX = PARENT_LOCAL_X(232); gd[1].mY = PARENT_LOCAL_Y(129);
-    gd[2].mX = PARENT_LOCAL_X(249); gd[2].mY = PARENT_LOCAL_Y(82);
-    gd[3].mX = PARENT_LOCAL_X(265); gd[3].mY = PARENT_LOCAL_Y(28);
+    for (int i = 0; i < 4; i++) {
+        gd[i].mX = PARENT_LOCAL_X(g_layout.gaunt_doors[i].x);
+        gd[i].mY = PARENT_LOCAL_Y(g_layout.gaunt_doors[i].y);
+    }
 }
 
 /* Temple Draw Sidecar Hooks */
 static void THISCALL hk_adv_draw_temple1(void *this, void *g) {
     PopulateAdventureDoors(this);
     if (IMG_ADVTEMPLE1)
-        DrawImg(g, IMG_ADVTEMPLE1, PARENT_LOCAL_X(0), PARENT_LOCAL_Y(188));
+        DrawImg(g, IMG_ADVTEMPLE1, PARENT_LOCAL_X(g_layout.adv_temple1_x), PARENT_LOCAL_Y(g_layout.adv_temple1_y));
     DrawDoors(this, g, 0, 3);
 }
 
@@ -740,10 +745,10 @@ static void THISCALL hk_adv_draw_temple2(void *this, void *g) {
     int stage  = *(int *)((char *)this + 0x64);
     if (unlock != 2) {
         if (stage < 3) {
-            if (IMG_ADVTEMPLE2V) DrawImg(g, IMG_ADVTEMPLE2V, PARENT_LOCAL_X(0), PARENT_LOCAL_Y(112));
+            if (IMG_ADVTEMPLE2V) DrawImg(g, IMG_ADVTEMPLE2V, PARENT_LOCAL_X(g_layout.adv_temple2v_x), PARENT_LOCAL_Y(g_layout.adv_temple2v_y));
             return;
         }
-        if (IMG_ADVTEMPLE2) DrawImg(g, IMG_ADVTEMPLE2, PARENT_LOCAL_X(0), PARENT_LOCAL_Y(112));
+        if (IMG_ADVTEMPLE2) DrawImg(g, IMG_ADVTEMPLE2, PARENT_LOCAL_X(g_layout.adv_temple2_x), PARENT_LOCAL_Y(g_layout.adv_temple2_y));
         DrawDoors(this, g, 3, 6);
         return;
     }
@@ -754,10 +759,10 @@ static void THISCALL hk_adv_draw_temple2(void *this, void *g) {
     int col[4];
     ColorCtor(col, 255, 255, 255, 255 - alpha);
     SetColor(g, col);
-    if (IMG_ADVTEMPLE2V) DrawImg(g, IMG_ADVTEMPLE2V, PARENT_LOCAL_X(0), PARENT_LOCAL_Y(112));
+    if (IMG_ADVTEMPLE2V) DrawImg(g, IMG_ADVTEMPLE2V, PARENT_LOCAL_X(g_layout.adv_temple2v_x), PARENT_LOCAL_Y(g_layout.adv_temple2v_y));
     ColorCtor(col, 255, 255, 255, alpha);
     SetColor(g, col);
-    if (IMG_ADVTEMPLE2) DrawImg(g, IMG_ADVTEMPLE2, PARENT_LOCAL_X(0), PARENT_LOCAL_Y(112));
+    if (IMG_ADVTEMPLE2) DrawImg(g, IMG_ADVTEMPLE2, PARENT_LOCAL_X(g_layout.adv_temple2_x), PARENT_LOCAL_Y(g_layout.adv_temple2_y));
     DrawDoors(this, g, 3, 6);
     SetDrawMode(g, 0);
 }
@@ -768,10 +773,10 @@ static void THISCALL hk_adv_draw_temple3(void *this, void *g) {
     int stage  = *(int *)((char *)this + 0x64);
     if (unlock != 3) {
         if (stage < 6) {
-            if (IMG_ADVTEMPLE3V) DrawImg(g, IMG_ADVTEMPLE3V, PARENT_LOCAL_X(395), PARENT_LOCAL_Y(125));
+            if (IMG_ADVTEMPLE3V) DrawImg(g, IMG_ADVTEMPLE3V, PARENT_LOCAL_X(g_layout.adv_temple3v_x), PARENT_LOCAL_Y(g_layout.adv_temple3v_y));
             return;
         }
-        if (IMG_ADVTEMPLE3) DrawImg(g, IMG_ADVTEMPLE3, PARENT_LOCAL_X(395), PARENT_LOCAL_Y(125));
+        if (IMG_ADVTEMPLE3) DrawImg(g, IMG_ADVTEMPLE3, PARENT_LOCAL_X(g_layout.adv_temple3_x), PARENT_LOCAL_Y(g_layout.adv_temple3_y));
         DrawDoors(this, g, 6, 9);
         return;
     }
@@ -782,10 +787,10 @@ static void THISCALL hk_adv_draw_temple3(void *this, void *g) {
     int col[4];
     ColorCtor(col, 255, 255, 255, 255 - alpha);
     SetColor(g, col);
-    if (IMG_ADVTEMPLE3V) DrawImg(g, IMG_ADVTEMPLE3V, PARENT_LOCAL_X(395), PARENT_LOCAL_Y(125));
+    if (IMG_ADVTEMPLE3V) DrawImg(g, IMG_ADVTEMPLE3V, PARENT_LOCAL_X(g_layout.adv_temple3v_x), PARENT_LOCAL_Y(g_layout.adv_temple3v_y));
     ColorCtor(col, 255, 255, 255, alpha);
     SetColor(g, col);
-    if (IMG_ADVTEMPLE3) DrawImg(g, IMG_ADVTEMPLE3, PARENT_LOCAL_X(395), PARENT_LOCAL_Y(125));
+    if (IMG_ADVTEMPLE3) DrawImg(g, IMG_ADVTEMPLE3, PARENT_LOCAL_X(g_layout.adv_temple3_x), PARENT_LOCAL_Y(g_layout.adv_temple3_y));
     DrawDoors(this, g, 6, 9);
     SetDrawMode(g, 0);
 }
@@ -796,24 +801,24 @@ static void THISCALL hk_adv_draw_temple4(void *this, void *g) {
     int stage  = *(int *)((char *)this + 0x64);
     if (unlock != 4) {
         if (stage < 9) return;
-        if (IMG_ADVTEMPLE4) DrawImg(g, IMG_ADVTEMPLE4, PARENT_LOCAL_X(174), PARENT_LOCAL_Y(1));
+        if (IMG_ADVTEMPLE4) DrawImg(g, IMG_ADVTEMPLE4, PARENT_LOCAL_X(g_layout.adv_temple4_x), PARENT_LOCAL_Y(g_layout.adv_temple4_y));
         DrawDoors(this, g, 9, 12);
-        if (IMG_ADVMIDDLE) DrawImg(g, IMG_ADVMIDDLE, PARENT_LOCAL_X(0), PARENT_LOCAL_Y(72));
+        if (IMG_ADVMIDDLE) DrawImg(g, IMG_ADVMIDDLE, PARENT_LOCAL_X(g_layout.adv_middle_x), PARENT_LOCAL_Y(g_layout.adv_middle_y));
         return;
     }
     int trans = *(int *)((char *)this + 0x1DC);
     if (trans < 0) {
-        if (IMG_ADVMIDDLE) DrawImg(g, IMG_ADVMIDDLE, PARENT_LOCAL_X(0), PARENT_LOCAL_Y(72));
+        if (IMG_ADVMIDDLE) DrawImg(g, IMG_ADVMIDDLE, PARENT_LOCAL_X(g_layout.adv_middle_x), PARENT_LOCAL_Y(g_layout.adv_middle_y));
         return;
     }
     int diff = 300 - trans;
     int shift = (int)((((unsigned long long)(diff * diff)) * 0x1B4E81B5ULL) >> 37);
     int transX = *(int *)((char *)this + 0x1D0);
     TranslateG(g, transX, shift);
-    if (IMG_ADVTEMPLE4) DrawImg(g, IMG_ADVTEMPLE4, PARENT_LOCAL_X(174), PARENT_LOCAL_Y(1));
+    if (IMG_ADVTEMPLE4) DrawImg(g, IMG_ADVTEMPLE4, PARENT_LOCAL_X(g_layout.adv_temple4_x), PARENT_LOCAL_Y(g_layout.adv_temple4_y));
     DrawDoors(this, g, 9, 12);
     TranslateG(g, -transX, -shift);
-    if (IMG_ADVMIDDLE) DrawImg(g, IMG_ADVMIDDLE, PARENT_LOCAL_X(0), PARENT_LOCAL_Y(72));
+    if (IMG_ADVMIDDLE) DrawImg(g, IMG_ADVMIDDLE, PARENT_LOCAL_X(g_layout.adv_middle_x), PARENT_LOCAL_Y(g_layout.adv_middle_y));
 }
 
 static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h) {
@@ -825,14 +830,14 @@ static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h)
     void *t3 = *(void **)((char *)this + 0x68);
     void *btn = *(void **)((char *)this + 0x6C);
 
-    if (t0) (*(fWidgetResize *)(*(void ***)t0 + 0x34/4))(t0, PARENT_LOCAL_X(58), PARENT_LOCAL_Y(107), SDIM_VAL(250), SDIM_VAL(150));
-    if (t1) (*(fWidgetResize *)(*(void ***)t1 + 0x34/4))(t1, PARENT_LOCAL_X(330), PARENT_LOCAL_Y(107), SDIM_VAL(250), SDIM_VAL(150));
-    if (t2) (*(fWidgetResize *)(*(void ***)t2 + 0x34/4))(t2, PARENT_LOCAL_X(58), PARENT_LOCAL_Y(277), SDIM_VAL(250), SDIM_VAL(150));
-    if (t3) (*(fWidgetResize *)(*(void ***)t3 + 0x34/4))(t3, PARENT_LOCAL_X(330), PARENT_LOCAL_Y(277), SDIM_VAL(250), SDIM_VAL(150));
+    if (t0) (*(fWidgetResize *)(*(void ***)t0 + 0x34/4))(t0, PARENT_LOCAL_X(g_layout.mg_t0_x), PARENT_LOCAL_Y(g_layout.mg_t0_y), SDIM_VAL(g_layout.mg_t0_w), SDIM_VAL(g_layout.mg_t0_h));
+    if (t1) (*(fWidgetResize *)(*(void ***)t1 + 0x34/4))(t1, PARENT_LOCAL_X(g_layout.mg_t1_x), PARENT_LOCAL_Y(g_layout.mg_t1_y), SDIM_VAL(g_layout.mg_t1_w), SDIM_VAL(g_layout.mg_t1_h));
+    if (t2) (*(fWidgetResize *)(*(void ***)t2 + 0x34/4))(t2, PARENT_LOCAL_X(g_layout.mg_t2_x), PARENT_LOCAL_Y(g_layout.mg_t2_y), SDIM_VAL(g_layout.mg_t2_w), SDIM_VAL(g_layout.mg_t2_h));
+    if (t3) (*(fWidgetResize *)(*(void ***)t3 + 0x34/4))(t3, PARENT_LOCAL_X(g_layout.mg_t3_x), PARENT_LOCAL_Y(g_layout.mg_t3_y), SDIM_VAL(g_layout.mg_t3_w), SDIM_VAL(g_layout.mg_t3_h));
     if (btn) {
         int bw = *(int *)((char *)btn + 0x10);
         int bh = *(int *)((char *)btn + 0x14);
-        (*(fWidgetResize *)(*(void ***)btn + 0x34/4))(btn, PARENT_LOCAL_X(164), PARENT_LOCAL_Y(445), bw, bh);
+        (*(fWidgetResize *)(*(void ***)btn + 0x34/4))(btn, PARENT_LOCAL_X(g_layout.mg_btn_back_x), PARENT_LOCAL_Y(g_layout.mg_btn_back_y), bw, bh);
     }
 }
 
@@ -928,6 +933,162 @@ static void THISCALL hk_cached_thumbnail_scale(void *g, void *img, const int *de
     g_pfnDrawImageStretch(g, img, destRect, crop_src);
 }
 
+static void THISCALL hk_draw_gauntlet_card(void *g, void *card_img, int x, int y) {
+    if (!g || !card_img) return;
+    void *dest_img = *(void **)((char *)g + 4);
+    if (!dest_img || !g_pfnDrawImageStretch) {
+        DrawImg(g, card_img, x, y);
+        return;
+    }
+    int dest_w = *(int *)((char *)dest_img + 4);
+    int dest_h = *(int *)((char *)dest_img + 8);
+    int src_w  = *(int *)((char *)card_img + 4);
+    int src_h  = *(int *)((char *)card_img + 8);
+    if (dest_w > 0 && dest_h > 0 && src_w > 0 && src_h > 0) {
+        int destRect[4] = { 0, 0, dest_w, dest_h };
+        int srcRect[4]  = { 0, 0, src_w,  src_h  };
+        g_pfnDrawImageStretch(g, card_img, destRect, srcRect);
+    } else {
+        DrawImg(g, card_img, x, y);
+    }
+}
+
+static void PatchCall6(void *site, void *new_target, const char *name) {
+    if (!site) return;
+    unsigned char expected[6] = { 0xFF, 0x92, 0x88, 0x00, 0x00, 0x00 };
+    if (memcmp(site, expected, 6) != 0) {
+        LogF("[ZRES] PatchCall6 mismatch @ %p for %s", site, name);
+        return;
+    }
+    DWORD old_prot;
+    VirtualProtect(site, 6, PAGE_EXECUTE_READWRITE, &old_prot);
+    *(unsigned char *)site = 0xE8;
+    *(DWORD *)((char *)site + 1) = (DWORD)((char *)new_target - ((char *)site + 5));
+    *((unsigned char *)site + 5) = 0x90;
+    VirtualProtect(site, 6, old_prot, &old_prot);
+    LogF("[ZRES] Patched 6-byte virtual call %s @ %p -> %p", name, site, new_target);
+}
+
+/* 1. Gauntlet Title Image Hook */
+static void THISCALL hk_DrawGauntletTitle(void *g, void *img, int x, int y) {
+    int rx = PARENT_LOCAL_X(g_layout.gaunt_title_x);
+    int ry = PARENT_LOCAL_Y(g_layout.gaunt_title_y);
+    DrawImg(g, img, rx, ry);
+}
+
+/* 2. Gauntlet Highscore Title Image Hook */
+static void THISCALL hk_DrawGauntletHsTitle(void *g, void *img, int x, int y) {
+    int rx = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x);
+    int ry = PARENT_LOCAL_Y(g_layout.gaunt_hs_title_y);
+    DrawImg(g, img, rx, ry);
+}
+
+/* 3. Adventure Highscore Title Image Hook */
+static void THISCALL hk_DrawAdventureHsTitle(void *g, void *img, int x, int y) {
+    int rx = PARENT_LOCAL_X(g_layout.adv_hs_title_x);
+    int ry = PARENT_LOCAL_Y(g_layout.adv_hs_title_y);
+    DrawImg(g, img, rx, ry);
+}
+
+/* 4. Gauntlet Highscore Scores DrawString Hook */
+static void THISCALL hk_DrawGauntletScore(void *g, void *str, int x, int y) {
+    int row = (y >= 70) ? ((y - 70) / 18) : 0;
+    if (row < 0 || row > 10) row = 0;
+    int base_y = PARENT_LOCAL_Y(g_layout.gaunt_hs_base_y);
+    int spacing = g_layout.gaunt_hs_spacing ? SDIM_VAL(g_layout.gaunt_hs_spacing) : 18;
+    int real_y = base_y + row * spacing;
+
+    int real_x;
+    if (g_layout.gaunt_hs_scores_x != 575) {
+        real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_scores_x);
+    } else {
+        /* Adaptively align to the right edge of 'SCORES' on gaunthighscore.gif */
+        real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x + 185) - 44;
+    }
+    if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
+}
+
+/* 5. Gauntlet Highscore Names DrawString Hook */
+static void THISCALL hk_DrawGauntletName(void *g, void *str, int x, int y) {
+    int row = (y >= 70) ? ((y - 70) / 18) : 0;
+    if (row < 0 || row > 10) row = 0;
+    int base_y = PARENT_LOCAL_Y(g_layout.gaunt_hs_base_y);
+    int spacing = g_layout.gaunt_hs_spacing ? SDIM_VAL(g_layout.gaunt_hs_spacing) : 18;
+    int real_y = base_y + row * spacing;
+
+    int real_x;
+    if (g_layout.gaunt_hs_names_x != 445) {
+        real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_names_x);
+    } else {
+        /* Synchronously track Gauntlet Highscore Title */
+        real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x + 11);
+    }
+    if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
+}
+
+/* 6. Adventure Highscore Scores DrawString Hook */
+static void THISCALL hk_DrawAdventureScore(void *g, void *str, int x, int y) {
+    int row = (y >= 70) ? ((y - 70) / 18) : 0;
+    if (row < 0 || row > 10) row = 0;
+    int base_y = PARENT_LOCAL_Y(g_layout.adv_hs_base_y);
+    int spacing = g_layout.adv_hs_spacing ? SDIM_VAL(g_layout.adv_hs_spacing) : 18;
+    int real_y = base_y + row * spacing;
+
+    int real_x;
+    if (g_layout.adv_hs_scores_x != 575) {
+        real_x = PARENT_LOCAL_X(g_layout.adv_hs_scores_x);
+    } else {
+        /* Adaptively align to the right edge of 'SCORES' on advhighscore.gif */
+        real_x = PARENT_LOCAL_X(g_layout.adv_hs_title_x + 163) - 44;
+    }
+    if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
+}
+
+/* 7. Adventure Highscore Names DrawString Hook */
+static void THISCALL hk_DrawAdventureName(void *g, void *str, int x, int y) {
+    int row = (y >= 70) ? ((y - 70) / 18) : 0;
+    if (row < 0 || row > 10) row = 0;
+    int base_y = PARENT_LOCAL_Y(g_layout.adv_hs_base_y);
+    int spacing = g_layout.adv_hs_spacing ? SDIM_VAL(g_layout.adv_hs_spacing) : 18;
+    int real_y = base_y + row * spacing;
+
+    int real_x;
+    if (g_layout.adv_hs_names_x != 470) {
+        real_x = PARENT_LOCAL_X(g_layout.adv_hs_names_x);
+    } else {
+        real_x = PARENT_LOCAL_X(g_layout.adv_hs_title_x + 14);
+    }
+    if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
+}
+
+/* 8. Gauntlet InfoBox DrawStringWordWrap Hook */
+static void THISCALL hk_GauntletWordWrap(void *g, void *font, int *rect, void *str, int line_spacing, int max_lines) {
+    if (rect) {
+        rect[0] = PARENT_LOCAL_X(g_layout.gaunt_infobox_x);
+        rect[1] = PARENT_LOCAL_Y(g_layout.gaunt_infobox_y);
+        rect[2] = g_layout.gaunt_infobox_w; /* keep canonical width so unscaled font wraps identically */
+        rect[3] = SDIM_VAL(g_layout.gaunt_infobox_h);
+    }
+    int ls = g_layout.gaunt_infobox_line_spacing ? SDIM_VAL(g_layout.gaunt_infobox_line_spacing) : line_spacing;
+    void **vtable = *(void ***)g;
+    fDrawStringWordWrap orig = (fDrawStringWordWrap)(vtable[0x88 / sizeof(void*)]);
+    orig(g, font, rect, str, ls, max_lines);
+}
+
+/* 9. Adventure InfoBox DrawStringWordWrap Hook */
+static void THISCALL hk_AdventureWordWrap(void *g, void *font, int *rect, void *str, int line_spacing, int max_lines) {
+    if (rect) {
+        rect[0] = PARENT_LOCAL_X(g_layout.adv_infobox_x);
+        rect[1] = PARENT_LOCAL_Y(g_layout.adv_infobox_y);
+        rect[2] = g_layout.adv_infobox_w; /* keep canonical width so unscaled font wraps identically */
+        rect[3] = SDIM_VAL(g_layout.adv_infobox_h);
+    }
+    int ls = g_layout.adv_infobox_line_spacing ? SDIM_VAL(g_layout.adv_infobox_line_spacing) : line_spacing;
+    void **vtable = *(void ***)g;
+    fDrawStringWordWrap orig = (fDrawStringWordWrap)(vtable[0x88 / sizeof(void*)]);
+    orig(g, font, rect, str, ls, max_lines);
+}
+
 static void THISCALL hk_DrawHappyEnding(void *g, void *img, int x, int y);
 
 static void THISCALL hk_gauntlet_resize(void *this, int x, int y, int w, int h) {
@@ -942,36 +1103,23 @@ static void THISCALL hk_gauntlet_resize(void *this, int x, int y, int w, int h) 
     void *btn_next     = *(void **)((char *)this + 0x70);
     void *btn_play     = *(void **)((char *)this + 0x6C);
 
-    char vis = (x == 0);
     if (btn_practice) {
-        (*(fWidgetResize *)(*(void ***)btn_practice + 0x34/4))(btn_practice, x + PARENT_LOCAL_X(177), y + PARENT_LOCAL_Y(444), *(int*)((char*)btn_practice+16), *(int*)((char*)btn_practice+20));
-        *(char *)((char *)btn_practice + 0x18) = vis;
-        *(char *)((char *)btn_practice + 0x19) = vis;
+        (*(fWidgetResize *)(*(void ***)btn_practice + 0x34/4))(btn_practice, x + PARENT_LOCAL_X(g_layout.gaunt_btn_practice_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_practice_y), *(int*)((char*)btn_practice+16), *(int*)((char*)btn_practice+20));
     }
     if (btn_survival) {
-        (*(fWidgetResize *)(*(void ***)btn_survival + 0x34/4))(btn_survival, x + PARENT_LOCAL_X(277), y + PARENT_LOCAL_Y(444), *(int*)((char*)btn_survival+16), *(int*)((char*)btn_survival+20));
-        *(char *)((char *)btn_survival + 0x18) = vis;
-        *(char *)((char *)btn_survival + 0x19) = vis;
+        (*(fWidgetResize *)(*(void ***)btn_survival + 0x34/4))(btn_survival, x + PARENT_LOCAL_X(g_layout.gaunt_btn_survival_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_survival_y), *(int*)((char*)btn_survival+16), *(int*)((char*)btn_survival+20));
     }
     if (btn_back) {
-        (*(fWidgetResize *)(*(void ***)btn_back + 0x34/4))(btn_back, x + PARENT_LOCAL_X(390), y + PARENT_LOCAL_Y(444), *(int*)((char*)btn_back+16), *(int*)((char*)btn_back+20));
-        *(char *)((char *)btn_back + 0x18) = vis;
-        *(char *)((char *)btn_back + 0x19) = vis;
+        (*(fWidgetResize *)(*(void ***)btn_back + 0x34/4))(btn_back, x + PARENT_LOCAL_X(g_layout.gaunt_btn_back_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_back_y), *(int*)((char*)btn_back+16), *(int*)((char*)btn_back+20));
     }
     if (btn_mainmenu) {
-        (*(fWidgetResize *)(*(void ***)btn_mainmenu + 0x34/4))(btn_mainmenu, x + PARENT_LOCAL_X(10), y + PARENT_LOCAL_Y(422), *(int*)((char*)btn_mainmenu+16), *(int*)((char*)btn_mainmenu+20));
-        *(char *)((char *)btn_mainmenu + 0x18) = vis;
-        *(char *)((char *)btn_mainmenu + 0x19) = vis;
+        (*(fWidgetResize *)(*(void ***)btn_mainmenu + 0x34/4))(btn_mainmenu, x + PARENT_LOCAL_X(g_layout.gaunt_btn_mainmenu_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_mainmenu_y), *(int*)((char*)btn_mainmenu+16), *(int*)((char*)btn_mainmenu+20));
     }
     if (btn_next) {
-        (*(fWidgetResize *)(*(void ***)btn_next + 0x34/4))(btn_next, x + PARENT_LOCAL_X(506), y + PARENT_LOCAL_Y(413), *(int*)((char*)btn_next+16), *(int*)((char*)btn_next+20));
-        *(char *)((char *)btn_next + 0x18) = vis;
-        *(char *)((char *)btn_next + 0x19) = vis;
+        (*(fWidgetResize *)(*(void ***)btn_next + 0x34/4))(btn_next, x + PARENT_LOCAL_X(g_layout.gaunt_btn_next_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_next_y), *(int*)((char*)btn_next+16), *(int*)((char*)btn_next+20));
     }
     if (btn_play) {
-        (*(fWidgetResize *)(*(void ***)btn_play + 0x34/4))(btn_play, x + PARENT_LOCAL_X(505), y + PARENT_LOCAL_Y(446), *(int*)((char*)btn_play+16), *(int*)((char*)btn_play+20));
-        *(char *)((char *)btn_play + 0x18) = vis;
-        *(char *)((char *)btn_play + 0x19) = vis;
+        (*(fWidgetResize *)(*(void ***)btn_play + 0x34/4))(btn_play, x + PARENT_LOCAL_X(g_layout.gaunt_btn_play_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_play_y), *(int*)((char*)btn_play+16), *(int*)((char*)btn_play+20));
     }
 }
 
@@ -985,12 +1133,12 @@ static void THISCALL hk_adventure_resize(void *this, int x, int y, int w, int h)
 
     char vis = (x == 0);
     if (btn_mainmenu) {
-        (*(fWidgetResize *)(*(void ***)btn_mainmenu + 0x34/4))(btn_mainmenu, x + PARENT_LOCAL_X(0), y + PARENT_LOCAL_Y(438), *(int*)((char*)btn_mainmenu+16), *(int*)((char*)btn_mainmenu+20));
+        (*(fWidgetResize *)(*(void ***)btn_mainmenu + 0x34/4))(btn_mainmenu, x + PARENT_LOCAL_X(g_layout.adv_btn_mainmenu_x), y + PARENT_LOCAL_Y(g_layout.adv_btn_mainmenu_y), *(int*)((char*)btn_mainmenu+16), *(int*)((char*)btn_mainmenu+20));
         *(char *)((char *)btn_mainmenu + 0x18) = vis;
         *(char *)((char *)btn_mainmenu + 0x19) = vis;
     }
     if (btn_play) {
-        (*(fWidgetResize *)(*(void ***)btn_play + 0x34/4))(btn_play, x + PARENT_LOCAL_X(542), y + PARENT_LOCAL_Y(441), *(int*)((char*)btn_play+16), *(int*)((char*)btn_play+20));
+        (*(fWidgetResize *)(*(void ***)btn_play + 0x34/4))(btn_play, x + PARENT_LOCAL_X(g_layout.adv_btn_play_x), y + PARENT_LOCAL_Y(g_layout.adv_btn_play_y), *(int*)((char*)btn_play+16), *(int*)((char*)btn_play+20));
         *(char *)((char *)btn_play + 0x18) = vis;
         *(char *)((char *)btn_play + 0x19) = vis;
     }
@@ -1014,7 +1162,7 @@ static void THISCALL hk_dialog_virtual_resize(void *this, int x, int y, int w, i
             x = (cw - w) / 2;
             y = (ch - h) / 2;
         }
-        if (y < 10) y = 10;
+        if (y < g_layout.dev_dialog_min_top) y = g_layout.dev_dialog_min_top;
     }
     if (g_orig_DialogVirtualResize) {
         g_orig_DialogVirtualResize(this, x, y, w, h);
@@ -1035,7 +1183,7 @@ static void THISCALL hk_setup_dialog_resize(void *this, int x, int y, int w, int
         if (w > 0 && h > 0) {
             x = (W - w) / 2;
             y = (H - h) / 2;
-            if (y < 10) y = 10;
+            if (y < g_layout.dialog_min_top) y = g_layout.dialog_min_top;
         }
     } else {
         int xo = 0, yo = 0, cw = W, ch = H;
@@ -1043,7 +1191,7 @@ static void THISCALL hk_setup_dialog_resize(void *this, int x, int y, int w, int
         if (w > 0 && h > 0) {
             x = (cw - w) / 2;
             y = (ch - h) / 2;
-            if (y < 10) y = 10;
+            if (y < g_layout.dialog_min_top) y = g_layout.dialog_min_top;
         }
     }
     void **vt = *(void ***)this;
@@ -1326,11 +1474,12 @@ static void THISCALL hk_DrawCongratsTitle(void *board, void *g, int y, void *str
     void **vt = *(void ***)board;
     typedef void (THISCALL *fDrawCentered)(void *b, void *gfx, int yy, void *s);
     fDrawCentered orig = (fDrawCentered)vt[0x80 / 4];
-    orig(board, g, y, str);
+    orig(board, g, g_layout.congrats_title_y, str);
     if (g) *(int *)((char *)g + 0x08) += delta_x;
 }
 
 static void (THISCALL *g_orig_DrawCongratulations)(void *this, void *g) = NULL;
+
 static void THISCALL hk_DrawCongratulations(void *this, void *g) {
     int W = TARGET_W;
     int H = TARGET_H;
@@ -1546,13 +1695,13 @@ static void ApplyUIPatches(void) {
 
     /* 1. LoadingScreen (loaderbar & "Click Here To Play!" button) - Pure Local Coordinates */
     void *pLoadBarY = FindPattern("5D 01 00 00 68 80");
-    if (pLoadBarY) VerifyAndPatchDword(pLoadBarY, 349, PARENT_LOCAL_Y(349), "LoadingBarY");
+    if (pLoadBarY) VerifyAndPatchDword(pLoadBarY, 349, PARENT_LOCAL_Y(g_layout.load_bar_y), "LoadingBarY");
 
     void *pLoadBarX = FindPattern("80 00 00 00 89 4D E0 89 4D");
-    if (pLoadBarX) VerifyAndPatchDword(pLoadBarX, 128, PARENT_LOCAL_X(128), "LoadingBarX");
+    if (pLoadBarX) VerifyAndPatchDword(pLoadBarX, 128, PARENT_LOCAL_X(g_layout.load_bar_x), "LoadingBarX");
 
     void *pClickPlay = FindPattern("AE 01 00 00 03");
-    if (pClickPlay) VerifyAndPatchDword(pClickPlay, 430, PARENT_LOCAL_Y(430), "ClickToPlayY");
+    if (pClickPlay) VerifyAndPatchDword(pClickPlay, 430, PARENT_LOCAL_Y(g_layout.load_click_play_y), "ClickToPlayY");
 
     void *fnLoadResize = FindPattern("55 8B EC 8B 45 14 8B 55 0C 53 56 57 8B 7D 08 8B F1 8B 4D 10");
     if (fnLoadResize) {
@@ -1569,61 +1718,61 @@ static void ApplyUIPatches(void) {
 
     /* 2. MainMenu (5 buttons) - Pure Local Coordinates relative to Parent (0,0) */
     void *pBtn1Y = FindPattern("40 68 C4 01 00 00");
-    if (pBtn1Y) VerifyAndPatchByte(pBtn1Y, 64, (BYTE)PARENT_LOCAL_Y(64), "MainMenuBtn1Y");
+    if (pBtn1Y) VerifyAndPatchByte(pBtn1Y, 64, (BYTE)PARENT_LOCAL_Y(g_layout.mm_btn1_y), "MainMenuBtn1Y");
 
     void *pBtn1X = FindPattern("C4 01 00 00 56");
-    if (pBtn1X) VerifyAndPatchDword(pBtn1X, 452, PARENT_LOCAL_X(452), "MainMenuBtn1X");
+    if (pBtn1X) VerifyAndPatchDword(pBtn1X, 452, PARENT_LOCAL_X(g_layout.mm_btn1_x), "MainMenuBtn1X");
 
     void *pBtn2Y = FindPattern("99 00 00 00 68 B4");
-    if (pBtn2Y) VerifyAndPatchDword(pBtn2Y, 153, PARENT_LOCAL_Y(153), "MainMenuBtn2Y");
+    if (pBtn2Y) VerifyAndPatchDword(pBtn2Y, 153, PARENT_LOCAL_Y(g_layout.mm_btn2_y), "MainMenuBtn2Y");
 
     void *pBtn2X = FindPattern("B4 01 00 00 56");
-    if (pBtn2X) VerifyAndPatchDword(pBtn2X, 436, PARENT_LOCAL_X(436), "MainMenuBtn2X");
+    if (pBtn2X) VerifyAndPatchDword(pBtn2X, 436, PARENT_LOCAL_X(g_layout.mm_btn2_x), "MainMenuBtn2X");
 
     void *pBtn3Y = FindPattern("EC 00 00 00 68 A2");
-    if (pBtn3Y) VerifyAndPatchDword(pBtn3Y, 236, PARENT_LOCAL_Y(236), "MainMenuBtn3Y");
+    if (pBtn3Y) VerifyAndPatchDword(pBtn3Y, 236, PARENT_LOCAL_Y(g_layout.mm_btn3_y), "MainMenuBtn3Y");
 
     void *pBtn3X = FindPattern("A2 01 00 00 56");
-    if (pBtn3X) VerifyAndPatchDword(pBtn3X, 418, PARENT_LOCAL_X(418), "MainMenuBtn3X");
+    if (pBtn3X) VerifyAndPatchDword(pBtn3X, 418, PARENT_LOCAL_X(g_layout.mm_btn3_x), "MainMenuBtn3X");
 
     void *pBtn4Y = FindPattern("31 01 00 00 68 8A 01 00 00");
-    if (pBtn4Y) VerifyAndPatchDword(pBtn4Y, 305, PARENT_LOCAL_Y(305), "MainMenuBtn4Y");
+    if (pBtn4Y) VerifyAndPatchDword(pBtn4Y, 305, PARENT_LOCAL_Y(g_layout.mm_btn4_y), "MainMenuBtn4Y");
 
     void *pBtn4X = FindPattern("8A 01 00 00 56");
-    if (pBtn4X) VerifyAndPatchDword(pBtn4X, 394, PARENT_LOCAL_X(394), "MainMenuBtn4X");
+    if (pBtn4X) VerifyAndPatchDword(pBtn4X, 394, PARENT_LOCAL_X(g_layout.mm_btn4_x), "MainMenuBtn4X");
 
     void *pBtn5Y = FindPattern("3B 01 00 00 68 F0 01 00 00");
-    if (pBtn5Y) VerifyAndPatchDword(pBtn5Y, 315, PARENT_LOCAL_Y(315), "MainMenuBtn5Y");
+    if (pBtn5Y) VerifyAndPatchDword(pBtn5Y, 315, PARENT_LOCAL_Y(g_layout.mm_btn5_y), "MainMenuBtn5Y");
 
     void *pBtn5X = FindPattern("F0 01 00 00 56 6A");
-    if (pBtn5X) VerifyAndPatchDword(pBtn5X, 496, PARENT_LOCAL_X(496), "MainMenuBtn5X");
+    if (pBtn5X) VerifyAndPatchDword(pBtn5X, 496, PARENT_LOCAL_X(g_layout.mm_btn5_x), "MainMenuBtn5X");
 
     /* 3. MainMenu Frog Head & Sun Offsets - Pure Local Coordinates */
     void *pEyesInit = FindPattern("BF 00 00 00 B9 4B");
     if (pEyesInit) {
-        VerifyAndPatchDword(pEyesInit, 191, PARENT_LOCAL_X(191), "MainMenuEyesX");
-        VerifyAndPatchDword((char *)pEyesInit + 5, 331, PARENT_LOCAL_Y(331), "MainMenuEyesY");
+        VerifyAndPatchDword(pEyesInit, 191, PARENT_LOCAL_X(g_layout.mm_eyes_x), "MainMenuEyesX");
+        VerifyAndPatchDword((char *)pEyesInit + 5, 331, PARENT_LOCAL_Y(g_layout.mm_eyes_y), "MainMenuEyesY");
     }
 
     void *pSun1X = FindPattern("C1 6A BB 50");
     if (pSun1X) {
-        VerifyAndPatchByte(pSun1X, 0xC1, (BYTE)(int)(-63.0f * scale + 0.5f), "MainMenuSun1X");
-        VerifyAndPatchByte((char *)pSun1X + 2, 0xBB, (BYTE)(int)(-69.0f * scale + 0.5f), "MainMenuSun1Y");
+        VerifyAndPatchByte(pSun1X, 0xC1, (BYTE)(int)((float)g_layout.mm_sun1_x * scale + (g_layout.mm_sun1_x < 0 ? -0.5f : 0.5f)), "MainMenuSun1X");
+        VerifyAndPatchByte((char *)pSun1X + 2, 0xBB, (BYTE)(int)((float)g_layout.mm_sun1_y * scale + (g_layout.mm_sun1_y < 0 ? -0.5f : 0.5f)), "MainMenuSun1Y");
     }
 
     void *pSun2X = FindPattern("C1 6A BB 51");
     if (pSun2X) {
-        VerifyAndPatchByte(pSun2X, 0xC1, (BYTE)(int)(-63.0f * scale + 0.5f), "MainMenuSun2X");
-        VerifyAndPatchByte((char *)pSun2X + 2, 0xBB, (BYTE)(int)(-69.0f * scale + 0.5f), "MainMenuSun2Y");
+        VerifyAndPatchByte(pSun2X, 0xC1, (BYTE)(int)((float)g_layout.mm_sun2_x * scale + (g_layout.mm_sun2_x < 0 ? -0.5f : 0.5f)), "MainMenuSun2X");
+        VerifyAndPatchByte((char *)pSun2X + 2, 0xBB, (BYTE)(int)((float)g_layout.mm_sun2_y * scale + (g_layout.mm_sun2_y < 0 ? -0.5f : 0.5f)), "MainMenuSun2Y");
     }
 
     /* 4. MainMenu Frog Eyes: Idle coordinates, Raycast starts, Eyelid Blink */
     void *pEyeIdle = FindPattern("C7 45 DC 00 60 6B 40 8B 55 DC 89 50 04");
     if (pEyeIdle) {
-        double sc_eye1_x = 219.0 * scale;
-        double sc_eye1_y = 368.0 * scale;
-        double sc_eye2_x = 276.0 * scale;
-        double sc_eye2_y = 355.0 * scale;
+        double sc_eye1_x = (double)g_layout.mm_eye_idle1_x * scale;
+        double sc_eye1_y = (double)g_layout.mm_eye_idle1_y * scale;
+        double sc_eye2_x = (double)g_layout.mm_eye_idle2_x * scale;
+        double sc_eye2_y = (double)g_layout.mm_eye_idle2_y * scale;
         DWORD hi_eye1_x = *(DWORD*)((char*)&sc_eye1_x + 4);
         DWORD hi_eye1_y = *(DWORD*)((char*)&sc_eye1_y + 4);
         DWORD hi_eye2_x = *(DWORD*)((char*)&sc_eye2_x + 4);
@@ -1636,16 +1785,16 @@ static void ApplyUIPatches(void) {
 
     void *pEyeRay = FindPattern("C7 45 F0 1D 00 00 00 C7 45 F4 19 00 00 00 C7 45 E0 57 00 00 00 C7 45 E4 10 00 00 00");
     if (pEyeRay) {
-        VerifyAndPatchDword((char*)pEyeRay + 3,  29, (DWORD)(int)(29.0f * scale + 0.5f), "EyeRay1X");
-        VerifyAndPatchDword((char*)pEyeRay + 10, 25, (DWORD)(int)(25.0f * scale + 0.5f), "EyeRay1Y");
-        VerifyAndPatchDword((char*)pEyeRay + 17, 87, (DWORD)(int)(87.0f * scale + 0.5f), "EyeRay2X");
-        VerifyAndPatchDword((char*)pEyeRay + 24, 16, (DWORD)(int)(16.0f * scale + 0.5f), "EyeRay2Y");
+        VerifyAndPatchDword((char*)pEyeRay + 3,  29, (DWORD)(int)((float)g_layout.mm_eye_ray1_x * scale + 0.5f), "EyeRay1X");
+        VerifyAndPatchDword((char*)pEyeRay + 10, 25, (DWORD)(int)((float)g_layout.mm_eye_ray1_y * scale + 0.5f), "EyeRay1Y");
+        VerifyAndPatchDword((char*)pEyeRay + 17, 87, (DWORD)(int)((float)g_layout.mm_eye_ray2_x * scale + 0.5f), "EyeRay2X");
+        VerifyAndPatchDword((char*)pEyeRay + 24, 16, (DWORD)(int)((float)g_layout.mm_eye_ray2_y * scale + 0.5f), "EyeRay2Y");
     }
 
     void *pBlink = FindPattern("F7 00 00 00 68 BC 00 00 00 51 8B CE");
     if (pBlink) {
-        VerifyAndPatchDword(pBlink, 247, PARENT_LOCAL_Y(247), "EyeBlinkY");
-        VerifyAndPatchDword((char*)pBlink + 5, 188, PARENT_LOCAL_X(188), "EyeBlinkX");
+        VerifyAndPatchDword(pBlink, 247, PARENT_LOCAL_Y(g_layout.mm_blink_y), "EyeBlinkY");
+        VerifyAndPatchDword((char*)pBlink + 5, 188, PARENT_LOCAL_X(g_layout.mm_blink_x), "EyeBlinkX");
     }
 
     /* 5. MainMenu User and Welcome Centering */
@@ -1704,47 +1853,67 @@ static void ApplyUIPatches(void) {
     }
 
     void *pAdvHsTitle = FindPattern("C8 01 00 00 52");
-    if (pAdvHsTitle) VerifyAndPatchDword(pAdvHsTitle, 456, PARENT_LOCAL_X(456), "AdvHighscoreTitleX");
+    if (pAdvHsTitle) VerifyAndPatchDword(pAdvHsTitle, 456, PARENT_LOCAL_X(g_layout.adv_hs_title_x), "AdvHighscoreTitleX");
 
     void *pAdvBottomBoxY = FindPattern("7E 01 00 00 68 21 01 00 00");
     if (pAdvBottomBoxY) {
-        VerifyAndPatchDword(pAdvBottomBoxY, 382, PARENT_LOCAL_Y(382), "AdvBottomBoxY");
-        VerifyAndPatchDword((char*)pAdvBottomBoxY + 5, 289, PARENT_LOCAL_X(289), "AdvBottomBoxX");
+        VerifyAndPatchDword(pAdvBottomBoxY, 382, PARENT_LOCAL_Y(g_layout.adv_bottom_box_y), "AdvBottomBoxY");
+        VerifyAndPatchDword((char*)pAdvBottomBoxY + 5, 289, PARENT_LOCAL_X(g_layout.adv_bottom_box_x), "AdvBottomBoxX");
     }
 
     void *pAdvStageNum = FindPattern("68 8C 01 00 00 68 58 01 00 00 8D 45");
     if (pAdvStageNum) {
-        VerifyAndPatchDword((char*)pAdvStageNum + 1, 396, PARENT_LOCAL_Y(396), "AdvStageNumY");
-        VerifyAndPatchDword((char*)pAdvStageNum + 6, 344, PARENT_LOCAL_X(344), "AdvStageNumX");
+        VerifyAndPatchDword((char*)pAdvStageNum + 1, 396, PARENT_LOCAL_Y(g_layout.adv_stage_num_y), "AdvStageNumY");
+        VerifyAndPatchDword((char*)pAdvStageNum + 6, 344, PARENT_LOCAL_X(g_layout.adv_stage_num_x), "AdvStageNumX");
     }
 
     void *pAdvStageTextY = FindPattern("A6 01 00 00 8D 85 58 FF FF");
-    if (pAdvStageTextY) VerifyAndPatchDword(pAdvStageTextY, 422, PARENT_LOCAL_Y(422), "AdvStageTextY");
+    if (pAdvStageTextY) VerifyAndPatchDword(pAdvStageTextY, 422, PARENT_LOCAL_Y(g_layout.adv_stage_text_y), "AdvStageTextY");
 
     void *pAdvStageCenterX = FindPattern("46 01 00 00 2B C8 51 8D 55 CC");
-    if (pAdvStageCenterX) VerifyAndPatchDword(pAdvStageCenterX, 326, PARENT_LOCAL_X(326), "AdvStageCenterX");
+    if (pAdvStageCenterX) VerifyAndPatchDword(pAdvStageCenterX, 326, PARENT_LOCAL_X(g_layout.adv_stage_center_x), "AdvStageCenterX");
 
     void *pAdvSubtitleY = FindPattern("C8 01 00 00 B9 46 01 00 00");
-    if (pAdvSubtitleY) VerifyAndPatchDword(pAdvSubtitleY, 456, PARENT_LOCAL_Y(456), "AdvSubtitleY");
+    if (pAdvSubtitleY) VerifyAndPatchDword(pAdvSubtitleY, 456, PARENT_LOCAL_Y(g_layout.adv_subtitle_y), "AdvSubtitleY");
 
     void *pAdvSubtitleCenterX = FindPattern("46 01 00 00 2B C8 51 8D 55 A0 52 8B CE E8");
-    if (pAdvSubtitleCenterX) VerifyAndPatchDword(pAdvSubtitleCenterX, 326, PARENT_LOCAL_X(326), "AdvSubtitleCenterX");
+    if (pAdvSubtitleCenterX) VerifyAndPatchDword(pAdvSubtitleCenterX, 326, PARENT_LOCAL_X(g_layout.adv_subtitle_center_x), "AdvSubtitleCenterX");
+
+    void *pAdvHsTitleCall = FindPattern("8B 15 90 80 54 00 6A 00 68 ?? ?? ?? ?? 52 8B CE E8");
+    if (pAdvHsTitleCall) {
+        VerifyAndPatchCall((char *)pAdvHsTitleCall + 16, (void *)0x44D470, (void *)hk_DrawAdventureHsTitle, "AdvHsTitleDrawImage");
+    }
 
     void *pAdvHsScoresX = FindPattern("3F 02 00 00 53 8D 8D 00");
-    if (pAdvHsScoresX) VerifyAndPatchDword(pAdvHsScoresX, 575, PARENT_LOCAL_X(575), "AdvHighscoreScoresX");
+    if (pAdvHsScoresX) VerifyAndPatchDword(pAdvHsScoresX, 575, PARENT_LOCAL_X(g_layout.adv_hs_scores_x), "AdvHighscoreScoresX");
+
+    void *pAdvScoreCall = FindPattern("83 C0 46 50 68 ?? ?? ?? ?? 53 8D 8D 00 FF FF FF E8");
+    if (pAdvScoreCall) {
+        VerifyAndPatchCall((char *)pAdvScoreCall + 16, (void *)0x447DF0, (void *)hk_DrawAdventureScore, "AdvScoreDrawString");
+    }
 
     void *pAdvHsDateX = FindPattern("37 02 00 00 6A 00 6A 00 8D 8D 00 FF FF FF");
-    if (pAdvHsDateX) VerifyAndPatchDword(pAdvHsDateX, 567, PARENT_LOCAL_X(567), "AdvHighscoreDateX");
+    if (pAdvHsDateX) VerifyAndPatchDword(pAdvHsDateX, 567, PARENT_LOCAL_X(g_layout.adv_hs_date_x), "AdvHighscoreDateX");
 
     void *pAdvHsNamesX = FindPattern("D6 01 00 00 8D 43 0C 50 8D");
-    if (pAdvHsNamesX) VerifyAndPatchDword(pAdvHsNamesX, 470, PARENT_LOCAL_X(470), "AdvHighscoreNamesX");
+    if (pAdvHsNamesX) VerifyAndPatchDword(pAdvHsNamesX, 470, PARENT_LOCAL_X(g_layout.adv_hs_names_x), "AdvHighscoreNamesX");
+
+    void *pAdvNameCall = FindPattern("83 C0 46 50 68 ?? ?? ?? ?? 8D 43 0C 50 8D 8D 00 FF FF FF E8");
+    if (pAdvNameCall) {
+        VerifyAndPatchCall((char *)pAdvNameCall + 19, (void *)0x447DF0, (void *)hk_DrawAdventureName, "AdvNameDrawString");
+    }
 
     void *pAdvInfoBox = FindPattern("C7 45 90 14 00 00 00 C7 45 94 3C 00 00 00 C7 45 98 96 00 00 00 C7 45 9C 64 00 00 00 E8 ?? ?? ?? ?? 68 4C 53 28 00");
     if (pAdvInfoBox) {
-        VerifyAndPatchDword((char*)pAdvInfoBox + 3,  20,  PARENT_LOCAL_X(20),   "AdvInfoBoxX");
-        VerifyAndPatchDword((char*)pAdvInfoBox + 10, 60,  PARENT_LOCAL_Y(60),   "AdvInfoBoxY");
-        VerifyAndPatchDword((char*)pAdvInfoBox + 17, 150, SDIM_VAL(150),        "AdvInfoBoxW");
-        VerifyAndPatchDword((char*)pAdvInfoBox + 24, 100, SDIM_VAL(100),        "AdvInfoBoxH");
+        VerifyAndPatchDword((char*)pAdvInfoBox + 3,  20,  PARENT_LOCAL_X(g_layout.adv_infobox_x), "AdvInfoBoxX");
+        VerifyAndPatchDword((char*)pAdvInfoBox + 10, 60,  PARENT_LOCAL_Y(g_layout.adv_infobox_y), "AdvInfoBoxY");
+        VerifyAndPatchDword((char*)pAdvInfoBox + 17, 150, (DWORD)g_layout.adv_infobox_w, "AdvInfoBoxW");
+        VerifyAndPatchDword((char*)pAdvInfoBox + 24, 100, SDIM_VAL(g_layout.adv_infobox_h), "AdvInfoBoxH");
+    }
+
+    void *pAdvInfoCall = FindPattern("56 8B CF FF 92 88 00 00 00 83 7D");
+    if (pAdvInfoCall) {
+        PatchCall6((char *)pAdvInfoCall + 3, (void *)hk_AdventureWordWrap, "AdvInfoWordWrap");
     }
 
     /* 7. GauntletScreen: VTable Resize hook + Draw coords + preview box */
@@ -1762,8 +1931,8 @@ static void ApplyUIPatches(void) {
 
     void *pGauntDoorFrameY = FindPattern("DC 00 00 00 68 AA 00 00 00");
     if (pGauntDoorFrameY) {
-        VerifyAndPatchDword(pGauntDoorFrameY, 220, PARENT_LOCAL_Y(220), "GauntDoorFrameY");
-        VerifyAndPatchDword((char*)pGauntDoorFrameY + 5, 170, PARENT_LOCAL_X(170), "GauntDoorFrameX");
+        VerifyAndPatchDword(pGauntDoorFrameY, 220, PARENT_LOCAL_Y(g_layout.gaunt_door_frame_y), "GauntDoorFrameY");
+        VerifyAndPatchDword((char*)pGauntDoorFrameY + 5, 170, PARENT_LOCAL_X(g_layout.gaunt_door_frame_x), "GauntDoorFrameX");
 
         unsigned char *call_site = (unsigned char *)pGauntDoorFrameY + 12;
         if (*call_site == 0xE8) {
@@ -1775,14 +1944,27 @@ static void ApplyUIPatches(void) {
         }
     }
 
+    /* Hook GauntletScreen::UpdateThumbnail door overlay DrawImage (LOCKED and RANDOM cards) */
+    void *pGauntDoorOverlay = FindPattern("8B 56 7C 57 57 52 8D 8D 2C FF FF FF E8");
+    if (pGauntDoorOverlay) {
+        unsigned char *call_site = (unsigned char *)pGauntDoorOverlay + 12;
+        if (*call_site == 0xE8) {
+            DWORD old_prot;
+            VirtualProtect(call_site, 5, PAGE_EXECUTE_READWRITE, &old_prot);
+            *(int *)(call_site + 1) = (int)((uintptr_t)hk_draw_gauntlet_card - ((uintptr_t)call_site + 5));
+            VirtualProtect(call_site, 5, old_prot, &old_prot);
+            LogF("[ZRES] Hooked GauntletScreen UpdateThumbnail door overlay DrawImage @ %p -> %p", call_site, hk_draw_gauntlet_card);
+        }
+    }
+
     void *pGauntHsTitleX = FindPattern("B2 01 00 00 50");
-    if (pGauntHsTitleX) VerifyAndPatchDword(pGauntHsTitleX, 434, PARENT_LOCAL_X(434), "GauntHighscoreTitleX");
+    if (pGauntHsTitleX) VerifyAndPatchDword(pGauntHsTitleX, 434, PARENT_LOCAL_X(g_layout.gaunt_hs_title_x), "GauntHighscoreTitleX");
 
     void *pGauntDoorNameY = FindPattern("AB 01 00 00 8D 45 BC 50 8B");
-    if (pGauntDoorNameY) VerifyAndPatchDword(pGauntDoorNameY, 427, PARENT_LOCAL_Y(427), "GauntDoorNameY");
+    if (pGauntDoorNameY) VerifyAndPatchDword(pGauntDoorNameY, 427, PARENT_LOCAL_Y(g_layout.gaunt_door_name_y), "GauntDoorNameY");
 
     void *pGauntDoorNameX = FindPattern("AA 00 00 00 50 8D");
-    if (pGauntDoorNameX) VerifyAndPatchDword(pGauntDoorNameX, 170, PARENT_LOCAL_X(170), "GauntDoorNameX");
+    if (pGauntDoorNameX) VerifyAndPatchDword(pGauntDoorNameX, 170, PARENT_LOCAL_X(g_layout.gaunt_door_name_x), "GauntDoorNameX");
 
     void *pGauntDoorNameW = FindPattern("8B 4F 74 8B 51 04 2B D0 8B C2 99");
     if (pGauntDoorNameW) {
@@ -1793,10 +1975,10 @@ static void ApplyUIPatches(void) {
     }
 
     void *pGauntPracticeY = FindPattern("04 01 00 00 8D 45 BC");
-    if (pGauntPracticeY) VerifyAndPatchDword(pGauntPracticeY, 260, PARENT_LOCAL_Y(260), "GauntPracticeTextY");
+    if (pGauntPracticeY) VerifyAndPatchDword(pGauntPracticeY, 260, PARENT_LOCAL_Y(g_layout.gaunt_practice_text_y), "GauntPracticeTextY");
 
     void *pGauntPracticeX = FindPattern("96 00 00 00 52 8D");
-    if (pGauntPracticeX) VerifyAndPatchDword(pGauntPracticeX, 150, PARENT_LOCAL_X(150), "GauntPracticeTextX");
+    if (pGauntPracticeX) VerifyAndPatchDword(pGauntPracticeX, 150, PARENT_LOCAL_X(g_layout.gaunt_practice_text_x), "GauntPracticeTextX");
 
     void *pGauntPracticeW = FindPattern("8B 4F 74 8B 51 04 2B D0 81 C2");
     if (pGauntPracticeW) {
@@ -1809,43 +1991,68 @@ static void ApplyUIPatches(void) {
     void *pGauntCustomMap = FindPattern("68 04 01 00 00 68 ?? ?? ?? ?? 8D 45 BC 50 89 F1");
     if (pGauntCustomMap) {
         DWORD old_x = *(DWORD *)((char *)pGauntCustomMap + 6);
-        VerifyAndPatchDword((char *)pGauntCustomMap + 1, 260, (DWORD)PARENT_LOCAL_Y(260), "GauntCustomMapTagY");
-        VerifyAndPatchDword((char *)pGauntCustomMap + 6, old_x, (DWORD)PARENT_LOCAL_X(old_x), "GauntCustomMapTagX");
+        VerifyAndPatchDword((char *)pGauntCustomMap + 1, 260, (DWORD)PARENT_LOCAL_Y(g_layout.gaunt_custom_map_y), "GauntCustomMapTagY");
+        VerifyAndPatchDword((char *)pGauntCustomMap + 6, old_x, (DWORD)PARENT_LOCAL_X(g_layout.gaunt_custom_map_x), "GauntCustomMapTagX");
     }
 
     void *pGauntGemY = FindPattern("DC 00 00 00 2B C3");
-    if (pGauntGemY) VerifyAndPatchDword(pGauntGemY, 220, PARENT_LOCAL_Y(220), "GauntGemY");
+    if (pGauntGemY) VerifyAndPatchDword(pGauntGemY, 220, PARENT_LOCAL_Y(g_layout.gaunt_gem_y), "GauntGemY");
 
     void *pGauntGemX = FindPattern("30 02 00 00 2B D0");
-    if (pGauntGemX) VerifyAndPatchDword(pGauntGemX, 560, PARENT_LOCAL_X(560), "GauntGemX");
+    if (pGauntGemX) VerifyAndPatchDword(pGauntGemX, 560, PARENT_LOCAL_X(g_layout.gaunt_gem_x), "GauntGemX");
 
     void *pGauntGem3X = FindPattern("BB 30 02 00 00 2B D8");
-    if (pGauntGem3X) VerifyAndPatchDword((char*)pGauntGem3X + 1, 560, PARENT_LOCAL_X(560), "GauntGem3X");
+    if (pGauntGem3X) VerifyAndPatchDword((char*)pGauntGem3X + 1, 560, PARENT_LOCAL_X(g_layout.gaunt_gem_x), "GauntGem3X");
 
     void *pGauntGem3Y = FindPattern("B8 DC 00 00 00 2B C1");
-    if (pGauntGem3Y) VerifyAndPatchDword((char*)pGauntGem3Y + 1, 220, PARENT_LOCAL_Y(220), "GauntGem3Y");
+    if (pGauntGem3Y) VerifyAndPatchDword((char*)pGauntGem3Y + 1, 220, PARENT_LOCAL_Y(g_layout.gaunt_gem_y), "GauntGem3Y");
 
     void *pGauntGem2Y = FindPattern("BA DC 00 00 00 2B D3");
-    if (pGauntGem2Y) VerifyAndPatchDword((char*)pGauntGem2Y + 1, 220, PARENT_LOCAL_Y(220), "GauntGem2Y");
+    if (pGauntGem2Y) VerifyAndPatchDword((char*)pGauntGem2Y + 1, 220, PARENT_LOCAL_Y(g_layout.gaunt_gem_y), "GauntGem2Y");
+
+    void *pGauntTitleCall = FindPattern("8B 15 DC 7E 54 00 6A 00 6A 00 52 8B CE E8");
+    if (pGauntTitleCall) {
+        VerifyAndPatchCall((char *)pGauntTitleCall + 13, (void *)0x44D470, (void *)hk_DrawGauntletTitle, "GauntTitleDrawImage");
+    }
+
+    void *pGauntHsTitleCall = FindPattern("A1 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 8B CE E8");
+    if (pGauntHsTitleCall) {
+        VerifyAndPatchCall((char *)pGauntHsTitleCall + 15, (void *)0x44D470, (void *)hk_DrawGauntletHsTitle, "GauntHsTitleDrawImage");
+    }
 
     void *pGauntHsScoresX = FindPattern("3F 02 00 00 53 8D 8D 38");
-    if (pGauntHsScoresX) VerifyAndPatchDword(pGauntHsScoresX, 575, PARENT_LOCAL_X(575), "GauntHighscoreScoresX");
+    if (pGauntHsScoresX) VerifyAndPatchDword(pGauntHsScoresX, 575, PARENT_LOCAL_X(g_layout.gaunt_hs_scores_x), "GauntHighscoreScoresX");
+
+    void *pGauntScoreCall = FindPattern("83 C0 46 50 68 ?? ?? ?? ?? 53 8D 8D 38 FF FF FF E8");
+    if (pGauntScoreCall) {
+        VerifyAndPatchCall((char *)pGauntScoreCall + 16, (void *)0x447DF0, (void *)hk_DrawGauntletScore, "GauntScoreDrawString");
+    }
 
     void *pGauntHsNamesX = FindPattern("BD 01 00 00 8D");
-    if (pGauntHsNamesX) VerifyAndPatchDword(pGauntHsNamesX, 445, PARENT_LOCAL_X(445), "GauntHighscoreNamesX");
+    if (pGauntHsNamesX) VerifyAndPatchDword(pGauntHsNamesX, 445, PARENT_LOCAL_X(g_layout.gaunt_hs_names_x), "GauntHighscoreNamesX");
+
+    void *pGauntNameCall = FindPattern("83 C0 46 50 68 ?? ?? ?? ?? 8D 43 0C 50 8D 8D 38 FF FF FF E8");
+    if (pGauntNameCall) {
+        VerifyAndPatchCall((char *)pGauntNameCall + 19, (void *)0x447DF0, (void *)hk_DrawGauntletName, "GauntNameDrawString");
+    }
 
     void *pGauntHsClipX = FindPattern("37 02 00 00 6A 00 6A 00 8D 8D 38 FF FF FF");
     if (pGauntHsClipX) {
         VerifyAndPatchDword((char*)pGauntHsClipX - 5, 480, (DWORD)content_h, "GauntHighscoreClipH");
-        VerifyAndPatchDword(pGauntHsClipX, 567, PARENT_LOCAL_X(567), "GauntHighscoreClipW");
+        VerifyAndPatchDword(pGauntHsClipX, 567, PARENT_LOCAL_X(g_layout.gaunt_hs_clip_w), "GauntHighscoreClipW");
     }
 
     void *pGauntInfoBox = FindPattern("C7 45 90 14 00 00 00 C7 45 94 3C 00 00 00 C7 45 98 96 00 00 00 C7 45 9C 64 00 00 00 E8 ?? ?? ?? ?? 68 0A 01 5B 00");
     if (pGauntInfoBox) {
-        VerifyAndPatchDword((char*)pGauntInfoBox + 3,  20,  PARENT_LOCAL_X(20),   "GauntInfoBoxX");
-        VerifyAndPatchDword((char*)pGauntInfoBox + 10, 60,  PARENT_LOCAL_Y(60),   "GauntInfoBoxY");
-        VerifyAndPatchDword((char*)pGauntInfoBox + 17, 150, SDIM_VAL(150),        "GauntInfoBoxW");
-        VerifyAndPatchDword((char*)pGauntInfoBox + 24, 100, SDIM_VAL(100),        "GauntInfoBoxH");
+        VerifyAndPatchDword((char*)pGauntInfoBox + 3,  20,  PARENT_LOCAL_X(g_layout.gaunt_infobox_x), "GauntInfoBoxX");
+        VerifyAndPatchDword((char*)pGauntInfoBox + 10, 60,  PARENT_LOCAL_Y(g_layout.gaunt_infobox_y), "GauntInfoBoxY");
+        VerifyAndPatchDword((char*)pGauntInfoBox + 17, 150, (DWORD)g_layout.gaunt_infobox_w, "GauntInfoBoxW");
+        VerifyAndPatchDword((char*)pGauntInfoBox + 24, 100, SDIM_VAL(g_layout.gaunt_infobox_h), "GauntInfoBoxH");
+    }
+
+    void *pGauntInfoCall = FindPattern("8B CF C6 45 FC 03 FF 92 88 00 00 00");
+    if (pGauntInfoCall) {
+        PatchCall6((char *)pGauntInfoCall + 6, (void *)hk_GauntletWordWrap, "GauntInfoWordWrap");
     }
 
     /* 8. MoreGamesScreen: VTable Resize hook */
@@ -1981,8 +2188,8 @@ static void ApplyUIPatches(void) {
     /* 9j. Gauntlet Mode Level Banner (bottom-right text e.g. 'RABBIT 1') */
     void *pGauntLevelBanner = FindPattern("68 B8 01 00 00 57 FF 50 1C B9 58 02 00 00 2B C8");
     if (pGauntLevelBanner) {
-        VerifyAndPatchDword((char*)pGauntLevelBanner + 1,  440, TARGET_H - 40, "GauntLevelBannerY");
-        VerifyAndPatchDword((char*)pGauntLevelBanner + 10, 600, TARGET_W - 40, "GauntLevelBannerX");
+        VerifyAndPatchDword((char*)pGauntLevelBanner + 1,  440, TARGET_H - g_layout.hud_level_banner_offset_y, "GauntLevelBannerY");
+        VerifyAndPatchDword((char*)pGauntLevelBanner + 10, 600, TARGET_W - g_layout.hud_level_banner_offset_x, "GauntLevelBannerX");
     }
 
     /* 9k. Stage Complete Sparkles / Particle Spread (600 / 640) */
@@ -1990,6 +2197,13 @@ static void ApplyUIPatches(void) {
     if (pStageCompleteSparkles) {
         VerifyAndPatchDword((char*)pStageCompleteSparkles + 1,  600, TARGET_H + 120, "StageCompleteSparklesH");
         VerifyAndPatchDword((char*)pStageCompleteSparkles + 27, 640, TARGET_W,       "StageCompleteSparklesW");
+    }
+
+        /* CutsceneMgr::DrawDarkenOverlay Fullscreen Rect @ 0x425E70 */
+    void *pDarkenOverlay = FindPattern("75 08 50 8B CE E8 ?? ?? ?? ?? 68 E0 01 00 00 68 80 02 00 00 6A 00 6A 00 8B CE");
+    if (pDarkenOverlay) {
+        VerifyAndPatchDword((char *)pDarkenOverlay + 11, 480, (DWORD)TARGET_H, "DarkenOverlayH");
+        VerifyAndPatchDword((char *)pDarkenOverlay + 16, 640, (DWORD)TARGET_W, "DarkenOverlayW");
     }
 
     /* 9l. MainMenuOverlay Second ClipRect */
@@ -2060,8 +2274,8 @@ static void ApplyUIPatches(void) {
     /* 9o. HelpScreen Background Image Draw Position (IMAGE_HELP_BACK @ 0x434440) */
     void *pHelpBack = FindPattern("8B 4D 08 6A 33 6A 0B 50");
     if (pHelpBack) {
-        BYTE new_y = (BYTE)(SY_VAL(51) > 127 ? 127 : SY_VAL(51));
-        BYTE new_x = (BYTE)(SX_VAL(11) > 127 ? 127 : SX_VAL(11));
+        BYTE new_y = (BYTE)(SY_VAL(g_layout.help_back_y) > 127 ? 127 : SY_VAL(g_layout.help_back_y));
+        BYTE new_x = (BYTE)(SX_VAL(g_layout.help_back_x) > 127 ? 127 : SX_VAL(g_layout.help_back_x));
         VerifyAndPatchByte((char *)pHelpBack + 4, 0x33, new_y, "HelpBackY");
         VerifyAndPatchByte((char *)pHelpBack + 6, 0x0B, new_x, "HelpBackX");
     }
@@ -2073,13 +2287,13 @@ static void ApplyUIPatches(void) {
     /* Skull Pos @ 0x4377D5 & 0x4377E7 (6A 14 6A 41) */
     void *pSkull1 = FindPattern("6A 14 6A 41 51 8B CE E8");
     if (pSkull1) {
-        VerifyAndPatchByte((char *)pSkull1 + 1, 0x14, (BYTE)((float)0x14 * h_sy + 0.5f), "HelpSkullY");
-        VerifyAndPatchByte((char *)pSkull1 + 3, 0x41, (BYTE)((float)0x41 * h_sx + 0.5f), "HelpSkullX");
+        VerifyAndPatchByte((char *)pSkull1 + 1, 0x14, (BYTE)((float)g_layout.help_skull_y * h_sy + 0.5f), "HelpSkullY");
+        VerifyAndPatchByte((char *)pSkull1 + 3, 0x41, (BYTE)((float)g_layout.help_skull_x * h_sx + 0.5f), "HelpSkullX");
     }
     void *pSkullCover = FindPattern("6A 00 6A 14 6A 41 52 8B CE E8");
     if (pSkullCover) {
-        VerifyAndPatchByte((char *)pSkullCover + 3, 0x14, (BYTE)((float)0x14 * h_sy + 0.5f), "HelpSkullCoverY");
-        VerifyAndPatchByte((char *)pSkullCover + 5, 0x41, (BYTE)((float)0x41 * h_sx + 0.5f), "HelpSkullCoverX");
+        VerifyAndPatchByte((char *)pSkullCover + 3, 0x14, (BYTE)((float)g_layout.help_skull_y * h_sy + 0.5f), "HelpSkullCoverY");
+        VerifyAndPatchByte((char *)pSkullCover + 5, 0x41, (BYTE)((float)g_layout.help_skull_x * h_sx + 0.5f), "HelpSkullCoverX");
     }
     /* Skull Text @ 0x43780E (C7 45 E4 1E 00 00 00) */
     void *pSkullText = FindPattern("C7 45 E4 1E 00 00 00 89 5D E8 C7 45 EC A0 00 00 00");
@@ -2091,8 +2305,8 @@ static void ApplyUIPatches(void) {
     /* Coin Pos @ 0x4378B5 (6A 2D 68 1A 01 00 00) */
     void *pCoinPos = FindPattern("6A 2D 68 1A 01 00 00 52 E8");
     if (pCoinPos) {
-        VerifyAndPatchByte((char *)pCoinPos + 1, 0x2D, (BYTE)((float)0x2D * h_sy + 0.5f), "HelpCoinY");
-        VerifyAndPatchDword((char *)pCoinPos + 3, 282, (DWORD)(282.0f * h_sx + 0.5f), "HelpCoinX");
+        VerifyAndPatchByte((char *)pCoinPos + 1, 0x2D, (BYTE)((float)g_layout.help_coin_y * h_sy + 0.5f), "HelpCoinY");
+        VerifyAndPatchDword((char *)pCoinPos + 3, 282, (DWORD)((float)g_layout.help_coin_x * h_sx + 0.5f), "HelpCoinX");
     }
     /* Coin Text @ 0x4378CA (C7 45 D4 DC 00 00 00) */
     void *pCoinText = FindPattern("C7 45 D4 DC 00 00 00 89 5D D8 C7 45 DC A0 00 00 00");
@@ -2104,8 +2318,8 @@ static void ApplyUIPatches(void) {
     /* Swap Frog Pos @ 0x437961 (6A 41 68 F4 01 00 00) */
     void *pFrogPos = FindPattern("6A 41 68 F4 01 00 00 E8 ?? ?? ?? ?? 8B 4F 58 56");
     if (pFrogPos) {
-        VerifyAndPatchByte((char *)pFrogPos + 1, 0x41, (BYTE)((float)0x41 * h_sy + 0.5f), "HelpSwapFrogY");
-        VerifyAndPatchDword((char *)pFrogPos + 3, 500, (DWORD)(500.0f * h_sx + 0.5f), "HelpSwapFrogX");
+        VerifyAndPatchByte((char *)pFrogPos + 1, 0x41, (BYTE)((float)g_layout.help_frog_y * h_sy + 0.5f), "HelpSwapFrogY");
+        VerifyAndPatchDword((char *)pFrogPos + 3, 500, (DWORD)((float)g_layout.help_frog_x * h_sx + 0.5f), "HelpSwapFrogX");
     }
     /* Swap Text @ 0x437984 (C7 45 C4 AE 01 00 00) */
     void *pSwapText = FindPattern("C7 45 C4 AE 01 00 00 C7 45 CC AA 00 00 00");
@@ -2116,34 +2330,34 @@ static void ApplyUIPatches(void) {
     /* Swap Click Text @ 0x437A07 (6A 37 68 30 02 00 00) */
     void *pSwapClick = FindPattern("6A 37 68 30 02 00 00 8D 55 A8 52 8B CE");
     if (pSwapClick) {
-        VerifyAndPatchByte((char *)pSwapClick + 1, 0x37, (BYTE)((float)0x37 * h_sy + 0.5f), "HelpSwapClickY");
-        VerifyAndPatchDword((char *)pSwapClick + 3, 560, (DWORD)(560.0f * h_sx + 0.5f), "HelpSwapClickX");
+        VerifyAndPatchByte((char *)pSwapClick + 1, 0x37, (BYTE)((float)g_layout.help_swap_click_y * h_sy + 0.5f), "HelpSwapClickY");
+        VerifyAndPatchDword((char *)pSwapClick + 3, 560, (DWORD)((float)g_layout.help_swap_click_x * h_sx + 0.5f), "HelpSwapClickX");
     }
     /* Swap Mouse Icon @ 0x437A50 (6A 3C 68 44 02 00 00) */
     void *pSwapMouse = FindPattern("6A 3C 68 44 02 00 00 52 8B CE");
     if (pSwapMouse) {
-        VerifyAndPatchByte((char *)pSwapMouse + 1, 0x3C, (BYTE)((float)0x3C * h_sy + 0.5f), "HelpSwapMouseY");
-        VerifyAndPatchDword((char *)pSwapMouse + 3, 580, (DWORD)(580.0f * h_sx + 0.5f), "HelpSwapMouseX");
+        VerifyAndPatchByte((char *)pSwapMouse + 1, 0x3C, (BYTE)((float)g_layout.help_swap_mouse_y * h_sy + 0.5f), "HelpSwapMouseY");
+        VerifyAndPatchDword((char *)pSwapMouse + 3, 580, (DWORD)((float)g_layout.help_swap_mouse_x * h_sx + 0.5f), "HelpSwapMouseX");
     }
 
     /* Widget1 Yellow Ball Target @ 0x4360F9 (C7 46 60 A0 00 00 00) */
     void *pW1BallTarget = FindPattern("C7 46 60 A0 00 00 00 8B 4E 60 C7 46 5C F0 00 00 00");
     if (pW1BallTarget) {
-        VerifyAndPatchDword((char *)pW1BallTarget + 3, 160, (DWORD)(160.0f * h_sy + 0.5f), "HelpW1BallTargetY");
-        VerifyAndPatchDword((char *)pW1BallTarget + 13, 240, (DWORD)(240.0f * h_sx + 0.5f), "HelpW1BallTargetX");
+        VerifyAndPatchDword((char *)pW1BallTarget + 3, 160, (DWORD)((float)g_layout.help_ball_target_y * h_sy + 0.5f), "HelpW1BallTargetY");
+        VerifyAndPatchDword((char *)pW1BallTarget + 13, 240, (DWORD)((float)g_layout.help_ball_target_x * h_sx + 0.5f), "HelpW1BallTargetX");
     }
 
     /* HelpScreen w1 & w2 Top Instruction Text Y Repositioning (Uncovering from Stone Border) */
     void *pW1TopText = FindPattern("C7 45 D4 1E 00 00 00 C7 45 D8 28 00 00 00");
     if (pW1TopText) {
-        VerifyAndPatchDword((char *)pW1TopText + 3,  30, (DWORD)(30.0f * h_sx + 0.5f), "HelpW1TopTextX");
-        VerifyAndPatchDword((char *)pW1TopText + 10, 40, (DWORD)(40.0f * h_sy + 0.5f), "HelpW1TopTextY");
+        VerifyAndPatchDword((char *)pW1TopText + 3,  30, (DWORD)((float)g_layout.help_w1_top_text_x * h_sx + 0.5f), "HelpW1TopTextX");
+        VerifyAndPatchDword((char *)pW1TopText + 10, 40, (DWORD)((float)g_layout.help_w1_top_text_y * h_sy + 0.5f), "HelpW1TopTextY");
     }
 
     void *pW2TopText = FindPattern("C7 45 E0 08 00 00 00 C7 45 E4 28 00 00 00");
     if (pW2TopText) {
-        VerifyAndPatchDword((char *)pW2TopText + 3,  8,  (DWORD)(8.0f * h_sx + 0.5f),  "HelpW2TopTextX");
-        VerifyAndPatchDword((char *)pW2TopText + 10, 40, (DWORD)(40.0f * h_sy + 0.5f), "HelpW2TopTextY");
+        VerifyAndPatchDword((char *)pW2TopText + 3,  8,  (DWORD)((float)g_layout.help_w2_top_text_x * h_sx + 0.5f), "HelpW2TopTextX");
+        VerifyAndPatchDword((char *)pW2TopText + 10, 40, (DWORD)((float)g_layout.help_w2_top_text_y * h_sy + 0.5f), "HelpW2TopTextY");
     }
 
     /* HelpScreen w1 Frog Tutorial Pos */
@@ -2159,11 +2373,29 @@ static void ApplyUIPatches(void) {
     int delta_y = (TARGET_H - 480) / 2;
     DWORD stage_complete_cy = (DWORD)(250 + delta_y);
     DWORD stage_text_y      = (DWORD)(150 + delta_y);
+
+    if (g_layout.stage_complete_text_x != 320 && g_layout.stage_complete_text_x != 0)
+        stage_complete_cx = (DWORD)PARENT_LOCAL_X(g_layout.stage_complete_text_x);
+    if (g_layout.stage_complete_text_y != 150 && g_layout.stage_complete_text_y != 0)
+        stage_text_y = (DWORD)PARENT_LOCAL_Y(g_layout.stage_complete_text_y);
+    if (g_layout.stage_complete_banner_y != 250 && g_layout.stage_complete_banner_y != 0)
+        stage_complete_cy = (DWORD)PARENT_LOCAL_Y(g_layout.stage_complete_banner_y);
+
     float f_complete_cy     = (float)stage_complete_cy;
 
     DWORD frog_waypoint_b_x = stage_complete_cx - (DWORD)(170.0f * scale_w + 0.5f);
     DWORD frog_waypoint_c_x = stage_complete_cx + (DWORD)(180.0f * scale_w + 0.5f);
     DWORD frog_waypoint_d_x = stage_complete_cx;
+    DWORD frog_waypoint_y   = stage_complete_cy;
+
+    if (g_layout.stage_complete_frog_bx != 150 && g_layout.stage_complete_frog_bx != 0)
+        frog_waypoint_b_x = (DWORD)PARENT_LOCAL_X(g_layout.stage_complete_frog_bx);
+    if (g_layout.stage_complete_frog_cx != 500 && g_layout.stage_complete_frog_cx != 0)
+        frog_waypoint_c_x = (DWORD)PARENT_LOCAL_X(g_layout.stage_complete_frog_cx);
+    if (g_layout.stage_complete_frog_dx != 320 && g_layout.stage_complete_frog_dx != 0)
+        frog_waypoint_d_x = (DWORD)PARENT_LOCAL_X(g_layout.stage_complete_frog_dx);
+    if (g_layout.stage_complete_frog_waypoint_y != 250 && g_layout.stage_complete_frog_waypoint_y != 0)
+        frog_waypoint_y   = (DWORD)PARENT_LOCAL_Y(g_layout.stage_complete_frog_waypoint_y);
 
     /* "STAGE %d" Text Center X @ 0x428FA3 */
     void *pStageTextCX = FindPattern("D1 F8 BF 40 01 00 00 2B F8");
@@ -2186,15 +2418,15 @@ static void ApplyUIPatches(void) {
     /* "STAGE %d" Text Init Waypoints Y @ 0x429009 & 0x42902D */
     void *pStageTextY1 = FindPattern("8D 81 FA 00 00 00 99 89 4D C8");
     if (pStageTextY1) {
-        VerifyAndPatchDword((char *)pStageTextY1 + 2, 250, stage_complete_cy, "StageCompleteStageTextY1");
+        VerifyAndPatchDword((char *)pStageTextY1 + 2, 250, frog_waypoint_y, "StageCompleteStageTextY1");
     }
     void *pStageTextY2 = FindPattern("C7 45 C0 FA 00 00 00 E8 ?? ?? ?? ?? 8B 4D DC");
     if (pStageTextY2) {
-        VerifyAndPatchDword((char *)pStageTextY2 + 3, 250, stage_complete_cy, "StageCompleteStageTextY2");
+        VerifyAndPatchDword((char *)pStageTextY2 + 3, 250, frog_waypoint_y, "StageCompleteStageTextY2");
     }
     void *pStageTextY3 = FindPattern("89 7D EC C7 45 E4 FA 00 00 00 FF 52 20");
     if (pStageTextY3) {
-        VerifyAndPatchDword((char *)pStageTextY3 + 6, 250, stage_complete_cy, "StageCompleteStageTextY3");
+        VerifyAndPatchDword((char *)pStageTextY3 + 6, 250, frog_waypoint_y, "StageCompleteStageTextY3");
     }
 
     /* Frog Waypoints 3-step trajectory (X) @ 0x429199 */
@@ -2208,7 +2440,7 @@ static void ApplyUIPatches(void) {
     /* Frog Waypoints Baseline Y @ 0x42917A */
     void *pFrogWaypointY = FindPattern("B8 FA 00 00 00 03 C8 6A 14 8D 55 CC");
     if (pFrogWaypointY) {
-        VerifyAndPatchDword((char *)pFrogWaypointY + 1, 250, stage_complete_cy, "StageCompleteFrogWaypointY");
+        VerifyAndPatchDword((char *)pFrogWaypointY + 1, 250, frog_waypoint_y, "StageCompleteFrogWaypointY");
     }
 
     /* "COMPLETE" Sparkle X Center @ 0x429214 */
@@ -2231,42 +2463,42 @@ static void ApplyUIPatches(void) {
         VerifyAndPatchDword((char *)pCompleteTextCX + 6, 320, stage_complete_cx, "StageCompleteCompleteTextCX");
     }
 
-    /* Cutscene Overlay Widget Resize (Bounds expansion) @ 0x4189ED */
-    void *pCutsceneWidgetResize = FindPattern("68 E0 01 00 00 68 80 02 00 00 53 53 FF 50 34");
-    if (pCutsceneWidgetResize) {
-        VerifyAndPatchDword((char *)pCutsceneWidgetResize + 1, 480, (DWORD)TARGET_H, "CutsceneWidgetResizeH");
-        VerifyAndPatchDword((char *)pCutsceneWidgetResize + 6, 640, (DWORD)TARGET_W, "CutsceneWidgetResizeW");
-    }
-
-    /* Frog Scale Perspective Desync Fix (Eliminate 50px/100px shift during letter writing) */
-    void *pFrogScaleOffsets = FindPattern("D9 45 0C D8 25 ?? ?? ?? ?? 83 EC 08 D9 05");
-    if (pFrogScaleOffsets) {
-        DWORD old_y = *(DWORD *)((char *)pFrogScaleOffsets + 14);
-        DWORD old_x = *(DWORD *)((char *)pFrogScaleOffsets + 37);
-        VerifyAndPatchDword((char *)pFrogScaleOffsets + 14, old_y, (DWORD)(uintptr_t)&s_zero, "FrogScaleOffsetY");
-        VerifyAndPatchDword((char *)pFrogScaleOffsets + 37, old_x, (DWORD)(uintptr_t)&s_zero, "FrogScaleOffsetX");
-    }
-
     /* Stage 13 Frog Zoom-out-to-0 Destination Centering @ 0x427712 */
     void *pFrogZoomTarget = FindPattern("B9 40 01 00 00 BB C8 00 00 00 89 4D F8 89 5D FC");
     if (pFrogZoomTarget) {
-        VerifyAndPatchDword((char *)pFrogZoomTarget + 1, 320, stage_complete_cx, "Stage13FrogZoomTargetX");
-        VerifyAndPatchDword((char *)pFrogZoomTarget + 6, 200, (DWORD)(200 + delta_y), "Stage13FrogZoomTargetY");
+        DWORD zoom_x = stage_complete_cx;
+        DWORD zoom_y = (DWORD)(200 + delta_y);
+        if (g_layout.stage_complete_frog_target_x != 320 && g_layout.stage_complete_frog_target_x != 0)
+            zoom_x = (DWORD)PARENT_LOCAL_X(g_layout.stage_complete_frog_target_x);
+        if (g_layout.stage_complete_frog_target_y != 200 && g_layout.stage_complete_frog_target_y != 0)
+            zoom_y = (DWORD)PARENT_LOCAL_Y(g_layout.stage_complete_frog_target_y);
+        VerifyAndPatchDword((char *)pFrogZoomTarget + 1, 320, zoom_x, "Stage13FrogZoomTargetX");
+        VerifyAndPatchDword((char *)pFrogZoomTarget + 6, 200, zoom_y, "Stage13FrogZoomTargetY");
     }
 
     /* 9r. Temple Cleared / Congratulations Dialog Centering Hook (Dead Center: Middle-Center) */
     int delta_x = (TARGET_W - 640) / 2;
+    delta_y = (TARGET_H - 480) / 2;
+    int btn_x = g_layout.congrats_btn_continue_x;
+    int btn_y = g_layout.congrats_btn_continue_y;
+    if (g_layout.congrats_btn_align == 5) { /* center */
+        btn_x += delta_x;
+        btn_y += delta_y;
+    }
 
     /* CONTINUE Button Position X & Y @ 0x4189D5 & 0x4189DD */
     void *pContinueBtn = FindPattern("57 68 9A 01 00 00 FF 52 34");
     if (pContinueBtn) {
-        VerifyAndPatchDword((char *)pContinueBtn - 6, 450, (DWORD)(450 + delta_y), "TempleContinueBtnY");
-        VerifyAndPatchDword((char *)pContinueBtn + 2, 410, (DWORD)(410 + delta_x), "TempleContinueBtnX");
+        VerifyAndPatchDword((char *)pContinueBtn - 6, 450, (DWORD)btn_y, "TempleContinueBtnY");
+        VerifyAndPatchDword((char *)pContinueBtn + 2, 410, (DWORD)btn_x, "TempleContinueBtnX");
     }
 
     /* Hook "CONGRATULATIONS!" title call @ 0x426F3D so it centers on screen without doubling delta_x */
     void *pCongratsTitle = FindPattern("6A 78 56 89 5D FC FF 92 80 00 00 00");
     if (pCongratsTitle) {
+        if (g_layout.congrats_title_y != 120) {
+            VerifyAndPatchByte((char *)pCongratsTitle + 1, 0x78, (BYTE)g_layout.congrats_title_y, "CongratsTitleY");
+        }
         unsigned char *call_site = (unsigned char *)pCongratsTitle + 6;
         DWORD old_prot;
         VirtualProtect(call_site, 6, PAGE_EXECUTE_READWRITE, &old_prot);
@@ -2277,36 +2509,36 @@ static void ApplyUIPatches(void) {
         LogF("[ZRES] Hooked Congrats Title Draw @ %p -> %p", call_site, hk_DrawCongratsTitle);
     }
 
-    /* Hook CutsceneMgr::Draw Congratulations Case -> hk_DrawCongratulations */
-    void *pCutsceneSwitch = FindPattern("55 8B EC 8B 41 60 48 83 F8 05 77");
-    if (pCutsceneSwitch) {
-        void *pCongratsCaseJmp = (char *)pCutsceneSwitch + 0x20;
-        if (*(unsigned char *)pCongratsCaseJmp == 0xE9) {
-            int rel = *(int *)((char *)pCongratsCaseJmp + 1);
-            g_orig_DrawCongratulations = (void (THISCALL *)(void *, void *))((char *)pCongratsCaseJmp + 5 + rel);
-            DWORD old_prot;
-            VirtualProtect(pCongratsCaseJmp, 5, PAGE_EXECUTE_READWRITE, &old_prot);
-            *(unsigned char *)pCongratsCaseJmp = 0xE9;
-            *(int *)((char *)pCongratsCaseJmp + 1) = (int)((uintptr_t)hk_DrawCongratulations - ((uintptr_t)pCongratsCaseJmp + 5));
-            VirtualProtect(pCongratsCaseJmp, 5, old_prot, &old_prot);
-            LogF("[ZRES] Hooked Congrats Case JMP @ %p -> %p (orig=%p)", pCongratsCaseJmp, hk_DrawCongratulations, g_orig_DrawCongratulations);
-        }
+    /* Hook CutsceneMgr::Draw switch case for congratulations @ 0x427340 */
+    void *pCongratsCase = FindPattern("5D E9 ?? ?? ?? ?? 5D E9 ?? ?? ?? ?? 5D E9 4B FB FF FF");
+    if (pCongratsCase) {
+        void *pJmp = (char *)pCongratsCase + 13;
+        int rel = *(int *)((char *)pJmp + 1);
+        g_orig_DrawCongratulations = (void (THISCALL *)(void *, void *))((uintptr_t)pJmp + 5 + rel);
+        DWORD old_prot;
+        VirtualProtect(pJmp, 5, PAGE_EXECUTE_READWRITE, &old_prot);
+        *(unsigned char *)pJmp = 0xE9;
+        *(int *)((char *)pJmp + 1) = (int)((uintptr_t)hk_DrawCongratulations - ((uintptr_t)pJmp + 5));
+        VirtualProtect(pJmp, 5, old_prot, &old_prot);
+        LogF("[ZRES] Hooked Congrats Case JMP @ %p -> %p (orig=%p)", pJmp, hk_DrawCongratulations, g_orig_DrawCongratulations);
     }
     /* 9s. Credits Screen Layout (Whatever Button, Credits Text Center X, Scroll Start Y, HappyEnding Fit) */
     void *pWhateverBtn = FindPattern("BB E0 01 00 00 2B D8 53 68 FE 01 00 00");
     if (pWhateverBtn) {
         VerifyAndPatchDword((char *)pWhateverBtn + 1, 480, (DWORD)TARGET_H, "CreditsWhateverBtnH");
-        VerifyAndPatchDword((char *)pWhateverBtn + 9, 510, (DWORD)(TARGET_W - 130), "CreditsWhateverBtnX");
+        VerifyAndPatchDword((char *)pWhateverBtn + 9, 510, (DWORD)(TARGET_W - g_layout.credits_btn_whatever_offset_x), "CreditsWhateverBtnX");
     }
 
     void *pCreditsTextCX = FindPattern("FF 50 1C 8B 4D 08 99 2B C2 D1 F8 BA 40 01 00 00");
     if (pCreditsTextCX) {
-        VerifyAndPatchDword((char *)pCreditsTextCX + 12, 320, (DWORD)(TARGET_W / 2), "CreditsTextCenterX");
+        DWORD text_cx = (g_layout.credits_text_center_x == 320) ? (DWORD)(TARGET_W / 2) : (DWORD)PARENT_LOCAL_X(g_layout.credits_text_center_x);
+        VerifyAndPatchDword((char *)pCreditsTextCX + 12, 320, text_cx, "CreditsTextCenterX");
     }
 
     void *pCreditsScrollStartY = FindPattern("C6 45 FC 01 C7 46 5C E0 01 00 00");
     if (pCreditsScrollStartY) {
-        VerifyAndPatchDword((char *)pCreditsScrollStartY + 7, 480, (DWORD)(TARGET_H + 20), "CreditsScrollStartY");
+        DWORD scroll_y = (g_layout.credits_scroll_start_y == 480) ? (DWORD)(TARGET_H + 20) : (DWORD)PARENT_LOCAL_Y(g_layout.credits_scroll_start_y);
+        VerifyAndPatchDword((char *)pCreditsScrollStartY + 7, 480, scroll_y, "CreditsScrollStartY");
     }
 
     void *pCreditsScrollResetY = FindPattern("83 FF 9C 7D 0A 8B 4D ?? C7 41 5C 08 02 00 00");
@@ -2389,10 +2621,10 @@ static void ApplyUIPatches(void) {
 
     void *pMenubarMargins = FindPattern("8B 15 C0 7E 54 00 6A 64 6A 32 68 96 00 00 00 68 C8 00 00 00");
     if (pMenubarMargins) {
-        VerifyAndPatchByte((char *)pMenubarMargins + 7, 100, (BYTE)(100.0f * scale + 0.5f), "MenubarMarginBottom");
-        VerifyAndPatchByte((char *)pMenubarMargins + 9, 50, (BYTE)(50.0f * scale + 0.5f), "MenubarMarginTop");
-        VerifyAndPatchDword((char *)pMenubarMargins + 11, 150, (DWORD)(150.0f * scale + 0.5f), "MenubarMarginRight");
-        VerifyAndPatchDword((char *)pMenubarMargins + 16, 200, (DWORD)(200.0f * scale + 0.5f), "MenubarMarginLeft");
+        VerifyAndPatchByte((char *)pMenubarMargins + 7, 100, (BYTE)((float)g_layout.hud_menubar_margin_bottom * scale + 0.5f), "MenubarMarginBottom");
+        VerifyAndPatchByte((char *)pMenubarMargins + 9, 50, (BYTE)((float)g_layout.hud_menubar_margin_top * scale + 0.5f), "MenubarMarginTop");
+        VerifyAndPatchDword((char *)pMenubarMargins + 11, 150, (DWORD)((float)g_layout.hud_menubar_margin_right * scale + 0.5f), "MenubarMarginRight");
+        VerifyAndPatchDword((char *)pMenubarMargins + 16, 200, (DWORD)((float)g_layout.hud_menubar_margin_left * scale + 0.5f), "MenubarMarginLeft");
     }
 
     /* Synchronized Menubar HUD Element Repositioning (TARGET_W >= 480) */
@@ -2461,6 +2693,12 @@ static void ApplyUIPatches(void) {
         menu_x   = (int)(menu_x_480   + t * (menu_x_540   - menu_x_480)   + 0.5f);
     }
 
+    if (g_layout.hud_menubar_lives_x != 28) lives_x = g_layout.hud_menubar_lives_x;
+    if (g_layout.hud_menubar_stage_cx != 200) stage_cx = g_layout.hud_menubar_stage_cx;
+    if (g_layout.hud_menubar_score_rx != 360) score_rx = g_layout.hud_menubar_score_rx;
+    if (g_layout.hud_menubar_zuma_x != 409) zuma_x = g_layout.hud_menubar_zuma_x;
+    if (g_layout.hud_menubar_menu_x != 540) menu_x = g_layout.hud_menubar_menu_x;
+
     void *pInGameMenuBtnX = FindPattern("6A 03 68 1C 02 00 00");
     if (pInGameMenuBtnX) {
         VerifyAndPatchDword((char *)pInGameMenuBtnX + 3, 540, (DWORD)menu_x, "InGameMenuBtnX");
@@ -2494,17 +2732,19 @@ static void ApplyUIPatches(void) {
     /* Adventure Mode Level Banner Position Clamp (LEVEL %d-%d) @ 0x4177f8 */
     void *pAdvLevelBanner = FindPattern("81 FA 58 02 00 00 89 75 0C 7E 0A B8 58 02 00 00 2B C1 89 45 0C 8D 04 3B 3D B8 01 00 00 7E 07 BF B8 01 00 00");
     if (pAdvLevelBanner) {
-        VerifyAndPatchDword((char *)pAdvLevelBanner + 2,  600, (DWORD)(TARGET_W - 40), "AdvLevelBannerMaxX_1");
-        VerifyAndPatchDword((char *)pAdvLevelBanner + 12, 600, (DWORD)(TARGET_W - 40), "AdvLevelBannerMaxX_2");
-        VerifyAndPatchDword((char *)pAdvLevelBanner + 25, 440, (DWORD)(TARGET_H - 40), "AdvLevelBannerMaxY_1");
-        VerifyAndPatchDword((char *)pAdvLevelBanner + 32, 440, (DWORD)(TARGET_H - 40), "AdvLevelBannerMaxY_2");
+        VerifyAndPatchDword((char *)pAdvLevelBanner + 2,  600, (DWORD)(TARGET_W - g_layout.hud_level_banner_offset_x), "AdvLevelBannerMaxX_1");
+        VerifyAndPatchDword((char *)pAdvLevelBanner + 12, 600, (DWORD)(TARGET_W - g_layout.hud_level_banner_offset_x), "AdvLevelBannerMaxX_2");
+        VerifyAndPatchDword((char *)pAdvLevelBanner + 25, 440, (DWORD)(TARGET_H - g_layout.hud_level_banner_offset_y), "AdvLevelBannerMaxY_1");
+        VerifyAndPatchDword((char *)pAdvLevelBanner + 32, 440, (DWORD)(TARGET_H - g_layout.hud_level_banner_offset_y), "AdvLevelBannerMaxY_2");
     }
 
     /* 9u. In-Game Lives Banner ("%d LIVES LEFT", "LAST LIFE!", "GAME OVER") Centering */
     void *pLivesBanner = FindPattern("68 F0 00 00 00 8D 4D B0 51 8B CF FF 50 1C 99 2B C2 D1 F8 BA 40 01 00 00 2B D0 52");
     if (pLivesBanner) {
-        VerifyAndPatchDword((char *)pLivesBanner + 1,  240, (DWORD)(TARGET_H / 2), "LivesBannerCenterY");
-        VerifyAndPatchDword((char *)pLivesBanner + 20, 320, (DWORD)(TARGET_W / 2), "LivesBannerCenterX");
+        DWORD target_lives_y = (g_layout.hud_lives_banner_center_y == 240) ? (DWORD)(TARGET_H / 2) : (DWORD)PARENT_LOCAL_Y(g_layout.hud_lives_banner_center_y);
+        DWORD target_lives_x = (g_layout.hud_lives_banner_center_x == 320) ? (DWORD)(TARGET_W / 2) : (DWORD)PARENT_LOCAL_X(g_layout.hud_lives_banner_center_x);
+        VerifyAndPatchDword((char *)pLivesBanner + 1,  240, target_lives_y, "LivesBannerCenterY");
+        VerifyAndPatchDword((char *)pLivesBanner + 20, 320, target_lives_x, "LivesBannerCenterX");
     }
 
     /* 9v. Cached Thumbnail Generation Aspect-Fill Blit Hook */

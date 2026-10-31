@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 #ifndef ZUCOMPLELUXE_VERSION
-#define ZUCOMPLELUXE_VERSION "v0.5.1.4"
+#define ZUCOMPLELUXE_VERSION "v0.6"
 #endif
 
 #ifndef TARGET_W
@@ -45,14 +45,15 @@ static ModuleDep g_modules[] = {
     { "zumawebpsprite.dll", "zumawebpsprite.dll", "Multi-Layer Animated Sprite Engine",  false, false, true,  true,  {0}, {0}, false },
     { "zumaextrapath.dll",  "zumaextrapath.dll",  "Multi-Path Curve Engine (4-10)",      false, false, true,  true,  {0}, {0}, false },
     { "zumaextracolor.dll", "zumaextracolor.dll", "11-Ball Color Pipeline Engine",       false, false, true,  true,  {0}, {0}, false },
-    /* Category 3: Resolution & Display Driver Modules (8..9) */
+    { "zumapriolayer.dll",  "zumapriolayer.dll",  "High-Prio Sprite & Earthquake Bake",  false, false, false, true,  {0}, {0}, false },
+    /* Category 3: Resolution & Display Driver Modules (9..10) */
     { "zumadisplay.dll",    "zumadisplay.dll",    "Display & Window Driver (F11/DD)",    false, false, false, true,  {0}, {0}, false },
     { "zumareshandler.dll", "zumareshandler.dll", "Resolution & UI Layout Patcher",      false, false, false, true,  {0}, {0}, false }
 };
 
 #define MODULE_COUNT           ((int)(sizeof(g_modules) / sizeof(g_modules[0])))
-#define GAMEPLAY_MODULE_COUNT  8
-#define RES_MODULE_START       8
+#define GAMEPLAY_MODULE_COUNT  9
+#define RES_MODULE_START       9
 #define RES_MODULE_COUNT       2
 
 typedef struct {
@@ -618,11 +619,11 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
 
         g_hBtnQuit = CreateWindowExA(0, "BUTTON", "Quit",
                                      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
-                                     484, 456, 68, 25, hwnd, (HMENU)IDC_BTN_QUIT, GetModuleHandle(NULL), NULL);
+                                     484, 478, 68, 25, hwnd, (HMENU)IDC_BTN_QUIT, GetModuleHandle(NULL), NULL);
 
         g_hBtnRun = CreateWindowExA(0, "BUTTON", "Run",
                                     WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_TABSTOP,
-                                    562, 456, 68, 25, hwnd, (HMENU)IDC_BTN_RUN, GetModuleHandle(NULL), NULL);
+                                    562, 478, 68, 25, hwnd, (HMENU)IDC_BTN_RUN, GetModuleHandle(NULL), NULL);
         return 0;
     }
 
@@ -782,7 +783,7 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
         TextOutA(hdc, 432, 88, g_meta.fileName, (int)strlen(g_meta.fileName));
 
         /* --- 2. Sidecar Module Dependencies GroupBox (Gameplay & Content: 8 Modules) --- */
-        RECT rcGroup2 = { 16, 118, 630, 314 };
+        RECT rcGroup2 = { 16, 118, 630, 338 };
 #ifdef ZUCOMPLELUXE_LITE
         DrawClassicGroupBox(hdc, &rcGroup2, " Sidecar Module Dependencies (modules\\) [Lite Edition] ", colBorder, colBg, colTextPri, hFontSemibold);
 #else
@@ -816,7 +817,7 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
         }
 
         /* --- 3. Display & Custom Resolution System GroupBox --- */
-        RECT rcGroup3 = { 16, 322, 630, 446 };
+        RECT rcGroup3 = { 16, 344, 630, 468 };
 #ifdef ZUCOMPLELUXE_LITE
         DrawClassicGroupBox(hdc, &rcGroup3, " Display & Custom Resolution System (.zres) [Lite Edition] ", colBorder, colBg, colTextPri, hFontSemibold);
 #else
@@ -826,75 +827,75 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
         /* Line 1: Resolution Summary Row */
         SelectObject(hdc, hFontNormal);
         SetTextColor(hdc, colTextSec);
-        TextOutA(hdc, 30, 338, "Resolution:", 11);
+        TextOutA(hdc, 30, 360, "Resolution:", 11);
 
         char resStr[48];
         snprintf(resStr, sizeof(resStr), "%d x %d", g_res.w, g_res.h);
         SelectObject(hdc, hFontBold);
         SetTextColor(hdc, colTextPri);
-        TextOutA(hdc, 108, 338, resStr, (int)strlen(resStr));
+        TextOutA(hdc, 108, 360, resStr, (int)strlen(resStr));
 
         SelectObject(hdc, hFontNormal);
         SetTextColor(hdc, colTextSec);
-        TextOutA(hdc, 194, 338, "Aspect Ratio:", 13);
+        TextOutA(hdc, 194, 360, "Aspect Ratio:", 13);
         SelectObject(hdc, hFontSemibold);
         SetTextColor(hdc, colTextPri);
-        TextOutA(hdc, 282, 338, g_res.ratioStr, (int)strlen(g_res.ratioStr));
+        TextOutA(hdc, 282, 360, g_res.ratioStr, (int)strlen(g_res.ratioStr));
 
         SelectObject(hdc, hFontNormal);
         SetTextColor(hdc, colTextSec);
-        TextOutA(hdc, 480, 338, "Limit:", 6);
+        TextOutA(hdc, 480, 360, "Limit:", 6);
         SelectObject(hdc, hFontSemibold);
         SetTextColor(hdc, colWarning);
-        TextOutA(hdc, 524, 338, "480 x 320", 9);
+        TextOutA(hdc, 524, 360, "480 x 320", 9);
 
         /* Line 2: Asset Mode & imagescustomres/ explanation */
         SelectObject(hdc, hFontNormal);
         SetTextColor(hdc, colTextSec);
-        TextOutA(hdc, 30, 356, "Asset Mode:", 11);
+        TextOutA(hdc, 30, 378, "Asset Mode:", 11);
 
         if (g_res.has_zres && (g_res.w != 640 || g_res.h != 480)) {
             SelectObject(hdc, hFontSemibold);
             SetTextColor(hdc, colTextPri);
-            TextOutA(hdc, 114, 356, "imagescustomres/", 16);
+            TextOutA(hdc, 114, 378, "imagescustomres/", 16);
             SelectObject(hdc, hFontNote);
             SetTextColor(hdc, colTextSec);
-            TextOutA(hdc, 236, 358, "(Auto-loads scaled UI graphics; fallback to images/)", 52);
+            TextOutA(hdc, 236, 380, "(Auto-loads scaled UI graphics; fallback to images/)", 52);
         } else {
             SelectObject(hdc, hFontSemibold);
             SetTextColor(hdc, colTextPri);
-            TextOutA(hdc, 114, 356, "images/", 7);
+            TextOutA(hdc, 114, 378, "images/", 7);
             SelectObject(hdc, hFontNote);
             SetTextColor(hdc, colTextSec);
-            TextOutA(hdc, 170, 358, "(Vanilla 640x480 standard assets)", 33);
+            TextOutA(hdc, 170, 380, "(Vanilla 640x480 standard assets)", 33);
         }
 
         /* Separator line between resolution info and table 2 */
         HPEN hPenSep2 = CreatePen(PS_SOLID, 1, colBorder);
         HPEN oldPen2 = (HPEN)SelectObject(hdc, hPenSep2);
-        MoveToEx(hdc, 26, 374, NULL);
-        LineTo(hdc, 620, 374);
+        MoveToEx(hdc, 26, 396, NULL);
+        LineTo(hdc, 620, 396);
         SelectObject(hdc, oldPen2);
         DeleteObject(hPenSep2);
 
         /* Table 2 Column Headers for Resolution Modules */
         SelectObject(hdc, hFontSemibold);
         SetTextColor(hdc, colTextSec);
-        TextOutA(hdc, 30, 380, "Enable", 6);
-        TextOutA(hdc, 88, 380, "Module", 6);
-        TextOutA(hdc, 232, 380, "Description", 11);
-        TextOutA(hdc, 495, 380, "Status", 6);
+        TextOutA(hdc, 30, 402, "Enable", 6);
+        TextOutA(hdc, 88, 402, "Module", 6);
+        TextOutA(hdc, 232, 402, "Description", 11);
+        TextOutA(hdc, 495, 402, "Status", 6);
 
         /* Separator line under table 2 header */
         HPEN hPenSep3 = CreatePen(PS_SOLID, 1, colBorder);
         HPEN oldPen3 = (HPEN)SelectObject(hdc, hPenSep3);
-        MoveToEx(hdc, 26, 398, NULL);
-        LineTo(hdc, 620, 398);
+        MoveToEx(hdc, 26, 420, NULL);
+        LineTo(hdc, 620, 420);
         SelectObject(hdc, oldPen3);
         DeleteObject(hPenSep3);
 
-        /* Render 2 Resolution Sidecars (indices 8..9: zumadisplay.dll, zumareshandler.dll) */
-        int rowY2 = 404;
+        /* Render 2 Resolution Sidecars (indices 9..10: zumadisplay.dll, zumareshandler.dll) */
+        int rowY2 = 426;
         for (int i = RES_MODULE_START; i < RES_MODULE_START + RES_MODULE_COUNT; i++) {
             DrawModuleRow(hdc, i, rowY2, colTextPri, colTextSec, colSuccess, colError, colDisabled,
                           colBadgeBg, colBadgeBorder, colBadgeText, colBg, hFontNormal, hFontSemibold, hFontBold);
@@ -905,11 +906,11 @@ static LRESULT CALLBACK CheckerWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
         SelectObject(hdc, hFontNote);
         SetTextColor(hdc, colTextSec);
 #ifdef ZUCOMPLELUXE_LITE
-        TextOutA(hdc, 20, 456, "Lite Edition: WebP, Multi-Path & 11-Colors omitted. Press F11 for borderless fullscreen.", 88);
-        TextOutA(hdc, 20, 472, "Press Run to start Zuma Deluxe, or Quit to exit.", 48);
+        TextOutA(hdc, 20, 478, "Lite Edition: WebP, Multi-Path & 11-Colors omitted. Press F11 for borderless fullscreen.", 88);
+        TextOutA(hdc, 20, 494, "Press Run to start Zuma Deluxe, or Quit to exit.", 48);
 #else
-        TextOutA(hdc, 20, 456, "Tip: Click checkboxes to toggle optional sidecars. Press F11 for borderless fullscreen.", 87);
-        TextOutA(hdc, 20, 472, "Press Run to start Zuma Deluxe, or Quit to exit.", 48);
+        TextOutA(hdc, 20, 478, "Tip: Click checkboxes to toggle optional sidecars. Press F11 for borderless fullscreen.", 87);
+        TextOutA(hdc, 20, 494, "Press Run to start Zuma Deluxe, or Quit to exit.", 48);
 #endif
 
         DeleteObject(hFontBold);
@@ -1136,7 +1137,7 @@ __declspec(dllexport) int __cdecl ZDC_RunChecker(void) {
     wc.hbrBackground = NULL;
     RegisterClassExA(&wc);
 
-    RECT rc = { 0, 0, 646, 498 };
+    RECT rc = { 0, 0, 646, 520 };
     DWORD dwStyle = WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     DWORD dwExStyle = WS_EX_DLGMODALFRAME;
     AdjustWindowRectEx(&rc, dwStyle, FALSE, dwExStyle);

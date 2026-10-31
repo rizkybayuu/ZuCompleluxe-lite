@@ -353,15 +353,30 @@ REM 3.5 Probe libwebp compilation capabilities
 REM =======================================================================
 :ProbeWebp
 set "WEBP_OK=0"
-if "!GCC32!"=="" exit /b 0
+set "WEBP_CFLAGS="
+set "WEBP_LIBS=-lwebpdemux -lwebp -lsharpyuv -lm"
+if exist "builder\libwebp\include\webp\demux.h" if exist "builder\libwebp\lib\libwebpdemux.a" if exist "builder\libwebp\lib\libwebpdecoder.a" (
+    set "WEBP_CFLAGS=-Ibuilder\libwebp\include"
+    set "WEBP_LIBS=builder\libwebp\lib\libwebpdemux.a builder\libwebp\lib\libwebpdecoder.a"
+)
 > "!BUILD_TMP!\probe_webp.c" echo #include ^<webp/demux.h^>
 >> "!BUILD_TMP!\probe_webp.c" echo int test_webp^(void^){WebPAnimDecoderOptions opt;return WebPAnimDecoderOptionsInit^(^&opt^);}
-"!PYTHON_BIN!" -c "import ctypes, subprocess, sys; ctypes.windll.kernel32.SetErrorMode(0x8003); res = subprocess.run([r'!GCC32!', '-m32', '-shared', '-o', r'!BUILD_TMP!\probe_webp.dll', r'!BUILD_TMP!\probe_webp.c', '-static', '-lwebpdemux', '-lwebp', '-lsharpyuv'], capture_output=True); sys.exit(res.returncode)" >nul 2>&1
-if not errorlevel 1 (
-    set "WEBP_OK=1"
-    echo [FOUND] libwebp static libraries detected for GCC
-) else (
-    echo [INFO] libwebp static libraries not present in GCC toolchain
+if not "!GCC32!"=="" (
+    "!GCC32!" -m32 -shared !WEBP_CFLAGS! -o "!BUILD_TMP!\probe_webp.dll" "!BUILD_TMP!\probe_webp.c" -static !WEBP_LIBS! >nul 2>&1
+    if not errorlevel 1 (
+        set "WEBP_OK=1"
+        echo [FOUND] 32-bit libwebp static libraries verified [GCC]
+    )
+) else if "!ZIG_OK!"=="1" (
+    "!PYTHON_BIN!" -m ziglang cc -target x86-windows-gnu -shared !WEBP_CFLAGS! -o "!BUILD_TMP!\probe_webp.dll" "!BUILD_TMP!\probe_webp.c" !WEBP_LIBS! >nul 2>&1
+    if not errorlevel 1 (
+        set "WEBP_OK=1"
+        echo [FOUND] 32-bit libwebp static libraries verified [Zig CC]
+    )
+)
+del /f /q "!BUILD_TMP!\probe_webp.c" "!BUILD_TMP!\probe_webp.dll" >nul 2>&1
+if "!WEBP_OK!"=="0" (
+    echo [INFO] 32-bit libwebp static libraries not available in current toolchain
 )
 exit /b 0
 
@@ -422,7 +437,7 @@ if exist "!TARGET_ZUMA_DIR!\!SUMMARY_EXE!" (
     echo  [MISSING] !SUMMARY_EXE!
 )
 
-for %%D in (zumadllchecker.dll zumawebpbg.dll zumawebpsprite.dll zumaextrapath.dll zumaextracolor.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll zumadisplay.dll zumareshandler.dll) do (
+for %%D in (zumadllchecker.dll zumawebpbg.dll zumawebpsprite.dll zumaextrapath.dll zumaextracolor.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll zumadisplay.dll zumareshandler.dll zumapriolayer.dll) do (
     if defined DLL_STATUS_%%D (
         if exist "!TARGET_ZUMA_DIR!\modules\%%D" (
             for %%A in ("!TARGET_ZUMA_DIR!\modules\%%D") do echo  [OK] modules\%%D - !DLL_STATUS_%%D! - %%~zA bytes

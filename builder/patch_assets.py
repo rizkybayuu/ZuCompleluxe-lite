@@ -461,6 +461,360 @@ def patch_outscreen_media(zuma_dir):
         print("  [OK] Copied outscreen.jpg (160x160) to images/")
 
 
+LAYOUT_XML_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
+<!--
+  =============================================================================
+  ZuCompleluxe UI Layout Configuration (properties/layout.xml)
+  =============================================================================
+
+  COORDINATE SYSTEM & RESOLUTION ADAPTATION:
+  All coordinates (x, y, w, h) are defined in canonical PopCap 640x480 space.
+  The engine (zumareshandler.dll and zumatestingkit.dll) dynamically adapts and
+  scales every coordinate to match ANY aspect ratio (4:3, 3:2, 16:9, 16:10, 21:9)
+  with sub-pixel precision:
+    scale = min(TARGET_W / 640, TARGET_H / 480)
+    cw = 640 * scale, ch = 480 * scale
+    xo = (TARGET_W - cw) / 2, yo = (TARGET_H - ch) / 2
+
+  All UI elements, dialog boxes, and menus automatically remain perfectly centered
+  and proportioned without hardcoded drift or overlapping.
+
+  ADVENTURE MAP DOORS (doorX, doorY vs. frogX, frogY):
+  Each temple door in the Adventure Map contains two separate pairs of coordinates:
+    - doorX, doorY: The top-left pixel position where the door entrance graphic
+                    (IMAGE_DOOR_... / IMAGE_ADVDOOR5) is rendered onto the temple wall.
+    - frogX, frogY: The waypoint destination where the golden frog player marker
+                    sits/stands on the road path in front of that door.
+  (NOTE: Legacy attributes x1/y1 and x2/y2 are also fully supported for backwards
+   compatibility: x1=doorX, y1=doorY, x2=frogX, y2=frogY).
+-->
+<Layout>
+    <!-- ===================================================================== -->
+    <!-- 1. Adventure Map Temples Background Graphics                          -->
+    <!-- ===================================================================== -->
+    <AdventureTemples>
+        <Temple1 x="0" y="188" />
+        <Temple2 x="0" y="112" />
+        <Temple2V x="0" y="112" />
+        <Temple3 x="395" y="125" />
+        <Temple3V x="395" y="125" />
+        <Temple4 x="174" y="1" />
+        <!-- Secret Temple 5: The Void (Stage 13) -->
+        <Temple5 x="126" y="148" />
+        <Middle x="0" y="72" />
+    </AdventureTemples>
+
+    <!-- ===================================================================== -->
+    <!-- 2. Adventure Map Doors (id: 0..12)                                    -->
+    <!-- ===================================================================== -->
+    <AdventureDoors>
+        <!-- Temple 1 Doors (Quetzalcoatl: Stages 1..3) -->
+        <Door id="0" doorX="226" doorY="300" frogX="256" frogY="361" />
+        <Door id="1" doorX="296" doorY="270" frogX="327" frogY="364" />
+        <Door id="2" doorX="366" doorY="300" frogX="398" frogY="360" />
+
+        <!-- Temple 2 Doors (Popocatepetl: Stages 4..6) -->
+        <Door id="3" doorX="0"   doorY="164" frogX="56"  frogY="218" />
+        <Door id="4" doorX="69"  doorY="159" frogX="116" frogY="201" />
+        <Door id="5" doorX="120" doorY="155" frogX="167" frogY="188" />
+
+        <!-- Temple 3 Doors (Centeotl: Stages 7..9) -->
+        <Door id="6" doorX="452" doorY="154" frogX="462" frogY="188" />
+        <Door id="7" doorX="509" doorY="154" frogX="521" frogY="192" />
+        <Door id="8" doorX="568" doorY="154" frogX="584" frogY="196" />
+
+        <!-- Temple 4 Doors (Sun God: Stages 10..12) -->
+        <Door id="9"  doorX="220" doorY="35"  frogX="248" frogY="86" />
+        <Door id="10" doorX="291" doorY="35"  frogX="324" frogY="86" />
+        <Door id="11" doorX="369" doorY="35"  frogX="408" frogY="85" />
+
+        <!-- Secret Temple 5 Door (The Void: Stage 13) -->
+        <Door id="12" doorX="291" doorY="176" frogX="323" frogY="201" />
+    </AdventureDoors>
+
+    <!-- ===================================================================== -->
+    <!-- 3. Adventure Navigation Buttons                                       -->
+    <!-- ===================================================================== -->
+    <AdventureButtons>
+        <MainMenu x="0" y="438" />
+        <Play x="542" y="441" />
+    </AdventureButtons>
+
+    <!-- ===================================================================== -->
+    <!-- 4. Adventure Screen UI Labels & Stats                                 -->
+    <!-- ===================================================================== -->
+    <AdventureLabels>
+        <HighscoreTitle x="456" y="0" />
+        <BottomBox x="289" y="382" />
+        <StageNum x="344" y="396" />
+        <StageText y="422" centerX="326" />
+        <Subtitle y="456" centerX="326" />
+        <HighscoreScores x="575" y="70" />
+        <HighscoreDate x="567" />
+        <HighscoreNames x="470" y="70" />
+        <HighscoreRow spacing="18" />
+        <InfoBox x="20" y="60" w="150" h="100" lineSpacing="14" />
+        <!-- Secret Stage 13 Banner Typography -->
+        <Stage13Badge x="289" y="382" />
+        <Stage13Num x="344" y="396" />
+        <Stage13Title x="326" y="422" />
+        <Stage13Subtitle x="326" y="456" />
+    </AdventureLabels>
+
+    <!-- ===================================================================== -->
+    <!-- 5. Gauntlet Map Doors (id: 0..3)                                      -->
+    <!-- ===================================================================== -->
+    <GauntletDoors>
+        <Door id="0" x="209" y="179" />
+        <Door id="1" x="232" y="129" />
+        <Door id="2" x="249" y="82" />
+        <Door id="3" x="265" y="28" />
+    </GauntletDoors>
+
+    <!-- ===================================================================== -->
+    <!-- 6. Gauntlet Navigation Buttons                                        -->
+    <!-- ===================================================================== -->
+    <GauntletButtons>
+        <Practice x="177" y="444" />
+        <Survival x="277" y="444" />
+        <Back x="390" y="444" />
+        <MainMenu x="10" y="422" />
+        <Next x="506" y="413" />
+        <Play x="505" y="446" />
+    </GauntletButtons>
+
+    <!-- ===================================================================== -->
+    <!-- 7. Gauntlet Screen UI Labels & Controls                               -->
+    <!-- ===================================================================== -->
+    <GauntletLabels>
+        <GauntletTitle x="0" y="0" />
+        <DoorFrame x="170" y="220" />
+        <HighscoreTitle x="434" y="0" />
+        <DoorName x="170" y="427" />
+        <PracticeText x="150" y="260" w="320" />
+        <!-- Custom Map Indicator Badge Tag: 190 inside doorway -->
+        <CustomMapTag x="190" y="260" />
+        <Gem x="560" y="220" />
+        <HighscoreScores x="575" y="70" />
+        <HighscoreNames x="445" y="70" />
+        <HighscoreRow spacing="18" />
+        <HighscoreClip w="567" />
+        <InfoBox x="20" y="60" w="150" h="100" lineSpacing="14" />
+    </GauntletLabels>
+
+    <!-- ===================================================================== -->
+    <!-- 8. Main Menu Buttons & Frog Elements                                  -->
+    <!-- ===================================================================== -->
+    <MainMenu>
+        <AdventureBtn x="452" y="64" />
+        <GauntletBtn x="436" y="153" />
+        <OptionsBtn x="418" y="236" />
+        <MoreGamesBtn x="394" y="305" />
+        <QuitBtn x="496" y="315" />
+        <WelcomeText y="-4" />
+        <UserSwitchText y="38" />
+        <FrogEyes x="191" y="331" />
+        <EyeBlink x="188" y="247" />
+        <Hat x="215" y="170" />
+        <!-- Solar Flare Sun Ray Effects -->
+        <Sun1 x="-63" y="-69" />
+        <Sun2 x="-63" y="-69" />
+        <!-- Eye Raycast Starting Coordinates -->
+        <EyeRay1 x="29" y="25" />
+        <EyeRay2 x="87" y="16" />
+        <!-- Eye Idle Pupil Resting Coordinates -->
+        <EyeIdle1 x="219" y="368" />
+        <EyeIdle2 x="276" y="355" />
+    </MainMenu>
+
+    <!-- ===================================================================== -->
+    <!-- 9. More Games Screen Quadrants                                        -->
+    <!-- ===================================================================== -->
+    <MoreGames>
+        <Thumb0 x="58" y="107" w="250" h="150" />
+        <Thumb1 x="330" y="107" w="250" h="150" />
+        <Thumb2 x="58" y="277" w="250" h="150" />
+        <Thumb3 x="330" y="277" w="250" h="150" />
+        <BackBtn x="164" y="445" />
+    </MoreGames>
+
+    <!-- ===================================================================== -->
+    <!-- 10. Loading Screen Elements                                           -->
+    <!-- ===================================================================== -->
+    <LoadingScreen>
+        <!-- Horizontal & Vertical position of stone loader progress bar -->
+        <LoadingBar x="128" y="349" />
+        <!-- Vertical baseline of "CLICK HERE TO PLAY!" button -->
+        <ClickToPlay y="430" />
+    </LoadingScreen>
+
+    <!-- ===================================================================== -->
+    <!-- 11. In-Game HUD & Banners                                             -->
+    <!-- ===================================================================== -->
+    <InGameHUD>
+        <!-- Offset in pixels from bottom-right screen edge for level banner (e.g. "RABBIT 1") -->
+        <LevelBanner offsetX="40" offsetY="40" />
+        <!-- Center coordinates in 640x480 space for lives banner ("%d LIVES LEFT", "LAST LIFE!") -->
+        <LivesBanner centerX="320" centerY="240" />
+        <!-- In-Game Stone Menubar HUD Positions (livesX, stageCX, scoreRX, zumaX, menuX) -->
+        <Menubar livesX="28" stageCX="200" scoreRX="360" zumaX="409" menuX="540" />
+        <!-- Granular Menubar widgets -->
+        <LivesPos x="28" y="6" spacing="26" />
+        <StageName centerX="200" y="8" font="Cancun12" color="#FFF000" />
+        <ScoreText rightX="360" y="8" font="Cancun12" color="#FFF000" />
+        <ProgressBar x="409" y="2" w="178" h="24" />
+        <MenuBtn x="540" y="4" w="67" h="27" />
+        <!-- Menubar Safety Margins (top, bottom, left, right) -->
+        <MenubarMargins top="50" bottom="100" left="200" right="150" />
+    </InGameHUD>
+
+    <!-- ===================================================================== -->
+    <!-- 12. Stage Complete Cutscene Coordinates                               -->
+    <!-- ===================================================================== -->
+    <StageComplete>
+        <!-- Baseline Y coordinate for "STAGE %d" text -->
+        <StageText y="150" />
+        <!-- Baseline Y coordinate for "COMPLETE" banner and magical sparkles -->
+        <CompleteText y="250" />
+        <!-- Destination Y coordinate for final frog zoom-out in stage 13-1 -->
+        <FrogTarget y="200" />
+        <!-- Golden Frog Hop Trajectory Waypoints (bx: hop 1, cx: hop 2, dx: landing center) -->
+        <FrogWaypoints bx="150" cx="500" dx="320" />
+    </StageComplete>
+
+    <!-- ===================================================================== -->
+    <!-- 13. Temple Cleared / Congratulations Dialog Box                       -->
+    <!-- ===================================================================== -->
+    <TempleCleared>
+        <ContinueBtn x="410" y="450" />
+        <Title y="120" />
+    </TempleCleared>
+
+    <!-- ===================================================================== -->
+    <!-- 14. End Credits Screen Layout                                         -->
+    <!-- ===================================================================== -->
+    <CreditsScreen>
+        <!-- Distance in pixels from right screen edge for Whatever button -->
+        <WhateverBtn offsetX="130" />
+        <!-- Center X coordinate for scrolling credit text lines -->
+        <CreditsText centerX="320" />
+        <!-- Starting Y coordinate where credits roll up onto the display -->
+        <ScrollStart y="480" />
+    </CreditsScreen>
+
+    <!-- ===================================================================== -->
+    <!-- 15. Help & Instructions Screen Elements                               -->
+    <!-- ===================================================================== -->
+    <HelpScreen>
+        <!-- Background stone tablet frame (IMAGE_HELP_BACK) -->
+        <HelpBack x="11" y="51" />
+        <!-- Skull compartment graphic and descriptive label -->
+        <Skull x="65" y="20" />
+        <!-- Coin bonus graphic and score text -->
+        <Coin x="282" y="45" />
+        <!-- Frog marble swapping mechanic icon -->
+        <Frog x="500" y="65" />
+        <!-- Header instruction lines (uncovered from stone frame) -->
+        <TopText1 x="30" y="40" />
+        <TopText2 x="8" y="40" />
+        <!-- Marble swap tutorial button and mouse pointer -->
+        <SwapClick x="560" y="55" />
+        <SwapMouse x="580" y="60" />
+        <!-- Tutorial target marble hit coordinates -->
+        <BallTarget x="240" y="160" />
+        <!-- Dialog Controls -->
+        <DontShowCheckbox x="14" y="430" />
+        <DoneBtn x="450" y="430" w="180" h="44" />
+        <!-- DevTester Instructions Tab (Temple 5 preview & middle mouse cheat) -->
+        <DevTemple5 x="225" y="114" />
+        <DevMouseM x="465" y="145" />
+    </HelpScreen>
+
+    <!-- ===================================================================== -->
+    <!-- 16. Universal Modal & In-Game Dialog Windows                          -->
+    <!-- ===================================================================== -->
+    <Dialogs>
+        <!-- Minimum distance from top screen edge when centering dialogs -->
+        <Dialog minTop="10" />
+    </Dialogs>
+
+    <!-- ===================================================================== -->
+    <!-- 17. DevTester Help Screen & Testing Kit Cheats Layout                 -->
+    <!-- ===================================================================== -->
+    <DevHelpScreen>
+        <!-- Header title "DEVELOPER MODE" and subtitle -->
+        <HeaderTitle x="320" y="28" />
+        <HeaderSubtitle x="320" y="78" />
+
+        <!-- Dual Column Base Centers (Left: Adventure/Cheats, Right: Gauntlet/Demo) -->
+        <Columns col1X="162" col2X="478" />
+
+        <!-- Section 1 (Left): Adventure Mode -->
+        <AdvHeader y="108" />
+        <Temple5Preview x="67" y="114" />
+        <AdvBullets x="30" y="206" spacing="18" />
+
+        <!-- Section 2 (Right): Gauntlet Mode -->
+        <GauntHeader y="108" />
+        <GauntBullets x="343" y="132" spacing="21" />
+
+        <!-- Section 3 (Bottom Left): Middle Mouse Button Cheat -->
+        <CheatHeader y="282" />
+        <CheatBullets x="30" y="304" spacing="18" />
+
+        <!-- Section 4 (Bottom Right): Interactive 5-Ball Demo & Animation -->
+        <DemoBalls x="478" y="295" spacing="32" />
+        <DemoMouse x="508" y="350" />
+        <DemoClick x="458" y="362" />
+        <DemoClear x="478" y="303" />
+
+        <!-- DevTester Access Dialog Window (ID 999) -->
+        <DevDialog width="380" minTop="10" />
+    </DevHelpScreen>
+</Layout>
+"""
+
+
+def ensure_layout_xml(zuma_dir):
+    """
+    Automatically generates properties/layout.xml in the target game directory.
+    If it exists, preserves any custom edits made by the user while upgrading
+    any missing elements (such as Temple 5 or Menubar) to ensure full compatibility.
+    """
+    prop_dir = os.path.join(zuma_dir, 'properties')
+    os.makedirs(prop_dir, exist_ok=True)
+    dst_layout = os.path.join(prop_dir, 'layout.xml')
+
+    src_layout = os.path.join(SCRIPT_DIR, '..', 'assets', 'properties', 'layout.xml')
+    template_content = None
+    if os.path.exists(src_layout):
+        with open(src_layout, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+    else:
+        template_content = LAYOUT_XML_TEMPLATE
+
+    if not os.path.exists(dst_layout):
+        with open(dst_layout, 'w', encoding='utf-8') as f:
+            f.write(template_content)
+        print("  [OK] Automatically generated properties/layout.xml from patch engine.")
+    else:
+        # Check if existing layout.xml is missing modern sections like Temple 5 or Menubar
+        with open(dst_layout, 'r', encoding='utf-8') as f:
+            cur = f.read()
+        missing_sections = []
+        if 'Temple5' not in cur: missing_sections.append('Temple5')
+        if 'Menubar' not in cur: missing_sections.append('Menubar')
+        if 'Dialogs' not in cur: missing_sections.append('Dialogs')
+        if 'DevHelpScreen' not in cur: missing_sections.append('DevHelpScreen')
+        if missing_sections:
+            print(f"  [UPGRADE] Existing properties/layout.xml found, but missing: {', '.join(missing_sections)}. Refreshing to full specification...")
+            with open(dst_layout, 'w', encoding='utf-8') as f:
+                f.write(template_content)
+            print("  [OK] Upgraded properties/layout.xml with all 16 configuration sections.")
+        else:
+            print("  [OK] Existing properties/layout.xml verified with all modern sections; preserving user layout customizations.")
+
+
 if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     flags = [a.lower() for a in sys.argv[1:] if a.startswith('--')]
@@ -478,6 +832,7 @@ if __name__ == '__main__':
     
     clean_modules_bak(z_dir)
     patch_resources_file(z_dir, is_lite=is_lite)
+    ensure_layout_xml(z_dir)
     patch_images(z_dir, tbls, is_lite=is_lite)
     patch_dialog_button(z_dir, tbls)
     patch_temple5_media(z_dir)

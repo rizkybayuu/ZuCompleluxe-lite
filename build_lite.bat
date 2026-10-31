@@ -103,7 +103,7 @@ REM 1. Terminate game if running to prevent file locks
 taskkill /f /im Zuma.exe >nul 2>&1
 
 echo =======================================================
-echo    ZuCompleluxe v0.5.1.4 Lite - 1-Click Game Patcher ^& Builder
+echo    ZuCompleluxe v0.6 Lite - 1-Click Game Patcher ^& Builder
 echo    Direct Installation Folder Patcher - Lite Edition
 echo =======================================================
 echo.
@@ -399,13 +399,13 @@ if not exist "!TARGET_ZUMA_DIR!\modules" (
 )
 
 REM =======================================================================
-REM [PRIORITY 4] Building Sidecar DLLs (Lite: 6 Sidecars)
+REM [PRIORITY 4] Building Sidecar DLLs (Lite: 7 Sidecars)
 REM Purge excluded sidecars from target modules directory so installation is strictly Lite
 for %%D in (zumawebpbg.dll zumawebpsprite.dll zumaextrapath.dll zumaextracolor.dll) do (
     if exist "!TARGET_ZUMA_DIR!\modules\%%D" del /f /q "!TARGET_ZUMA_DIR!\modules\%%D" >nul 2>&1
     if exist "!TARGET_ZUMA_DIR!\%%D" del /f /q "!TARGET_ZUMA_DIR!\%%D" >nul 2>&1
 )
-for %%D in (zumadllchecker.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll zumadisplay.dll zumareshandler.dll) do (
+for %%D in (zumadllchecker.dll zumacustommap.dll zumacplxcredit.dll zumatestingkit.dll zumadisplay.dll zumareshandler.dll zumapriolayer.dll) do (
     if exist "!TARGET_ZUMA_DIR!\%%D" del /f /q "!TARGET_ZUMA_DIR!\%%D" >nul 2>&1
 )
 
@@ -415,7 +415,7 @@ set "DLL_STATUS_zumaextrapath.dll=skipped (omitted in lite)"
 set "DLL_STATUS_zumaextracolor.dll=skipped (omitted in lite)"
 
 echo -------------------------------------------------------
-echo  [FILE 1/6] Building zumadllchecker.dll - Lite Diagnostic Gatekeeper ...
+echo  [FILE 1/7] Building zumadllchecker.dll - Lite Diagnostic Gatekeeper ...
 echo -------------------------------------------------------
 set "OUT=zumadllchecker.dll"
 set "SRC=src\zumadllchecker.dll.c"
@@ -431,7 +431,7 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 2/6] Building zumacustommap.dll - Gauntlet Custom Map Sidecar ...
+echo  [FILE 2/7] Building zumacustommap.dll - Gauntlet Custom Map Sidecar ...
 echo -------------------------------------------------------
 set "OUT=zumacustommap.dll"
 set "SRC=src\zumacustommap.dll.c"
@@ -447,7 +447,7 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 3/6] Building zumacplxcredit.dll - Developer Credits Sidecar ...
+echo  [FILE 3/7] Building zumacplxcredit.dll - Developer Credits Sidecar ...
 echo -------------------------------------------------------
 set "OUT=zumacplxcredit.dll"
 set "SRC=src\zumacplxcredit.dll.c"
@@ -463,7 +463,7 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 4/6] Building zumatestingkit.dll - Developer Testing Kit Sidecar ...
+echo  [FILE 4/7] Building zumatestingkit.dll - Developer Testing Kit Sidecar ...
 echo -------------------------------------------------------
 set "OUT=zumatestingkit.dll"
 set "SRC=src\zumatestingkit.dll.c"
@@ -479,7 +479,7 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 5/6] Building zumadisplay.dll - Display ^& Window Driver ...
+echo  [FILE 5/7] Building zumadisplay.dll - Display ^& Window Driver ...
 echo -------------------------------------------------------
 set "OUT=zumadisplay.dll"
 set "SRC=src\zumadisplay.dll.c"
@@ -495,7 +495,7 @@ if errorlevel 1 (
 echo.
 
 echo -------------------------------------------------------
-echo  [FILE 6/6] Building zumareshandler.dll - Resolution ^& UI Layout Patcher ...
+echo  [FILE 6/7] Building zumareshandler.dll - Resolution ^& UI Layout Patcher ...
 echo -------------------------------------------------------
 set "OUT=zumareshandler.dll"
 set "SRC=src\zumareshandler.dll.c"
@@ -505,6 +505,21 @@ set "LIBS=-luser32 -lgdi32"
 call builder\bootstrap.bat compile_dll
 if errorlevel 1 (
     echo [ERROR] zumareshandler.dll build failed.
+    if "!NON_INTERACTIVE!"=="0" pause
+    exit /b 1
+)
+echo.
+echo -------------------------------------------------------
+echo  [FILE 7/7] Building zumapriolayer.dll - High-Priority Layer ^& Earthquake Engine ...
+echo -------------------------------------------------------
+set "OUT=zumapriolayer.dll"
+set "SRC=src\zumapriolayer.c src\zumapriolayer.def"
+set "EXPORT=ZPL_Init"
+set "XFLAGS="
+set "LIBS=-lm"
+call builder\bootstrap.bat compile_dll
+if errorlevel 1 (
+    echo [ERROR] zumapriolayer.dll build failed.
     if "!NON_INTERACTIVE!"=="0" pause
     exit /b 1
 )
@@ -529,7 +544,7 @@ del /f /q "!PATCH_LOG!" >nul 2>&1
 set "ALL_OK=1"
 
 REM 1. Inject static sidecar imports into .zdata
-echo [PATCH 1/5] Injecting static sidecar imports into .zdata ...
+echo [PATCH 1/6] Injecting static sidecar imports into .zdata ...
 "!PYTHON_BIN!" "builder\patch_imports.py" "!SRC_VANILLA!" "!BUILD_TMP!\Zuma.exe" --lite >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_imports.py"
@@ -538,7 +553,7 @@ if errorlevel 1 (
 echo [OK] Static sidecar imports injected successfully.
 
 REM 6. Custom Map Gauntlet support via .zcm and zumacustommap.dll
-echo [PATCH 2/5] Applying Custom Map Gauntlet support via .zcm and zumacustommap.dll ...
+echo [PATCH 2/6] Applying Custom Map Gauntlet support via .zcm and zumacustommap.dll ...
 "!PYTHON_BIN!" "builder\patch_custommap.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_custommap.py"
@@ -547,7 +562,7 @@ if errorlevel 1 (
 echo [OK] Custom Map Gauntlet support applied successfully.
 
 REM 7. Developer Credits via .zcc and zumacplxcredit.dll
-echo [PATCH 3/5] Applying Developer Credits support via .zcc and zumacplxcredit.dll ...
+echo [PATCH 3/6] Applying Developer Credits support via .zcc and zumacplxcredit.dll ...
 "!PYTHON_BIN!" "builder\patch_zccredit.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_zccredit.py"
@@ -556,7 +571,7 @@ if errorlevel 1 (
 echo [OK] Developer Credits support applied successfully.
 
 REM 8. Developer Testing Kit via .ztk and zumatestingkit.dll
-echo [PATCH 4/5] Applying Developer Testing Kit support via .ztk and zumatestingkit.dll ...
+echo [PATCH 4/6] Applying Developer Testing Kit support via .ztk and zumatestingkit.dll ...
 "!PYTHON_BIN!" "builder\patch_testingkit.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_testingkit.py"
@@ -565,13 +580,22 @@ if errorlevel 1 (
 echo [OK] Developer Testing Kit support applied successfully.
 
 REM 9. Resolution ^& Viewport Config via .zres and zumareshandler.dll
-echo [PATCH 5/5] Applying Resolution ^& Viewport Config ^(!CUSTOM_W!x!CUSTOM_H!^) via .zres and zumareshandler.dll ...
+echo [PATCH 5/6] Applying Resolution ^& Viewport Config ^(!CUSTOM_W!x!CUSTOM_H!^) via .zres and zumareshandler.dll ...
 "!PYTHON_BIN!" "builder\patch_customres.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" -W !CUSTOM_W! -H !CUSTOM_H! >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_customres.py"
     goto PatchFailed
 )
 echo [OK] Resolution ^& Viewport Config applied successfully.
+
+REM 6. High-Priority Sprite & Cutout Layer + Earthquake Bake Caves via .zprio and zumapriolayer.dll
+echo [PATCH 6/6] Applying High-Priority Layer ^& Earthquake Bake via .zprio and zumapriolayer.dll ...
+"!PYTHON_BIN!" "builder\patch_priolayer.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
+if errorlevel 1 (
+    set "FAILED_PATCH_STEP=builder\patch_priolayer.py"
+    goto PatchFailed
+)
+echo [OK] High-Priority Layer ^& Earthquake Bake applied successfully.
 
 REM Deploy patched executable to target folder
 copy /y "!BUILD_TMP!\Zuma.exe" "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" >nul

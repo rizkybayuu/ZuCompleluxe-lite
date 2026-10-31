@@ -7,9 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.5.1.4] - 2026-10-24
+## [0.6.0] - 2026-10-30
+
+### Added
+- **High-Priority Sprite & Cutout Layer & Earthquake Engine (`zumapriolayer.dll` & `.zprio`)**:
+  - Injected an 11th modular sidecar (`zumapriolayer.dll`) in Full Edition and a 7th sidecar in Lite Edition via new executable PE code section `.zprio` (`0x60000020` `[RX]`).
+  - Added 100% dynamic AOB signature scanning across 13 code caves (Sites A, B, C, D, E, M4, F, S1, S3, S4, DL, G, NB) with zero hardcoded virtual addresses.
+  - Prioritized dynamic rendering for sprites and cutouts with priority >= 10 (`ZPL_PRI_MIN = 10`, `ZPL_PRI_MAX = 19`) above Frog, Coins, and Bullets across normal gameplay (State 0), level intro pan (State 1), stage transition (State 6), and score countdown (State 4).
+  - Stage Completion Earthquake Engine (State 5): whole-board snapshot bake (`ZPL_DrawBake`) rendering layers 0..4 onto `MemoryImage` bake canvas before breaking into crumbling puzzle pieces with authentic screen shake and rumble.
+  - Zero hooks on vanilla PopCap XML parser for 100% crash resilience and memory safety.
+- **Complete 33 Affinity Photo Blend Modes Engine (`docs/blend_modes_specification.md`)**:
+  - Implemented the full suite of 33 industry-standard Affinity blend modes across Normal, Darken (Multiply, Color Burn, Linear Burn, Darker Color), Lighten (Screen, Color Dodge, Add, Lighter Color), Contrast (Overlay, Soft Light, Hard Light, Vivid Light, Linear Light, Pin Light, Hard Mix), Comparative (Difference, Exclusion, Subtract, Divide), and Component categories.
+  - Pure 32-bit hardware backbuffer direct locking (`DDImage::Lock` / `Unlock`) and software fast lookup tables with zero performance penalty.
+- **Universal XML UI Layout Configuration Engine (`properties/layout.xml`, `src/zrh_layout.c`, `src/zrh_layout.h`)**:
+  - Extracted over 16 distinct UI coordinate blocks into user-editable `properties/layout.xml`.
+  - Dynamic aspect-ratio adaptation engine: all elements defined in canonical PopCap 640x480 space and mapped with sub-pixel precision across ANY aspect ratio (4:3, 3:2, 16:9, 16:10, 21:9).
+  - Configurable UI modules include:
+    1. Adventure Map Temples (Temple 1..4, 2V, 3V, Middle, and Secret Temple 5).
+    2. Adventure Map Doors (Doors 0..12, with distinct `doorX/doorY` entrance coords and `frogX/frogY` waypoint destinations).
+    3. Adventure Navigation Buttons (Main Menu, Play).
+    4. Adventure Screen Labels & Stats (Highscore, Stage number, Stage title, Subtitle).
+    5. Practice & Survival Stage Carousel (Center offsets, door render positions, stage arrows, rank headers).
+    6. Main Menu Buttons & Aztec Door frames.
+    7. Options & Sound Settings Dialog (Checkboxes, sliders, 3D acceleration, custom cursor toggles).
+    8. In-Game HUD Menubar margins, live score right-align, lives icons, stage pill center, Zuma bar, and Menu button.
+    9. In-Game Text Banners (Level banner offset, lives banner center).
+    10. Victory & Level Complete Banners ("STAGE COMPLETE", "TEMPLE CLEARED", bonus floating text).
+    11. Credits Roll scroll start Y and reset boundaries.
+    12. How-To-Play & Help Screens (Frog icon, ball target, swap button, mouse cursor).
+    13. DevTester Help Screen (Adventure Mode column, Temple 5 preview, bullets, Gauntlet Mode column, bullets, middle-click cheat guide, and 5-ball interactive animation).
+    14. Universal Modal Dialogs minimum top margin clamping (`minTop="10"`).
+  - Automated self-generating template fallback via `ensure_layout_xml()` in `builder/patch_assets.py` to upgrade older installations without overwriting custom edits.
+- **Secret Temple 5 ("The Void") & Stage 13-1 Runtime Integration**:
+  - Fully interactive Secret Temple 5 on Adventure Map with custom `advtemple5` and glowing door `advdoor5`.
+  - Door 12 hover and double-click triggers in `zumatestingkit.dll` allowing DevTester profile to launch Stage 13-1 ("The Void") directly from the Adventure Map.
+
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
 
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
+- **Stage 13-1 Congratulations DEP Crash (`0xC0000005` in `zumareshandler.dll`)**:
+  - Eliminated `.bss` trampoline hooks (`s_trampoline_AddSpeech`, `s_trampoline_AddFrogReply`, `s_trampoline_DrawCongratulations`) that attempted execution in `PAGE_READWRITE` memory.
+  - Restored clean switch-case JMP hook at `0x00427340` (`CutsceneMgr::Draw`) to `hk_DrawCongratulations`, translating graphics matrix offsets (`g->mTransX`, `g->mTransY`) without touching function prologues.
+- **Multi-State Skull Hole & Priority Rendering Fixes (`src/zumaextrapath.dll.c`)**:
+  - Reverted intrusive cutscene state checking in `ZEP_CheckHolePriority`, ensuring golden skull holes render consistently across all game states: Level Start (Intro Pan), Normal Gameplay, In-Game Pause Menu, Stage Tally / Score Countdown, Earthquake Transition, and Gauntlet Mode.
+- **DevTester Help Screen Gauntlet Instruction Alignment (`src/zumatestingkit.dll.c`)**:
+  - Corrected horizontal coordinate calculation for Gauntlet Mode instructions from `col2_cx - D_LX(640 - gaunt_text_x)` to `col2_cx - D_LX(col2_base - gaunt_text_x)` (set to `col2_cx - D_LX(135)` when default).
+  - Eliminates the 297px leftward offset bug, aligning bullet points cleanly beneath the "GAUNTLET MODE" heading in the right column.
+
+### Changed
+- **Framework Version Bump to v0.6**:
+  - Synchronized pre-launch diagnostic window title, internal version macro, and telemetry to `v0.6` across `src/zumadllchecker.dll.c`, `build_full.bat`, and `build_lite.bat`.
+  - Expanded sidecar ecosystem: Full Edition now hosts 11 sidecars (6 content + 5 core); Lite Edition hosts 7 sidecars.
+  - Maintained 100% architectural parity across Full and Lite repositories.
+
+## [0.5.1.4] - 2026-10-24
+
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
+### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **Asset Synthesizer Palette Cleanliness (`builder/patch_assets.py`)**:
   - Removed erroneous fallback `trans_val = int(bg_idx)` when synthesizing images without explicit GIF transparency, aligning asset generation cleanly with PopCap vanilla conventions.
 
@@ -19,7 +92,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.1.3] - 2026-10-24
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **Pure `[RX]` (`0x60000020`) Enforcement on `.zres` Section (`builder/patch_customres.py`, `src/zumareshandler.dll.c`, `builder/verify_pe.py`)**:
   - Eliminated the `0xE0000060` (`[RWX]`) section characteristic on `.zres` that triggered `[WARN] Section .zres is both WRITABLE and EXECUTABLE (W+X)` during `verify_pe.py --lite`.
   - Relocated the 72-byte mutable `ZTable` synchronization block (`SLOT` at `+0x18`, `TRIED` at `+0x1C`, and dynamic boundary floats/ints) from `.zres` into `.zdata + 0x1800` (`0xC0000040 [RW]`), while retaining read-only metadata (`magic = 0x53455A52`, `ztable_va` at `+0x04`, and `w, h` at `+0x48`) inside `.zres`.
@@ -36,7 +120,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.1.2] - 2026-10-23
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **Cached Thumbnail Golden Skull Holes & Full Tangent/Fixed Rotation Pipeline (`zumareshandler.dll`)**:
   - Fixed missing skull holes on generated map thumbnails (`levels/cached_thumbnails/*.png`) caused by `zumaextrapath.dll`'s Cave M detour bypassing `HoleMgr::Draw` when `va_ptr_checkholeprio != 0`.
   - Intercepted `CreateCachedThumbnail` downscaling call site (`0x0040CD8E`) via `hk_cached_thumbnail_scale` to explicitly render all active skull holes onto the staging canvas before downscaling.
@@ -62,7 +157,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.1.1] - 2026-10-23
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **Button Hover Hardware Custom Cursor Visual Corruption (`zumadisplay.dll`)**:
   - Fixed visual static and corruption occurring when hovering over interactive UI buttons (switching from the default arrow cursor to `CURSOR_HAND`).
   - PopCap `MemoryImage` initializes loaded GIF assets (such as `cursor_hand.gif`) as 8-bit paletted images with `mBits` (`+0x14`) initially set to `NULL` until explicitly unpacked.
@@ -101,7 +207,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminated redundant stacked dividers between modules in Lite edition.
   - Standardized uniform module header borders and sequential patch steps (`[PATCH X/N]`) across both editions.
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **DevVIP Middle-Click Cheat Survival Mode Access Violation (`0x0041131F`)**:
   - Fixed a crash in `zumatestingkit.dll` when triggering middle-click cheat in Survival mode under Lite Edition or without `zumaextrapath.dll`.
   - In vanilla Zuma, `[board + 0x68]` points to a `Curve*` object (`mStagingCurves[0]`) rather than a dynamic heap pointer array (`Curve**`). Dereferencing it as an array passed the Curve vftable (`0x004FE5EC`) to `CurveMgr::DestroyAll`, resulting in crash at `0x0041131F`.
@@ -182,7 +299,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `build_full.bat` compiles and deploys all 10 modules (`zumadllchecker.dll`, `zumawebpbg.dll`, `zumawebpsprite.dll`, `zumaextrapath.dll`, `zumaextracolor.dll`, `zumacustommap.dll`, `zumacplxcredit.dll`, `zumatestingkit.dll`, `zumadisplay.dll`, `zumareshandler.dll`).
   - `zumadllchecker.dll` pre-launch diagnostic window dynamically displays status checks for all 10 sidecars in real time.
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 
 - **DirectDraw 3D Acceleration Reset on F11 Fullscreen Toggle (`src/zumadisplay.dll.c`)**:
   - Fixed an issue where `ToggleFullscreen()` inadvertently overwrote `mIs3D` (`dd + 0x10`) with `0`, causing 3D hardware acceleration to be silently disabled when toggling fullscreen via F11. 3D acceleration is now 100% preserved.
@@ -253,7 +381,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implemented Single-Backup Architecture (`modules\bak\Zuma.exe`) guaranteeing strict idempotency and zero duplicate backup proliferation across repeated patch runs.
   - Unified local tooling convention: isolated internal helper binaries under `builder/.tools/` with automatic ignore patterns.
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **PE Import Directory & GameHouse Retail DRM Protection (`builder/patch_imports.py`)**:
   - Fixed `DataDirectory[12]` (IAT) bounds calculation that previously spanned 570 KB across `.rdata`, `.data`, `.rsrc`, and `GARR` sections.
   - Preserved original IAT bounds when present (`RVA=0xFE000, Size=0x398`) and strictly confined dynamic fallback calculations within `.rdata`.
@@ -277,7 +416,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.1.1] - 2026-10-19
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **`levels.xml` Stage Color Progression Differentiation**:
   - Differentiated stage color progression logic in `builder/patch_assets.py` between Full and Lite editions.
   - **Lite Edition Progression**: Adjusted stages 4–13 to adhere strictly to the vanilla PopCap 6-color engine boundary (Stage 1–3: 4 colors; Stage 4–6: 5 colors; Stage 7–13: 6 colors), preventing out-of-bounds palette crashes caused by attempts to spawn colors beyond vanilla limits without `zumaextracolor.dll`.
@@ -299,7 +449,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Git CRLF Line Ending Enforcement (`.gitattributes`)**:
   - Mandated `eol=crlf` for all `.bat` and `.cmd` files to ensure stability across git checkouts and zip releases.
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **Missing Python Module Crashes**:
   - Resolved `ModuleNotFoundError: No module named 'numpy'` by enforcing prioritized dependency verification before asset generation.
 - **Batch Parenthesis Syntax Error**:
@@ -313,7 +474,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0.1] - 2026-10-18
 
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
+  - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
+    - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
+    - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ### Fixed
+- **Gauntlet & Adventure Mode Widescreen Text Alignment & Custom Map Tag (`src/zumareshandler.dll.c`)**:
+  - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
+  - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
+  - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
 - **Asset Patcher Re-patch & Replace (`builder/patch_assets.py`)**:
   - Modified asset pipeline to always load pristine original assets from `modules\bak\` (`baDotz.gif`, `resources.xml`, `levels.xml`) and re-synthesize/overwrite target files instead of skipping when files already exist.
   - Ensured `DialogButtonLocked.jpg` and `_Dialogbuttonlocked.gif` are always regenerated from their respective base assets and replaced deterministically.

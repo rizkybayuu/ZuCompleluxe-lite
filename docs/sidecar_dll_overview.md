@@ -1,9 +1,9 @@
 # Sidecar DLL Overview
 
-ZuCompleluxe injects ten modular sidecar DLLs into Zuma Deluxe (v1.0.0.1) at runtime. Modules are loaded cleanly via section `.zres` and the dynamic module loader stub (`.zldr` in `.zdata`). The sections are synthesized and injected by the Python builder pipeline in `builder/`.
+ZuCompleluxe injects eleven modular sidecar DLLs into Zuma Deluxe (v1.0.0.1) at runtime. Modules are loaded cleanly via section `.zres` and the dynamic module loader stub (`.zldr` in `.zdata`). The sections are synthesized and injected by the Python builder pipeline in `builder/`.
 
 > [!NOTE]
-> The `modules/` directory (compiled output) is excluded from version control. Run `build_full.bat` to compile all ten sidecars, or `build_lite.bat` for the lightweight 6-sidecar edition.
+> The `modules/` directory (compiled output) is excluded from version control. Run `build_full.bat` to compile all eleven sidecars, or `build_lite.bat` for the lightweight 7-sidecar edition.
 
 ---
 
@@ -21,6 +21,7 @@ ZuCompleluxe injects ten modular sidecar DLLs into Zuma Deluxe (v1.0.0.1) at run
 | `zumatestingkit.dll` | `src/zumatestingkit.dll.c` | `.ztk`, `.zdata` | `ZTK_IsActive`, `ZTK_OnUserDialogInit`, `ZTK_DrawHelpScreen` | Developer testing kit & Secret Temple 5. Provides dev HUD, middle-click score differential popup, stage selector, unlock cheat, Secret Temple 5 gauntlet doors, and custom 2-column DevTester Guide. |
 | `zumadisplay.dll` | `src/zumadisplay.dll.c` | `.zdata` (`.zldr`) | `ZDISP_IsActive`, `ZDISP_ScreenToGameCoords` | Display & window driver. DirectDraw windowed mode initialization (DDSCL_NORMAL), F11 & Alt+Enter borderless fullscreen toggle, 3D acceleration preservation (`mIs3D`), native 32-bit ARGB GPU Hardware Cursors (`HCURSOR`), PrimarySurface::Blt letterbox fit blit hook, ScreenToClient/ClientToScreen remapping, and outscreen stone border rendering. |
 | `zumareshandler.dll` | `src/zumareshandler.dll.c` | `.zres` (`[RX]`), `.zdata` (`[RW]`) | `ZRH_IsActive` | Resolution & UI layout patcher. Dynamically scales viewports to any resolution >= 480x320 via AOB memory scanning across 20+ screens, modal dialog universal centering (`SetupDialog`), board clip rect expansion, stone menubar HUD margin synchronization, and dynamic asset redirection (`imagescustomres/` with automatic fallback to `images/`). Mutable `ZTable` lives at `.zdata + 0x1800` while `.zres` is strictly `[RX]`. |
+| `zumapriolayer.dll` | `src/zumapriolayer.c` | `.zprio`, `.zdata` (`.zldr`) | `ZPL_DrawHigh`, `ZPL_DrawLow`, `ZPL_DrawBake`, `ZPL_DrawNode` | High-Priority Layer, Stage Completion Earthquake Bake Engine, and Complete 33 Affinity Blending Modes Engine. Manages high-priority sprites (pri 10..19), binds multi-layer cutouts across all gameplay states, coordinates whole-board earthquake crumbling, and executes pure 32-bit hardware backbuffer Lock/Unlock blending for all 33 Affinity blend modes. See `docs/blend_modes_specification.md`. |
 
 ---
 
@@ -38,8 +39,8 @@ WebP animation rendering is decoupled into:
 - Both WebP modules link against the bundled 32-bit `libwebp` static archives in `builder/libwebp/lib/` (`libwebpdemux.a` and `libwebpdecoder.a`), supporting both MinGW32 GCC and Zig CC out-of-the-box.
 
 ### Build Variants
-- **`build_full.bat`** (Full Edition) — Compiles all 10 sidecars, applies all binary PE patches, generates assets, and verifies PE structural integrity.
-- **`build_lite.bat`** (Lite Edition) — Compiles 6 core sidecars (`zumadllchecker.dll`, `zumacustommap.dll`, `zumacplxcredit.dll`, `zumatestingkit.dll`, `zumadisplay.dll`, `zumareshandler.dll`). Excludes the 4 content/heavy sidecars (`zumawebpbg.dll`, `zumawebpsprite.dll`, `zumaextrapath.dll`, `zumaextracolor.dll`). Supports arbitrary custom resolution and borderless fullscreen.
+- **`build_full.bat`** (Full Edition) — Compiles all 11 sidecars, applies all binary PE patches, generates assets, and verifies PE structural integrity.
+- **`build_lite.bat`** (Lite Edition) — Compiles 7 core sidecars (`zumadllchecker.dll`, `zumacustommap.dll`, `zumacplxcredit.dll`, `zumatestingkit.dll`, `zumadisplay.dll`, `zumareshandler.dll`, `zumapriolayer.dll`). Excludes the 4 content/heavy sidecars (`zumawebpbg.dll`, `zumawebpsprite.dll`, `zumaextrapath.dll`, `zumaextracolor.dll`). Supports arbitrary custom resolution and borderless fullscreen.
 
 ### Compiler Support
 - Primary: **MinGW32 GCC** (`gcc -m32 -O2 -s -shared -static-libgcc`)

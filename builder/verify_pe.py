@@ -72,7 +72,8 @@ def verify_pe(target_exe_path, vanilla_exe_path, binary_dir, is_lite=False):
         'zumacplxcredit.dll',
         'zumatestingkit.dll',
         'zumadisplay.dll',
-        'zumareshandler.dll'
+        'zumareshandler.dll',
+        'zumapriolayer.dll'
     ]
 
     for dll_name in check_dlls:

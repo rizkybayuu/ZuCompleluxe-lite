@@ -83,18 +83,18 @@ static size_t GetStdStringSize(const void* pStr) {
 }
 
 /* Build list of custom maps from LevelMgr */
-static void BuildCustomMapsIfNeeded(void) {
+static void BuildCustomMapsIfNeeded(void* pLevelMgrOpt) {
     if (s_customMapsBuilt) return;
 
-    void* pApp = g_ppApp ? *g_ppApp : NULL;
-    if (!pApp) {
-        logf_("BuildCustomMaps: ZumaApp* is NULL (g_ppApp=%p)", g_ppApp);
-        return;
-    }
-
-    void* pLevelMgr = *(void**)((char*)pApp + 0x608);
+    void* pLevelMgr = pLevelMgrOpt;
     if (!pLevelMgr) {
-        logf_("BuildCustomMaps: LevelMgr* is NULL (pApp=%p)", pApp);
+        void* pApp = g_ppApp ? *g_ppApp : NULL;
+        if (pApp) {
+            pLevelMgr = *(void**)((char*)pApp + 0x608);
+        }
+    }
+    if (!pLevelMgr) {
+        logf_("BuildCustomMaps: LevelMgr* is NULL (g_ppApp=%p)", g_ppApp);
         return;
     }
 
@@ -174,7 +174,7 @@ static void BuildCustomMapsIfNeeded(void) {
 /* Export: AdjustCount for Hook A */
 __declspec(dllexport) int __cdecl zcm_AdjustCount(int items) {
     g_V = items - 1;
-    BuildCustomMapsIfNeeded();
+    BuildCustomMapsIfNeeded(NULL);
     int newCount = items + s_customMapCount;
     logf_("zcm_AdjustCount(items=%d) -> g_V=%d, returning %d (custom=%d)",
           items, g_V, newCount, s_customMapCount);
@@ -318,6 +318,14 @@ static void CollectUnlockedVanillaBoards(void* node, void* head, const char** ou
     CollectUnlockedVanillaBoards(right, head, outKeys, pCount, maxCount);
 }
 
+/* Helper: check if UserProfile is the DevTester virtual profile */
+static int IsDevTesterProfile(void* pProfile) {
+    if (!pProfile) return 0;
+    const char* name = GetStdStringCStr(pProfile);
+    if (name && strcmp(name, "DevTester") == 0) return 1;
+    return 0;
+}
+
 /* Build full candidate pool of std::string pointers for Gauntlet board selection */
 static int BuildGauntletCandidates(
     void* pLevelMgr,
@@ -328,16 +336,19 @@ static int BuildGauntletCandidates(
 ) {
     if (!pLevelMgr || !outCandidates || maxCandidates <= 0) return 0;
 
+    BuildCustomMapsIfNeeded(pLevelMgr);
+
     char* pProgStart = *(char**)((char*)pLevelMgr + 0x8C);
     char* pProgEnd   = *(char**)((char*)pLevelMgr + 0x90);
     int numProg = (pProgStart && pProgEnd && pProgEnd > pProgStart) ? (int)((pProgEnd - pProgStart) / 0x1C) : 0;
 
     int count = 0;
+    int isDev = IsDevTesterProfile(pProfile);
 
-    /* Check if profile has unlocked vanilla boards */
+    /* Check if profile has unlocked vanilla boards (only for non-DevTester profiles) */
     const char* unlockedKeys[64];
     int numUnlocked = 0;
-    if (pProfile) {
+    if (pProfile && !isDev) {
         void* pMap = (char*)pProfile + 0x3c;
         void* head = *(void**)((char*)pMap + 4);
         if (head) {
@@ -346,8 +357,17 @@ static int BuildGauntletCandidates(
         }
     }
 
-    if (numUnlocked > 0) {
-        /* User has specific unlocked vanilla boards in profile */
+    if (isDev) {
+        /* DevTester: ALL boards from StageProgression are unconditionally unlocked (excluding boss 'space') */
+        for (int v = 0; v < numProg && count < maxCandidates; v++) {
+            const void* pVStr = pProgStart + v * 0x1C;
+            const char* vCStr = GetStdStringCStr(pVStr);
+            if (vCStr && vCStr[0] && strcmp(vCStr, "space") != 0) {
+                outCandidates[count++] = pVStr;
+            }
+        }
+    } else if (numUnlocked > 0) {
+        /* Normal profile: ONLY vanilla boards that the player has unlocked in Adventure mode */
         for (int u = 0; u < numUnlocked && count < maxCandidates; u++) {
             const char* key = unlockedKeys[u];
             /* Find matching std::string in StageProgression */
@@ -361,26 +381,32 @@ static int BuildGauntletCandidates(
             }
         }
     } else {
-        /* DevTester (or fresh profile fallback where all boards unlocked): add all 21 vanilla Gauntlet boards */
-        int limit = numProg < 21 ? numProg : 21;
-        for (int v = 0; v < limit && count < maxCandidates; v++) {
-            const void* pVStr = pProgStart + v * 0x1C;
-            const char* vCStr = GetStdStringCStr(pVStr);
-            if (vCStr && vCStr[0] && strcmp(vCStr, "space") != 0) {
-                outCandidates[count++] = pVStr;
-            }
-        }
+        /* Normal profile with 0 vanilla boards unlocked: 0 vanilla boards added */
     }
 
     if (pNumVanilla) *pNumVanilla = count;
 
-    /* Add custom maps */
+    /* Add custom maps (skip if already in outCandidates) */
     for (int c = 0; c < s_customMapCount && count < maxCandidates; c++) {
         const void* pCustomId = zcm_GetSrcId(c);
         if (pCustomId) {
-            outCandidates[count++] = pCustomId;
+            const char* cId = GetStdStringCStr(pCustomId);
+            int duplicate = 0;
+            for (int k = 0; k < count; k++) {
+                const char* existId = GetStdStringCStr(outCandidates[k]);
+                if (existId && cId && strcmp(existId, cId) == 0) {
+                    duplicate = 1;
+                    break;
+                }
+            }
+            if (!duplicate) {
+                outCandidates[count++] = pCustomId;
+            }
         }
     }
+
+    logf_("BuildGauntletCandidates: total=%d (vanilla=%d, custom=%d, isDev=%d)",
+          count, (pNumVanilla ? *pNumVanilla : 0), s_customMapCount, isDev);
 
     return count;
 }
@@ -406,7 +432,7 @@ __declspec(dllexport) void* __cdecl zcm_PickRandomLevel(
     void* fnGetLevelDesc
 ) {
     EnsureRandomSeeded();
-    BuildCustomMapsIfNeeded();
+    BuildCustomMapsIfNeeded(pLevelMgr);
 
     if (!pLevelMgr) {
         return CallThiscallPickRandom(fnVanillaRandom, pLevelMgr, difficulty, level_num, pProfile, pRecentList);
@@ -458,7 +484,7 @@ __declspec(dllexport) void* __cdecl zcm_PickGauntletLevel(
     void* fnVanillaGauntlet,
     void* fnGetLevelDesc
 ) {
-    BuildCustomMapsIfNeeded();
+    BuildCustomMapsIfNeeded(pLevelMgr);
 
     if (!pLevelMgr) {
         return CallThiscallPickGauntlet(fnVanillaGauntlet, pLevelMgr, difficulty, level_num, pProfile);
