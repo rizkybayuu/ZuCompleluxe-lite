@@ -29,74 +29,74 @@
     <!-- ===================================================================== -->
     <!-- 1. Adventure Map Temples Background Graphics                          -->
     <!-- ===================================================================== -->
-    <AdventureTemples>
-        <Temple1 x="0" y="188" />
-        <Temple2 x="0" y="112" />
-        <Temple2V x="0" y="112" />
-        <Temple3 x="395" y="125" />
-        <Temple3V x="395" y="125" />
-        <Temple4 x="174" y="1" />
+    <AdventureTemples space="1200x675">
+        <Temple1 x="150" y="264" />
+        <Temple2 x="150" y="158" />
+        <Temple2V x="150" y="158" />
+        <Temple3 x="705" y="176" />
+        <Temple3V x="705" y="176" />
+        <Temple4 x="395" y="1" />
         <!-- Secret Temple 5: The Void (Stage 13) -->
-        <Temple5 x="126" y="148" />
-        <Middle x="0" y="72" />
+        <Temple5 x="327" y="208" />
+        <Middle x="150" y="101" />
     </AdventureTemples>
 
     <!-- ===================================================================== -->
     <!-- 2. Adventure Map Doors (id: 0..12)                                    -->
     <!-- ===================================================================== -->
-    <AdventureDoors>
+    <AdventureDoors space="1200x675">
         <!-- Temple 1 Doors (Quetzalcoatl: Stages 1..3) -->
-        <Door id="0" doorX="226" doorY="300" frogX="256" frogY="361" />
-        <Door id="1" doorX="296" doorY="270" frogX="327" frogY="364" />
-        <Door id="2" doorX="366" doorY="300" frogX="398" frogY="360" />
+        <Door id="0" doorX="468" doorY="422" frogX="510" frogY="508" />
+        <Door id="1" doorX="566" doorY="380" frogX="610" frogY="512" />
+        <Door id="2" doorX="665" doorY="422" frogX="710" frogY="506" />
 
         <!-- Temple 2 Doors (Popocatepetl: Stages 4..6) -->
-        <Door id="3" doorX="0"   doorY="164" frogX="56"  frogY="218" />
-        <Door id="4" doorX="69"  doorY="159" frogX="116" frogY="201" />
-        <Door id="5" doorX="120" doorY="155" frogX="167" frogY="188" />
+        <Door id="3" doorX="150" doorY="231" frogX="229" frogY="307" />
+        <Door id="4" doorX="247" doorY="224" frogX="313" frogY="283" />
+        <Door id="5" doorX="319" doorY="218" frogX="385" frogY="264" />
 
         <!-- Temple 3 Doors (Centeotl: Stages 7..9) -->
-        <Door id="6" doorX="452" doorY="154" frogX="462" frogY="188" />
-        <Door id="7" doorX="509" doorY="154" frogX="521" frogY="192" />
-        <Door id="8" doorX="568" doorY="154" frogX="584" frogY="196" />
+        <Door id="6" doorX="786" doorY="217" frogX="800" frogY="264" />
+        <Door id="7" doorX="866" doorY="217" frogX="883" frogY="270" />
+        <Door id="8" doorX="949" doorY="217" frogX="971" frogY="276" />
 
         <!-- Temple 4 Doors (Sun God: Stages 10..12) -->
-        <Door id="9"  doorX="220" doorY="35"  frogX="248" frogY="86" />
-        <Door id="10" doorX="291" doorY="35"  frogX="324" frogY="86" />
-        <Door id="11" doorX="369" doorY="35"  frogX="408" frogY="85" />
+        <Door id="9"  doorX="459" doorY="49"  frogX="499" frogY="121" />
+        <Door id="10" doorX="559" doorY="49"  frogX="606" frogY="121" />
+        <Door id="11" doorX="669" doorY="49"  frogX="724" frogY="120" />
 
         <!-- Secret Temple 5 Door (The Void: Stage 13) -->
-        <Door id="12" doorX="291" doorY="176" frogX="323" frogY="201" />
+        <Door id="12" doorX="559" doorY="248" frogX="604" frogY="283" />
     </AdventureDoors>
 
     <!-- ===================================================================== -->
     <!-- 3. Adventure Navigation Buttons                                       -->
     <!-- ===================================================================== -->
-    <AdventureButtons>
-        <MainMenu x="0" y="438" />
-        <Play x="542" y="441" />
+    <AdventureButtons space="1200x675">
+        <MainMenu x="150" y="616" />
+        <Play x="912" y="620" />
     </AdventureButtons>
 
     <!-- ===================================================================== -->
     <!-- 4. Adventure Screen UI Labels & Stats                                 -->
     <!-- ===================================================================== -->
-    <AdventureLabels>
-        <AdventureTitle x="0" y="0" />
-        <HighscoreTitle x="456" y="0" />
-        <BottomBox x="289" y="382" />
-        <StageNum x="344" y="396" />
-        <StageText y="422" centerX="326" />
-        <Subtitle y="456" centerX="326" />
-        <HighscoreScores x="575" y="70" />
-        <HighscoreDate x="567" />
-        <HighscoreNames x="470" y="70" />
-        <HighscoreRow spacing="18" />
-        <InfoBox x="20" y="60" w="150" h="100" lineSpacing="14" />
+    <AdventureLabels space="1200x675">
+        <AdventureTitle x="150" y="0" />
+        <HighscoreTitle x="791" y="0" />
+        <BottomBox x="556" y="537" />
+        <StageNum x="634" y="557" />
+        <StageText y="593" centerX="608" />
+        <Subtitle y="641" centerX="608" />
+        <HighscoreScores x="959" y="98" />
+        <HighscoreDate x="947" />
+        <HighscoreNames x="811" y="98" />
+        <HighscoreRow spacing="25" />
+        <InfoBox x="178" y="84" w="150" h="141" lineSpacing="20" />
         <!-- Secret Stage 13 Banner Typography -->
-        <Stage13Badge x="289" y="382" />
-        <Stage13Num x="344" y="396" />
-        <Stage13Title x="326" y="422" />
-        <Stage13Subtitle x="326" y="456" />
+        <Stage13Badge x="556" y="537" />
+        <Stage13Num x="634" y="557" />
+        <Stage13Title x="608" y="593" />
+        <Stage13Subtitle x="608" y="641" />
     </AdventureLabels>
 
     <!-- ===================================================================== -->

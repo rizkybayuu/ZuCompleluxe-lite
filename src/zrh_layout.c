@@ -128,6 +128,16 @@ void ZRH_InitLayoutDefaults(void) {
     g_layout.load_space_w      = 1200;
     g_layout.load_space_h      = 675;
 
+    /* Adventure Coordinate Spaces (default 0 for legacy canonical 640x480) */
+    g_layout.adv_temples_space_w = 0;
+    g_layout.adv_temples_space_h = 0;
+    g_layout.adv_doors_space_w   = 0;
+    g_layout.adv_doors_space_h   = 0;
+    g_layout.adv_buttons_space_w = 0;
+    g_layout.adv_buttons_space_h = 0;
+    g_layout.adv_labels_space_w  = 0;
+    g_layout.adv_labels_space_h  = 0;
+
     /* In-Game HUD & Banners */
     g_layout.hud_level_banner_offset_x = 40;
     g_layout.hud_level_banner_offset_y = 40;
@@ -422,6 +432,19 @@ void ZRH_LoadLayoutXml(void) {
     const char *tend = NULL;
     const char *t = NULL;
 
+    const char *adv_temples_sec = strstr(buf, "<AdventureTemples");
+    const char *adv_temples_sec_end = adv_temples_sec ? strstr(adv_temples_sec, "</AdventureTemples>") : NULL;
+    if (adv_temples_sec && adv_temples_sec_end) {
+        const char *open_end = strchr(adv_temples_sec, '>');
+        if (open_end && open_end < adv_temples_sec_end) {
+            const char *sp = strstr(adv_temples_sec, "space=\"");
+            if (!sp) sp = strstr(adv_temples_sec, "space='");
+            if (sp && sp < open_end) {
+                sscanf(sp + 7, "%dx%d", &g_layout.adv_temples_space_w, &g_layout.adv_temples_space_h);
+            }
+        }
+    }
+
     if ((t = find_tag_start(buf, buf_end, "Temple1", &tend)) != NULL) {
         parse_xml_attr(t, tend, "x", &g_layout.adv_temple1_x);
         parse_xml_attr(t, tend, "y", &g_layout.adv_temple1_y);
@@ -465,6 +488,14 @@ void ZRH_LoadLayoutXml(void) {
     const char *adv_doors_sec = strstr(buf, "<AdventureDoors");
     const char *adv_doors_sec_end = adv_doors_sec ? strstr(adv_doors_sec, "</AdventureDoors>") : NULL;
     if (adv_doors_sec && adv_doors_sec_end) {
+        const char *open_end = strchr(adv_doors_sec, '>');
+        if (open_end && open_end < adv_doors_sec_end) {
+            const char *sp = strstr(adv_doors_sec, "space=\"");
+            if (!sp) sp = strstr(adv_doors_sec, "space='");
+            if (sp && sp < open_end) {
+                sscanf(sp + 7, "%dx%d", &g_layout.adv_doors_space_w, &g_layout.adv_doors_space_h);
+            }
+        }
         const char *scan = adv_doors_sec;
         while ((scan = find_tag_start(scan, adv_doors_sec_end, "Door", &tend)) != NULL) {
             int id = -1;
@@ -487,6 +518,14 @@ void ZRH_LoadLayoutXml(void) {
     const char *adv_btn_sec = strstr(buf, "<AdventureButtons");
     const char *adv_btn_sec_end = adv_btn_sec ? strstr(adv_btn_sec, "</AdventureButtons>") : NULL;
     if (adv_btn_sec && adv_btn_sec_end) {
+        const char *open_end = strchr(adv_btn_sec, '>');
+        if (open_end && open_end < adv_btn_sec_end) {
+            const char *sp = strstr(adv_btn_sec, "space=\"");
+            if (!sp) sp = strstr(adv_btn_sec, "space='");
+            if (sp && sp < open_end) {
+                sscanf(sp + 7, "%dx%d", &g_layout.adv_buttons_space_w, &g_layout.adv_buttons_space_h);
+            }
+        }
         if ((t = find_tag_start(adv_btn_sec, adv_btn_sec_end, "MainMenu", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.adv_btn_mainmenu_x);
             parse_xml_attr(t, tend, "y", &g_layout.adv_btn_mainmenu_y);
@@ -503,6 +542,14 @@ void ZRH_LoadLayoutXml(void) {
     const char *adv_lbl_sec = strstr(buf, "<AdventureLabels");
     const char *adv_lbl_sec_end = adv_lbl_sec ? strstr(adv_lbl_sec, "</AdventureLabels>") : NULL;
     if (adv_lbl_sec && adv_lbl_sec_end) {
+        const char *open_end = strchr(adv_lbl_sec, '>');
+        if (open_end && open_end < adv_lbl_sec_end) {
+            const char *sp = strstr(adv_lbl_sec, "space=\"");
+            if (!sp) sp = strstr(adv_lbl_sec, "space='");
+            if (sp && sp < open_end) {
+                sscanf(sp + 7, "%dx%d", &g_layout.adv_labels_space_w, &g_layout.adv_labels_space_h);
+            }
+        }
         if ((t = find_tag_start(adv_lbl_sec, adv_lbl_sec_end, "AdventureTitle", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.adv_title_x);
             parse_xml_attr(t, tend, "y", &g_layout.adv_title_y);

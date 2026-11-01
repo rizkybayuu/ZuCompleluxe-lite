@@ -55,6 +55,12 @@ typedef struct {
     int adv_s13_title_x,    adv_s13_title_y;
     int adv_s13_sub_x,      adv_s13_sub_y;
 
+    /* Adventure Coordinate Spaces (e.g. space="1200x675") */
+    int adv_temples_space_w, adv_temples_space_h;
+    int adv_doors_space_w,   adv_doors_space_h;
+    int adv_buttons_space_w, adv_buttons_space_h;
+    int adv_labels_space_w,  adv_labels_space_h;
+
     /* Gauntlet Map Doors (0..3) */
     struct { int x, y; } gaunt_doors[4];
 
