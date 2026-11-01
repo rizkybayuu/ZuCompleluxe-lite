@@ -2474,6 +2474,20 @@ static void ApplyUIPatches(void) {
         }
     }
 
+    /* Option B: Suppress GauntletScreen Sun God glow overlay (0x004393de) */
+    void *pGauntSunGlow = FindPattern("83 BF 8C 00 00 00 03 0F 8C");
+    if (pGauntSunGlow) {
+        unsigned char *patch_addr = (unsigned char *)pGauntSunGlow + 7;
+        if (patch_addr[0] == 0x0F && patch_addr[1] == 0x8C) {
+            DWORD old_prot;
+            VirtualProtect(patch_addr, 2, PAGE_EXECUTE_READWRITE, &old_prot);
+            patch_addr[0] = 0x90;
+            patch_addr[1] = 0xE9;
+            VirtualProtect(patch_addr, 2, old_prot, &old_prot);
+            LogF("[ZRES] Patched Gauntlet SunGlow overlay @ %p (0F 8C -> 90 E9)", patch_addr);
+        }
+    }
+
     void *pGauntHsTitleX = FindPattern("B2 01 00 00 50");
     if (pGauntHsTitleX) {
         DWORD val = GauntLabelsX(g_layout.gaunt_hs_title_x);
