@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 set "SCRIPT_PATH=%~f0"
+set "SCRIPT_NAME=build_lite.bat"
 cd /d "%~dp0"
 
 REM =======================================================================
@@ -246,6 +247,23 @@ set "CUSTOM_W=640"
 set "CUSTOM_H=480"
 if defined CLI_CUSTOM_W set "CUSTOM_W=!CLI_CUSTOM_W!"
 if defined CLI_CUSTOM_H set "CUSTOM_H=!CLI_CUSTOM_H!"
+
+if "!NON_INTERACTIVE!"=="1" (
+    if not defined CLI_CUSTOM_W (
+        echo [ERROR] Non-interactive build requires explicit resolution flags: -w 1200 -h 675 ^(or --res 1200x675^).
+        echo [ERROR] Omission of resolution flags risks silent regression to 640x480.
+        echo [ERROR] Official build command:
+        echo         !SCRIPT_NAME! --dir "!TARGET_ZUMA_DIR!" --non-interactive -w 1200 -h 675
+        exit /b 1
+    )
+    if not defined CLI_CUSTOM_H (
+        echo [ERROR] Non-interactive build requires explicit resolution flags: -w 1200 -h 675 ^(or --res 1200x675^).
+        echo [ERROR] Omission of resolution flags risks silent regression to 640x480.
+        echo [ERROR] Official build command:
+        echo         !SCRIPT_NAME! --dir "!TARGET_ZUMA_DIR!" --non-interactive -w 1200 -h 675
+        exit /b 1
+    )
+)
 
 if "!NON_INTERACTIVE!"=="0" if not defined CLI_CUSTOM_W if not defined CLI_CUSTOM_H (
     echo -------------------------------------------------------

@@ -219,7 +219,18 @@ ZuCompleluxe Lite uses a strictly non-destructive **Single-Backup Architecture**
 
 ### Command-Line & Automation Interface (CLI)
 
-For headless deployments, batch modding, or automated testing, you can pass parameters directly to bypass all interactive prompts:
+#### Official Project Build Command (1200x675 Widescreen Standard)
+
+> [!IMPORTANT]
+> The canonical resolution standard for ZuCompleluxe widescreen UI layout is **1200x675** (16:9).
+> In non-interactive mode (`--non-interactive` / `/yes` / `-y`), resolution flags (`-w 1200 -h 675` or `--res 1200x675`) are **strictly enforced** by the builder script to prevent silent regressions to vanilla 640x480.
+
+```cmd
+:: Official Lite Edition Build Command
+build_lite.bat --dir "<ZumaDir>" --non-interactive -w 1200 -h 675
+```
+
+For custom resolutions, headless deployments, batch modding, or automated testing, you can pass parameters directly:
 
 ```cmd
 :: Patch Lite Edition with 1080p resolution in non-interactive mode
@@ -234,9 +245,9 @@ build_lite.bat -d "C:\Games\Zuma Deluxe" --res 800x600 -y
 | Option | Shorthand | Description | Default |
 | :--- | :--- | :--- | :--- |
 | `--dir <path>` | `-d <path>` | Path to the target Zuma Deluxe installation folder | Interactive Picker |
-| `--width <w>` | `-w <w>` | Target game width in pixels (minimum: `480`) | `640` |
-| `--height <h>`| `-h <h>` | Target game height in pixels (minimum: `320`) | `480` |
-| `--res <WxH>`  | | Combined resolution shortcut (e.g. `--res 1920x1080`) | `640x480` |
+| `--width <w>` | `-w <w>` | Target game width in pixels (minimum: `480`) | Required in non-interactive mode |
+| `--height <h>`| `-h <h>` | Target game height in pixels (minimum: `320`) | Required in non-interactive mode |
+| `--res <WxH>`  | | Combined resolution shortcut (e.g. `--res 1200x675`) | Required in non-interactive mode |
 | `--non-interactive` | `/yes`, `-y` | Run silently without any interactive prompts | Disabled |
 
 ---
