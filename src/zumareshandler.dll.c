@@ -1120,18 +1120,19 @@ static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h)
     int bw = btn ? *(int *)((char *)btn + 0x10) : 0;
     int bh = btn ? *(int *)((char *)btn + 0x14) : 0;
 
-    static int s_logged_slide_start = 0;
-    static int s_logged_slide_end = 0;
-    if (x == -1200 && !s_logged_slide_start) {
-        s_logged_slide_start = 1;
-        LogF("[MG_RUNTIME] slide x=%d t0=%d", x, x + t0_x);
-    } else if (x == 0 && !s_logged_slide_end) {
-        s_logged_slide_end = 1;
-        LogF("[MG_RUNTIME] slide x=%d t0=%d", x, x + t0_x);
+    static int s_logged_slide_first = 0;
+    static int s_logged_slide_final = 0;
+    if (!s_logged_slide_first) {
+        s_logged_slide_first = 1;
+        LogF("[MG_RUNTIME] slide first: x=%d t0=%d", x, x + t0_x);
+    }
+    if (x >= 0 && !s_logged_slide_final) {
+        s_logged_slide_final = 1;
+        LogF("[MG_RUNTIME] slide final: x=%d t0=%d", x, x + t0_x);
     }
 
     static int s_logged_mg = 0;
-    if (!s_logged_mg && x == 0) {
+    if (!s_logged_mg && x >= 0) {
         s_logged_mg = 1;
         LogF("[MG_RUNTIME] MoreGamesScreen widget: x=%d y=%d w=%d h=%d", x, y, w, h);
         LogF("[MG_RUNTIME] Thumb0: x=%d y=%d w=%d h=%d", t0_x, t0_y, t0_w, t0_h);
