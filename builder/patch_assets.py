@@ -612,7 +612,7 @@ LAYOUT_XML_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
         <OptionsBtn x="418" y="236" />
         <MoreGamesBtn x="394" y="305" />
         <QuitBtn x="496" y="315" />
-        <WelcomeText y="-4" />
+        <WelcomeText y="6" />
         <UserSwitchText y="38" />
         <FrogEyes x="191" y="331" />
         <EyeBlink x="188" y="247" />
@@ -813,7 +813,12 @@ def ensure_layout_xml(zuma_dir):
                 f.write(template_content)
             print("  [OK] Upgraded properties/layout.xml with all 16 configuration sections.")
         else:
-            print("  [OK] Existing properties/layout.xml verified with all modern sections; preserving user layout customizations.")
+            if '<WelcomeText y="-6"' in cur or '<WelcomeText y="-4"' in cur or '<WelcomeText y="8"' in cur:
+                cur = cur.replace('<WelcomeText y="-6"', '<WelcomeText y="6"').replace('<WelcomeText y="-4"', '<WelcomeText y="6"').replace('<WelcomeText y="8"', '<WelcomeText y="6"')
+                with open(dst_layout, 'w', encoding='utf-8') as f:
+                    f.write(cur)
+                print("  [FIX] Automatically aligned WelcomeText y coordinate to authentic 6.")
+        print("  [OK] Existing properties/layout.xml verified with all modern sections; preserving user layout customizations.")
 
 
 if __name__ == '__main__':
