@@ -1200,6 +1200,11 @@ static void THISCALL hk_draw_gauntlet_thumbnail(void *g, void *img, int x, int y
                 src[3] = sch;
             }
         }
+        int cx = *(int *)((char *)g + 0x10), cy = *(int *)((char *)g + 0x14);
+        int cw = *(int *)((char *)g + 0x18), ch = *(int *)((char *)g + 0x1c);
+        int tx = *(int *)((char *)g + 8), ty = *(int *)((char *)g + 0xc);
+        LogF("[GAUNT_RUNTIME] GauntThumb: dest={%d,%d,%d,%d} src={%d,%d,%d,%d} clip={%d,%d,%d,%d} trans={%d,%d} img=%dx%d",
+             dest[0], dest[1], dest[2], dest[3], src[0], src[1], src[2], src[3], cx, cy, cw, ch, tx, ty, img_w, img_h);
         g_pfnDrawImageStretch(g, img, dest, src);
     } else {
         DrawImg(g, img, x, y);
@@ -1276,6 +1281,11 @@ static void THISCALL hk_draw_gauntlet_card(void *g, void *card_img, int x, int y
     if (dest_w > 0 && dest_h > 0 && src_w > 0 && src_h > 0) {
         int destRect[4] = { 0, 0, 320, 240 };
         int srcRect[4]  = { 0, 0, src_w,  src_h  };
+        int cx = *(int *)((char *)g + 0x10), cy = *(int *)((char *)g + 0x14);
+        int cw = *(int *)((char *)g + 0x18), ch = *(int *)((char *)g + 0x1c);
+        int tx = *(int *)((char *)g + 8), ty = *(int *)((char *)g + 0xc);
+        LogF("[GAUNT_RUNTIME] GauntCard: dest_img=%dx%d card_img=%dx%d destRect={%d,%d,%d,%d} srcRect={%d,%d,%d,%d} clip={%d,%d,%d,%d} trans={%d,%d}",
+             dest_w, dest_h, src_w, src_h, destRect[0], destRect[1], destRect[2], destRect[3], srcRect[0], srcRect[1], srcRect[2], srcRect[3], cx, cy, cw, ch, tx, ty);
         g_pfnDrawImageStretch(g, card_img, destRect, srcRect);
     } else {
         DrawImg(g, card_img, x, y);
