@@ -628,7 +628,7 @@ void ZRH_LoadLayoutXml(void) {
     const char *gaunt_doors_sec = strstr(buf, "<GauntletDoors");
     const char *gaunt_doors_sec_end = gaunt_doors_sec ? strstr(gaunt_doors_sec, "</GauntletDoors>") : NULL;
     if (gaunt_doors_sec && gaunt_doors_sec_end) {
-        const char *open_end = strchr(gaunt_doors_sec, ">");
+        const char *open_end = strchr(gaunt_doors_sec, '>');
         if (open_end && open_end < gaunt_doors_sec_end) {
             const char *sp = strstr(gaunt_doors_sec, "space=\"");
             if (!sp) sp = strstr(gaunt_doors_sec, "space='");
@@ -651,7 +651,7 @@ void ZRH_LoadLayoutXml(void) {
     const char *gaunt_btn_sec = strstr(buf, "<GauntletButtons");
     const char *gaunt_btn_sec_end = gaunt_btn_sec ? strstr(gaunt_btn_sec, "</GauntletButtons>") : NULL;
     if (gaunt_btn_sec && gaunt_btn_sec_end) {
-        const char *open_end = strchr(gaunt_btn_sec, ">");
+        const char *open_end = strchr(gaunt_btn_sec, '>');
         if (open_end && open_end < gaunt_btn_sec_end) {
             const char *sp = strstr(gaunt_btn_sec, "space=\"");
             if (!sp) sp = strstr(gaunt_btn_sec, "space='");
@@ -695,7 +695,7 @@ void ZRH_LoadLayoutXml(void) {
     const char *gaunt_lbl_sec = strstr(buf, "<GauntletLabels");
     const char *gaunt_lbl_sec_end = gaunt_lbl_sec ? strstr(gaunt_lbl_sec, "</GauntletLabels>") : NULL;
     if (gaunt_lbl_sec && gaunt_lbl_sec_end) {
-        const char *open_end = strchr(gaunt_lbl_sec, ">");
+        const char *open_end = strchr(gaunt_lbl_sec, '>');
         if (open_end && open_end < gaunt_lbl_sec_end) {
             const char *sp = strstr(gaunt_lbl_sec, "space=\"");
             if (!sp) sp = strstr(gaunt_lbl_sec, "space='");
