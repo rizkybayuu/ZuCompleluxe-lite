@@ -1087,6 +1087,20 @@ static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h)
     }
 }
 
+static inline int GetGauntletFrameW(void) {
+    if (g_layout.gaunt_door_frame_w > 0) {
+        return GauntLabelsDim(g_layout.gaunt_door_frame_w);
+    }
+    return SDIM_VAL(320);
+}
+
+static inline int GetGauntletFrameH(void) {
+    if (g_layout.gaunt_door_frame_h > 0) {
+        return GauntLabelsDim(g_layout.gaunt_door_frame_h);
+    }
+    return SDIM_VAL(240);
+}
+
 static void THISCALL hk_draw_gauntlet_thumbnail(void *g, void *img, int x, int y) {
     if (!g || !img) return;
     int img_w = *(int *)((char *)img + 4);
@@ -1094,7 +1108,14 @@ static void THISCALL hk_draw_gauntlet_thumbnail(void *g, void *img, int x, int y
     if (img_w <= 0 || img_h <= 0) return;
 
     if (g_pfnDrawImageStretch) {
-        int dest[4] = { x, y, SDIM_VAL(320), SDIM_VAL(240) };
+        int frame_w = GetGauntletFrameW();
+    int frame_h = GetGauntletFrameH();
+    static int s_logged_thumb_frame = 0;
+    if (!s_logged_thumb_frame) {
+        s_logged_thumb_frame = 1;
+        LogF("[GAUNT_RUNTIME] GauntletThumbnail frame: %dx%d", frame_w, frame_h);
+    }
+    int dest[4] = { x, y, frame_w, frame_h };
         int src[4]  = { 0, 0, img_w, img_h };
         int dest_w  = dest[2];
         int dest_h  = dest[3];
@@ -1191,7 +1212,14 @@ static void THISCALL hk_draw_gauntlet_card(void *g, void *card_img, int x, int y
     int src_w  = *(int *)((char *)card_img + 4);
     int src_h  = *(int *)((char *)card_img + 8);
     if (dest_w > 0 && dest_h > 0 && src_w > 0 && src_h > 0) {
-        int destRect[4] = { 0, 0, dest_w, dest_h };
+        int frame_w = GetGauntletFrameW();
+        int frame_h = GetGauntletFrameH();
+        static int s_logged_card_frame = 0;
+        if (!s_logged_card_frame) {
+            s_logged_card_frame = 1;
+            LogF("[GAUNT_RUNTIME] GauntletCard frame: %dx%d", frame_w, frame_h);
+        }
+        int destRect[4] = { x, y, frame_w, frame_h };
         int srcRect[4]  = { 0, 0, src_w,  src_h  };
         g_pfnDrawImageStretch(g, card_img, destRect, srcRect);
     } else {
@@ -2416,8 +2444,10 @@ static void ApplyUIPatches(void) {
     if (pGauntDoorNameW) {
         unsigned char expected[6] = { 0x8B, 0x4F, 0x74, 0x8B, 0x51, 0x04 };
         unsigned char repl[6]     = { 0xBA, 0, 0, 0, 0, 0x90 };
-        *(DWORD *)(repl + 1) = GauntLabelsDim(320);
+        DWORD frame_w = (DWORD)GetGauntletFrameW();
+        *(DWORD *)(repl + 1) = frame_w;
         VerifyAndPatchBytes(pGauntDoorNameW, expected, repl, 6, "GauntDoorNameW");
+        LogF("[GAUNT_RUNTIME] Patch GauntDoorNameW (imm): %u", frame_w);
     }
 
     void *pGauntPracticeY = FindPattern("04 01 00 00 8D 45 BC");
@@ -2438,8 +2468,10 @@ static void ApplyUIPatches(void) {
     if (pGauntPracticeW) {
         unsigned char expected[6] = { 0x8B, 0x4F, 0x74, 0x8B, 0x51, 0x04 };
         unsigned char repl[6]     = { 0xBA, 0, 0, 0, 0, 0x90 };
-        *(DWORD *)(repl + 1) = GauntLabelsDim(320);
+        DWORD frame_w = (DWORD)GetGauntletFrameW();
+        *(DWORD *)(repl + 1) = frame_w;
         VerifyAndPatchBytes(pGauntPracticeW, expected, repl, 6, "GauntPracticeTextW");
+        LogF("[GAUNT_RUNTIME] Patch GauntPracticeTextW (imm): %u", frame_w);
     }
 
     void *pGauntCustomMap = FindPattern("68 04 01 00 00 68 ?? ?? ?? ?? 8D 45 BC 50 89 F1");

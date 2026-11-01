@@ -128,10 +128,10 @@
     <!-- - Thumbnail frame destRect: SDIM_VAL(320)=450, SDIM_VAL(240)=338                       -->
     <GauntletLabels space="1200x675">
         <GauntletTitle x="150" y="0" />
-        <DoorFrame x="389" y="309" />
+        <DoorFrame x="389" y="309" w="450" h="338" />
         <HighscoreTitle x="760" y="0" />
         <DoorName x="389" y="600" />
-        <PracticeText x="361" y="366" w="450" />
+        <PracticeText x="361" y="366" />
         <!-- Custom Map Indicator Badge Tag: 267 inside doorway -->
         <CustomMapTag x="417" y="366" />
         <Gem x="938" y="309" />

@@ -706,6 +706,8 @@ void ZRH_LoadLayoutXml(void) {
         if ((t = find_tag_start(gaunt_lbl_sec, gaunt_lbl_sec_end, "DoorFrame", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.gaunt_door_frame_x);
             parse_xml_attr(t, tend, "y", &g_layout.gaunt_door_frame_y);
+            parse_xml_attr(t, tend, "w", &g_layout.gaunt_door_frame_w);
+            parse_xml_attr(t, tend, "h", &g_layout.gaunt_door_frame_h);
         }
         if ((t = find_tag_start(gaunt_lbl_sec, gaunt_lbl_sec_end, "GauntletTitle", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.gaunt_title_x);

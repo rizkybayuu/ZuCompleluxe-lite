@@ -80,6 +80,7 @@ typedef struct {
     /* Gauntlet Labels & Highscores */
     int gaunt_title_x,         gaunt_title_y;
     int gaunt_door_frame_x,    gaunt_door_frame_y;
+    int gaunt_door_frame_w,    gaunt_door_frame_h;
     int gaunt_hs_title_x,      gaunt_hs_title_y;
     int gaunt_door_name_x,     gaunt_door_name_y;
     int gaunt_practice_text_x, gaunt_practice_text_y;
