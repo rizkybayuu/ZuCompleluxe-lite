@@ -873,7 +873,8 @@ void ZRH_LoadLayoutXml(void) {
     }
 
     /* Parse More Games Screen */
-    const char *mg_sec = strstr(buf, "<MoreGames");
+    const char *mg_sec = strstr(buf, "<MoreGames ");
+    if (!mg_sec) mg_sec = strstr(buf, "<MoreGames>");
     const char *mg_sec_end = mg_sec ? strstr(mg_sec, "</MoreGames>") : NULL;
     if (mg_sec && mg_sec_end) {
         /* Parse coordinate space attribute, e.g. space="1200x675" */
