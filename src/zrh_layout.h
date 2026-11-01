@@ -116,6 +116,7 @@ typedef struct {
     int mg_t2_x, mg_t2_y, mg_t2_w, mg_t2_h;
     int mg_t3_x, mg_t3_y, mg_t3_w, mg_t3_h;
     int mg_btn_back_x, mg_btn_back_y;
+    int mg_space_w, mg_space_h;
 
     /* Loading Screen */
     int load_bar_x, load_bar_y;

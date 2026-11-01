@@ -120,6 +120,8 @@ void ZRH_InitLayoutDefaults(void) {
     g_layout.mg_t2_x = 58;  g_layout.mg_t2_y = 277; g_layout.mg_t2_w = 250; g_layout.mg_t2_h = 150;
     g_layout.mg_t3_x = 330; g_layout.mg_t3_y = 277; g_layout.mg_t3_w = 250; g_layout.mg_t3_h = 150;
     g_layout.mg_btn_back_x = 164; g_layout.mg_btn_back_y = 445;
+    g_layout.mg_space_w = 0;
+    g_layout.mg_space_h = 0;
 
     /* Loading Screen (1200x675 canvas coordinates) */
     g_layout.load_bar_x        = 330;
@@ -874,6 +876,13 @@ void ZRH_LoadLayoutXml(void) {
     const char *mg_sec = strstr(buf, "<MoreGames");
     const char *mg_sec_end = mg_sec ? strstr(mg_sec, "</MoreGames>") : NULL;
     if (mg_sec && mg_sec_end) {
+        /* Parse coordinate space attribute, e.g. space="1200x675" */
+        const char *open_end = strchr(mg_sec, '>');
+        const char *sp = strstr(mg_sec, "space=\"");
+        if (!sp) sp = strstr(mg_sec, "space='");
+        if (open_end && sp && sp < open_end) {
+            sscanf(sp + 7, "%dx%d", &g_layout.mg_space_w, &g_layout.mg_space_h);
+        }
         if ((t = find_tag_start(mg_sec, mg_sec_end, "Thumb0", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.mg_t0_x);
             parse_xml_attr(t, tend, "y", &g_layout.mg_t0_y);
@@ -901,6 +910,22 @@ void ZRH_LoadLayoutXml(void) {
         if ((t = find_tag_start(mg_sec, mg_sec_end, "BackBtn", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.mg_btn_back_x);
             parse_xml_attr(t, tend, "y", &g_layout.mg_btn_back_y);
+        }
+    }
+
+    char sp_mg[32] = "canon";
+    if (g_layout.mg_space_w > 0)
+        snprintf(sp_mg, sizeof(sp_mg), "%dx%d", g_layout.mg_space_w, g_layout.mg_space_h);
+    LogF("[MG_LAYOUT] space moregames=%s", sp_mg);
+
+    /* Sanity check: log ERROR if space was not parsed but coordinates exceed canonical 640x480 */
+    if (g_layout.mg_space_w == 0) {
+        if (g_layout.mg_t0_x > 640 || g_layout.mg_t0_y > 480 ||
+            g_layout.mg_t1_x > 640 || g_layout.mg_t1_y > 480 ||
+            g_layout.mg_t2_x > 640 || g_layout.mg_t2_y > 480 ||
+            g_layout.mg_t3_x > 640 || g_layout.mg_t3_y > 480 ||
+            g_layout.mg_btn_back_x > 640 || g_layout.mg_btn_back_y > 480) {
+            LogF("[MG_LAYOUT][ERROR] MoreGames space not set, but coordinates exceed canonical bounds!");
         }
     }
 

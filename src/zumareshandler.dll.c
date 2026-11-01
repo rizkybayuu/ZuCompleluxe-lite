@@ -1076,15 +1076,47 @@ static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h)
     void *t3 = *(void **)((char *)this + 0x68);
     void *btn = *(void **)((char *)this + 0x6C);
 
-    if (t0) (*(fWidgetResize *)(*(void ***)t0 + 0x34/4))(t0, PARENT_LOCAL_X(g_layout.mg_t0_x), PARENT_LOCAL_Y(g_layout.mg_t0_y), SDIM_VAL(g_layout.mg_t0_w), SDIM_VAL(g_layout.mg_t0_h));
-    if (t1) (*(fWidgetResize *)(*(void ***)t1 + 0x34/4))(t1, PARENT_LOCAL_X(g_layout.mg_t1_x), PARENT_LOCAL_Y(g_layout.mg_t1_y), SDIM_VAL(g_layout.mg_t1_w), SDIM_VAL(g_layout.mg_t1_h));
-    if (t2) (*(fWidgetResize *)(*(void ***)t2 + 0x34/4))(t2, PARENT_LOCAL_X(g_layout.mg_t2_x), PARENT_LOCAL_Y(g_layout.mg_t2_y), SDIM_VAL(g_layout.mg_t2_w), SDIM_VAL(g_layout.mg_t2_h));
-    if (t3) (*(fWidgetResize *)(*(void ***)t3 + 0x34/4))(t3, PARENT_LOCAL_X(g_layout.mg_t3_x), PARENT_LOCAL_Y(g_layout.mg_t3_y), SDIM_VAL(g_layout.mg_t3_w), SDIM_VAL(g_layout.mg_t3_h));
-    if (btn) {
-        int bw = *(int *)((char *)btn + 0x10);
-        int bh = *(int *)((char *)btn + 0x14);
-        (*(fWidgetResize *)(*(void ***)btn + 0x34/4))(btn, PARENT_LOCAL_X(g_layout.mg_btn_back_x), PARENT_LOCAL_Y(g_layout.mg_btn_back_y), bw, bh);
+    int t0_x = PARENT_LOCAL_X(g_layout.mg_t0_x);
+    int t0_y = PARENT_LOCAL_Y(g_layout.mg_t0_y);
+    int t0_w = SDIM_VAL(g_layout.mg_t0_w);
+    int t0_h = SDIM_VAL(g_layout.mg_t0_h);
+
+    int t1_x = PARENT_LOCAL_X(g_layout.mg_t1_x);
+    int t1_y = PARENT_LOCAL_Y(g_layout.mg_t1_y);
+    int t1_w = SDIM_VAL(g_layout.mg_t1_w);
+    int t1_h = SDIM_VAL(g_layout.mg_t1_h);
+
+    int t2_x = PARENT_LOCAL_X(g_layout.mg_t2_x);
+    int t2_y = PARENT_LOCAL_Y(g_layout.mg_t2_y);
+    int t2_w = SDIM_VAL(g_layout.mg_t2_w);
+    int t2_h = SDIM_VAL(g_layout.mg_t2_h);
+
+    int t3_x = PARENT_LOCAL_X(g_layout.mg_t3_x);
+    int t3_y = PARENT_LOCAL_Y(g_layout.mg_t3_y);
+    int t3_w = SDIM_VAL(g_layout.mg_t3_w);
+    int t3_h = SDIM_VAL(g_layout.mg_t3_h);
+
+    int btn_x = PARENT_LOCAL_X(g_layout.mg_btn_back_x);
+    int btn_y = PARENT_LOCAL_Y(g_layout.mg_btn_back_y);
+    int bw = btn ? *(int *)((char *)btn + 0x10) : 0;
+    int bh = btn ? *(int *)((char *)btn + 0x14) : 0;
+
+    static int s_logged_mg = 0;
+    if (!s_logged_mg) {
+        s_logged_mg = 1;
+        LogF("[MG_RUNTIME] MoreGamesScreen widget: x=%d y=%d w=%d h=%d", x, y, w, h);
+        LogF("[MG_RUNTIME] Thumb0: x=%d y=%d w=%d h=%d", t0_x, t0_y, t0_w, t0_h);
+        LogF("[MG_RUNTIME] Thumb1: x=%d y=%d w=%d h=%d", t1_x, t1_y, t1_w, t1_h);
+        LogF("[MG_RUNTIME] Thumb2: x=%d y=%d w=%d h=%d", t2_x, t2_y, t2_w, t2_h);
+        LogF("[MG_RUNTIME] Thumb3: x=%d y=%d w=%d h=%d", t3_x, t3_y, t3_w, t3_h);
+        LogF("[MG_RUNTIME] BtnBack: x=%d y=%d w=%d h=%d", btn_x, btn_y, bw, bh);
     }
+
+    if (t0) (*(fWidgetResize *)(*(void ***)t0 + 0x34/4))(t0, t0_x, t0_y, t0_w, t0_h);
+    if (t1) (*(fWidgetResize *)(*(void ***)t1 + 0x34/4))(t1, t1_x, t1_y, t1_w, t1_h);
+    if (t2) (*(fWidgetResize *)(*(void ***)t2 + 0x34/4))(t2, t2_x, t2_y, t2_w, t2_h);
+    if (t3) (*(fWidgetResize *)(*(void ***)t3 + 0x34/4))(t3, t3_x, t3_y, t3_w, t3_h);
+    if (btn) (*(fWidgetResize *)(*(void ***)btn + 0x34/4))(btn, btn_x, btn_y, bw, bh);
 }
 
 static inline int GetGauntletFrameW(void) {
@@ -2594,6 +2626,7 @@ static void ApplyUIPatches(void) {
             *(DWORD *)slot = (DWORD)hk_moregames_resize;
             VirtualProtect(slot, 4, old_prot, &old_prot);
             LogF("[ZRES] Hooked MoreGamesScreen VTable Resize @ %p -> %p", slot, hk_moregames_resize);
+            LogF("[MG_RUNTIME] Hooked MoreGamesScreen VTable Resize @ %p -> %p", slot, hk_moregames_resize);
         }
     }
 
