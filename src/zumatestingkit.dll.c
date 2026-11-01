@@ -1629,10 +1629,32 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     /* 1. Hide the four vanilla tutorial sibling widgets (+0x60, +0x64, +0x68, +0x6C)
      *    by setting field mVisible (+0x19) = 0.
      *    Keep Checkbox (+0x70) and OK button (+0x74) active and visible. */
-    for (int off = 0x60; off <= 0x6C; off += 4) {
-        void *w = *(void**)((char*)helpScreen + off);
-        if (w) {
-            *(char*)((char*)w + 0x19) = 0; /* mVisible = false */
+    static int s_logged_help_audit = 0;
+    if (!s_logged_help_audit) {
+        s_logged_help_audit = 1;
+        ztk_log("[ZTK_HELP_AUDIT] Auditing HelpScreen offsets (helpScreen=%p):", helpScreen);
+        for (int off = 0x60; off <= 0x6C; off += 4) {
+            void *w = *(void**)((char*)helpScreen + off);
+            void *vt = w ? *(void**)w : NULL;
+            char vis_before = w ? *(char*)((char*)w + 0x19) : -1;
+            char dis = w ? *(char*)((char*)w + 0x1C) : -1;
+            if (w) *(char*)((char*)w + 0x19) = 0;
+            char vis_after = w ? *(char*)((char*)w + 0x19) : -1;
+            ztk_log("[ZTK_HELP_AUDIT] off=0x%02X w=%p vt=%p vis_before=%d vis_after=%d dis=%d",
+                    off, w, vt, (int)vis_before, (int)vis_after, (int)dis);
+        }
+        for (int off = 0x124; off <= 0x12C; off += 4) {
+            void *w = *(void**)((char*)helpScreen + off);
+            void *vt = w ? *(void**)w : NULL;
+            char vis = w ? *(char*)((char*)w + 0x19) : -1;
+            char dis = w ? *(char*)((char*)w + 0x1C) : -1;
+            ztk_log("[ZTK_HELP_AUDIT] off=0x%03X w=%p vt=%p vis=%d dis=%d",
+                    off, w, vt, (int)vis, (int)dis);
+        }
+    } else {
+        for (int off = 0x60; off <= 0x6C; off += 4) {
+            void *w = *(void**)((char*)helpScreen + off);
+            if (w) *(char*)((char*)w + 0x19) = 0;
         }
     }
 
