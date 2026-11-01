@@ -901,6 +901,13 @@ static void PopulateGauntletDoors(void *this) {
         gd[i].mX = PARENT_LOCAL_X(g_layout.gaunt_doors[i].x);
         gd[i].mY = PARENT_LOCAL_Y(g_layout.gaunt_doors[i].y);
     }
+    static int s_logged_gaunt_doors = 0;
+    if (!s_logged_gaunt_doors) {
+        s_logged_gaunt_doors = 1;
+        for (int i = 0; i < 4; i++) {
+            LogF("[GAUNT_RUNTIME] Door %d: x=%d y=%d", i, gd[i].mX, gd[i].mY);
+        }
+    }
 }
 
 /* Temple Draw Sidecar Hooks */
@@ -1157,6 +1164,11 @@ static void PatchCall6(void *site, void *new_target, const char *name) {
 static void THISCALL hk_DrawGauntletTitle(void *g, void *img, int x, int y) {
     int rx = PARENT_LOCAL_X(g_layout.gaunt_title_x);
     int ry = PARENT_LOCAL_Y(g_layout.gaunt_title_y);
+    static int s_logged_gaunt_title = 0;
+    if (!s_logged_gaunt_title) {
+        s_logged_gaunt_title = 1;
+        LogF("[GAUNT_RUNTIME] GauntTitle: x=%d y=%d", rx, ry);
+    }
     DrawImg(g, img, rx, ry);
 }
 
@@ -1164,6 +1176,11 @@ static void THISCALL hk_DrawGauntletTitle(void *g, void *img, int x, int y) {
 static void THISCALL hk_DrawGauntletHsTitle(void *g, void *img, int x, int y) {
     int rx = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x);
     int ry = PARENT_LOCAL_Y(g_layout.gaunt_hs_title_y);
+    static int s_logged_gaunt_hstitle = 0;
+    if (!s_logged_gaunt_hstitle) {
+        s_logged_gaunt_hstitle = 1;
+        LogF("[GAUNT_RUNTIME] GauntHsTitle: x=%d y=%d", rx, ry);
+    }
     DrawImg(g, img, rx, ry);
 }
 
@@ -1199,7 +1216,12 @@ static void THISCALL hk_DrawGauntletScore(void *g, void *str, int x, int y) {
         /* Adaptively align to the right edge of 'SCORES' on gaunthighscore.gif */
         real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x + 185) - 44;
     }
-    if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
+        static int s_logged_gaunt_score = 0;
+    if (!s_logged_gaunt_score) {
+        s_logged_gaunt_score = 1;
+        LogF("[GAUNT_RUNTIME] GauntHsScore: x=%d y=%d", real_x, real_y);
+    }
+if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
 }
 
 /* 5. Gauntlet Highscore Names DrawString Hook */
@@ -1222,7 +1244,12 @@ static void THISCALL hk_DrawGauntletName(void *g, void *str, int x, int y) {
         /* Synchronously track Gauntlet Highscore Title */
         real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x + 11);
     }
-    if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
+        static int s_logged_gaunt_name = 0;
+    if (!s_logged_gaunt_name) {
+        s_logged_gaunt_name = 1;
+        LogF("[GAUNT_RUNTIME] GauntHsName: x=%d y=%d", real_x, real_y);
+    }
+if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
 }
 
 /* 6. Adventure Highscore Scores DrawString Hook */
@@ -1334,6 +1361,17 @@ static void THISCALL hk_gauntlet_resize(void *this, int x, int y, int w, int h) 
     void *btn_mainmenu = *(void **)((char *)this + 0x68);
     void *btn_next     = *(void **)((char *)this + 0x70);
     void *btn_play     = *(void **)((char *)this + 0x6C);
+
+    static int s_logged_gaunt_buttons = 0;
+    if (!s_logged_gaunt_buttons) {
+        s_logged_gaunt_buttons = 1;
+        LogF("[GAUNT_RUNTIME] BtnPractice: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_practice_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_practice_y));
+        LogF("[GAUNT_RUNTIME] BtnSurvival: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_survival_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_survival_y));
+        LogF("[GAUNT_RUNTIME] BtnBack: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_back_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_back_y));
+        LogF("[GAUNT_RUNTIME] BtnMainMenu: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_mainmenu_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_mainmenu_y));
+        LogF("[GAUNT_RUNTIME] BtnNext: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_next_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_next_y));
+        LogF("[GAUNT_RUNTIME] BtnPlay: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_play_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_play_y));
+    }
 
     if (btn_practice) {
         (*(fWidgetResize *)(*(void ***)btn_practice + 0x34/4))(btn_practice, x + PARENT_LOCAL_X(g_layout.gaunt_btn_practice_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_practice_y), *(int*)((char*)btn_practice+16), *(int*)((char*)btn_practice+20));
@@ -2262,8 +2300,12 @@ static void ApplyUIPatches(void) {
 
     void *pGauntDoorFrameY = FindPattern("DC 00 00 00 68 AA 00 00 00");
     if (pGauntDoorFrameY) {
-        VerifyAndPatchDword(pGauntDoorFrameY, 220, PARENT_LOCAL_Y(g_layout.gaunt_door_frame_y), "GauntDoorFrameY");
-        VerifyAndPatchDword((char*)pGauntDoorFrameY + 5, 170, PARENT_LOCAL_X(g_layout.gaunt_door_frame_x), "GauntDoorFrameX");
+        DWORD val_df_y = PARENT_LOCAL_Y(g_layout.gaunt_door_frame_y);
+        DWORD val_df_x = PARENT_LOCAL_X(g_layout.gaunt_door_frame_x);
+        VerifyAndPatchDword(pGauntDoorFrameY, 220, val_df_y, "GauntDoorFrameY");
+        VerifyAndPatchDword((char*)pGauntDoorFrameY + 5, 170, val_df_x, "GauntDoorFrameX");
+        LogF("[GAUNT_RUNTIME] Patch GauntDoorFrameY: %u", val_df_y);
+        LogF("[GAUNT_RUNTIME] Patch GauntDoorFrameX: %u", val_df_x);
 
         unsigned char *call_site = (unsigned char *)pGauntDoorFrameY + 12;
         if (*call_site == 0xE8) {
@@ -2289,13 +2331,25 @@ static void ApplyUIPatches(void) {
     }
 
     void *pGauntHsTitleX = FindPattern("B2 01 00 00 50");
-    if (pGauntHsTitleX) VerifyAndPatchDword(pGauntHsTitleX, 434, PARENT_LOCAL_X(g_layout.gaunt_hs_title_x), "GauntHighscoreTitleX");
+    if (pGauntHsTitleX) {
+        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x);
+        VerifyAndPatchDword(pGauntHsTitleX, 434, val, "GauntHighscoreTitleX");
+        LogF("[GAUNT_RUNTIME] Patch GauntHighscoreTitleX: %u", val);
+    }
 
     void *pGauntDoorNameY = FindPattern("AB 01 00 00 8D 45 BC 50 8B");
-    if (pGauntDoorNameY) VerifyAndPatchDword(pGauntDoorNameY, 427, PARENT_LOCAL_Y(g_layout.gaunt_door_name_y), "GauntDoorNameY");
+    if (pGauntDoorNameY) {
+        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_door_name_y);
+        VerifyAndPatchDword(pGauntDoorNameY, 427, val, "GauntDoorNameY");
+        LogF("[GAUNT_RUNTIME] Patch GauntDoorNameY: %u", val);
+    }
 
     void *pGauntDoorNameX = FindPattern("AA 00 00 00 50 8D");
-    if (pGauntDoorNameX) VerifyAndPatchDword(pGauntDoorNameX, 170, PARENT_LOCAL_X(g_layout.gaunt_door_name_x), "GauntDoorNameX");
+    if (pGauntDoorNameX) {
+        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_door_name_x);
+        VerifyAndPatchDword(pGauntDoorNameX, 170, val, "GauntDoorNameX");
+        LogF("[GAUNT_RUNTIME] Patch GauntDoorNameX: %u", val);
+    }
 
     void *pGauntDoorNameW = FindPattern("8B 4F 74 8B 51 04 2B D0 8B C2 99");
     if (pGauntDoorNameW) {
@@ -2306,10 +2360,18 @@ static void ApplyUIPatches(void) {
     }
 
     void *pGauntPracticeY = FindPattern("04 01 00 00 8D 45 BC");
-    if (pGauntPracticeY) VerifyAndPatchDword(pGauntPracticeY, 260, PARENT_LOCAL_Y(g_layout.gaunt_practice_text_y), "GauntPracticeTextY");
+    if (pGauntPracticeY) {
+        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_practice_text_y);
+        VerifyAndPatchDword(pGauntPracticeY, 260, val, "GauntPracticeTextY");
+        LogF("[GAUNT_RUNTIME] Patch GauntPracticeTextY: %u", val);
+    }
 
     void *pGauntPracticeX = FindPattern("96 00 00 00 52 8D");
-    if (pGauntPracticeX) VerifyAndPatchDword(pGauntPracticeX, 150, PARENT_LOCAL_X(g_layout.gaunt_practice_text_x), "GauntPracticeTextX");
+    if (pGauntPracticeX) {
+        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_practice_text_x);
+        VerifyAndPatchDword(pGauntPracticeX, 150, val, "GauntPracticeTextX");
+        LogF("[GAUNT_RUNTIME] Patch GauntPracticeTextX: %u", val);
+    }
 
     void *pGauntPracticeW = FindPattern("8B 4F 74 8B 51 04 2B D0 81 C2");
     if (pGauntPracticeW) {
@@ -2322,24 +2384,48 @@ static void ApplyUIPatches(void) {
     void *pGauntCustomMap = FindPattern("68 04 01 00 00 68 ?? ?? ?? ?? 8D 45 BC 50 89 F1");
     if (pGauntCustomMap) {
         DWORD old_x = *(DWORD *)((char *)pGauntCustomMap + 6);
-        VerifyAndPatchDword((char *)pGauntCustomMap + 1, 260, (DWORD)PARENT_LOCAL_Y(g_layout.gaunt_custom_map_y), "GauntCustomMapTagY");
-        VerifyAndPatchDword((char *)pGauntCustomMap + 6, old_x, (DWORD)PARENT_LOCAL_X(g_layout.gaunt_custom_map_x), "GauntCustomMapTagX");
+        DWORD val_y = (DWORD)PARENT_LOCAL_Y(g_layout.gaunt_custom_map_y);
+        DWORD val_x = (DWORD)PARENT_LOCAL_X(g_layout.gaunt_custom_map_x);
+        VerifyAndPatchDword((char *)pGauntCustomMap + 1, 260, val_y, "GauntCustomMapTagY");
+        VerifyAndPatchDword((char *)pGauntCustomMap + 6, old_x, val_x, "GauntCustomMapTagX");
+        LogF("[GAUNT_RUNTIME] Patch GauntCustomMapTagY: %u", val_y);
+        LogF("[GAUNT_RUNTIME] Patch GauntCustomMapTagX: %u", val_x);
     }
 
     void *pGauntGemY = FindPattern("DC 00 00 00 2B C3");
-    if (pGauntGemY) VerifyAndPatchDword(pGauntGemY, 220, PARENT_LOCAL_Y(g_layout.gaunt_gem_y), "GauntGemY");
+    if (pGauntGemY) {
+        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_gem_y);
+        VerifyAndPatchDword(pGauntGemY, 220, val, "GauntGemY");
+        LogF("[GAUNT_RUNTIME] Patch GauntGemY: %u", val);
+    }
 
     void *pGauntGemX = FindPattern("30 02 00 00 2B D0");
-    if (pGauntGemX) VerifyAndPatchDword(pGauntGemX, 560, PARENT_LOCAL_X(g_layout.gaunt_gem_x), "GauntGemX");
+    if (pGauntGemX) {
+        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_gem_x);
+        VerifyAndPatchDword(pGauntGemX, 560, val, "GauntGemX");
+        LogF("[GAUNT_RUNTIME] Patch GauntGemX: %u", val);
+    }
 
     void *pGauntGem3X = FindPattern("BB 30 02 00 00 2B D8");
-    if (pGauntGem3X) VerifyAndPatchDword((char*)pGauntGem3X + 1, 560, PARENT_LOCAL_X(g_layout.gaunt_gem_x), "GauntGem3X");
+    if (pGauntGem3X) {
+        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_gem_x);
+        VerifyAndPatchDword((char*)pGauntGem3X + 1, 560, val, "GauntGem3X");
+        LogF("[GAUNT_RUNTIME] Patch GauntGem3X: %u", val);
+    }
 
     void *pGauntGem3Y = FindPattern("B8 DC 00 00 00 2B C1");
-    if (pGauntGem3Y) VerifyAndPatchDword((char*)pGauntGem3Y + 1, 220, PARENT_LOCAL_Y(g_layout.gaunt_gem_y), "GauntGem3Y");
+    if (pGauntGem3Y) {
+        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_gem_y);
+        VerifyAndPatchDword((char*)pGauntGem3Y + 1, 220, val, "GauntGem3Y");
+        LogF("[GAUNT_RUNTIME] Patch GauntGem3Y: %u", val);
+    }
 
     void *pGauntGem2Y = FindPattern("BA DC 00 00 00 2B D3");
-    if (pGauntGem2Y) VerifyAndPatchDword((char*)pGauntGem2Y + 1, 220, PARENT_LOCAL_Y(g_layout.gaunt_gem_y), "GauntGem2Y");
+    if (pGauntGem2Y) {
+        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_gem_y);
+        VerifyAndPatchDword((char*)pGauntGem2Y + 1, 220, val, "GauntGem2Y");
+        LogF("[GAUNT_RUNTIME] Patch GauntGem2Y: %u", val);
+    }
 
     void *pGauntTitleCall = FindPattern("8B 15 DC 7E 54 00 6A 00 6A 00 52 8B CE E8");
     if (pGauntTitleCall) {
@@ -2352,7 +2438,11 @@ static void ApplyUIPatches(void) {
     }
 
     void *pGauntHsScoresX = FindPattern("3F 02 00 00 53 8D 8D 38");
-    if (pGauntHsScoresX) VerifyAndPatchDword(pGauntHsScoresX, 575, PARENT_LOCAL_X(g_layout.gaunt_hs_scores_x), "GauntHighscoreScoresX");
+    if (pGauntHsScoresX) {
+        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_hs_scores_x);
+        VerifyAndPatchDword(pGauntHsScoresX, 575, val, "GauntHighscoreScoresX");
+        LogF("[GAUNT_RUNTIME] Patch GauntHighscoreScoresX: %u", val);
+    }
 
     void *pGauntScoreCall = FindPattern("83 C0 46 50 68 ?? ?? ?? ?? 53 8D 8D 38 FF FF FF E8");
     if (pGauntScoreCall) {
@@ -2360,7 +2450,11 @@ static void ApplyUIPatches(void) {
     }
 
     void *pGauntHsNamesX = FindPattern("BD 01 00 00 8D");
-    if (pGauntHsNamesX) VerifyAndPatchDword(pGauntHsNamesX, 445, PARENT_LOCAL_X(g_layout.gaunt_hs_names_x), "GauntHighscoreNamesX");
+    if (pGauntHsNamesX) {
+        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_hs_names_x);
+        VerifyAndPatchDword(pGauntHsNamesX, 445, val, "GauntHighscoreNamesX");
+        LogF("[GAUNT_RUNTIME] Patch GauntHighscoreNamesX: %u", val);
+    }
 
     void *pGauntNameCall = FindPattern("83 C0 46 50 68 ?? ?? ?? ?? 8D 43 0C 50 8D 8D 38 FF FF FF E8");
     if (pGauntNameCall) {
@@ -2370,15 +2464,25 @@ static void ApplyUIPatches(void) {
     void *pGauntHsClipX = FindPattern("37 02 00 00 6A 00 6A 00 8D 8D 38 FF FF FF");
     if (pGauntHsClipX) {
         VerifyAndPatchDword((char*)pGauntHsClipX - 5, 480, (DWORD)content_h, "GauntHighscoreClipH");
-        VerifyAndPatchDword(pGauntHsClipX, 567, PARENT_LOCAL_X(g_layout.gaunt_hs_clip_w), "GauntHighscoreClipW");
+        DWORD val_clip_w = PARENT_LOCAL_X(g_layout.gaunt_hs_clip_w);
+        VerifyAndPatchDword(pGauntHsClipX, 567, val_clip_w, "GauntHighscoreClipW");
+        LogF("[GAUNT_RUNTIME] Patch GauntHighscoreClipW: %u", val_clip_w);
     }
 
     void *pGauntInfoBox = FindPattern("C7 45 90 14 00 00 00 C7 45 94 3C 00 00 00 C7 45 98 96 00 00 00 C7 45 9C 64 00 00 00 E8 ?? ?? ?? ?? 68 0A 01 5B 00");
     if (pGauntInfoBox) {
-        VerifyAndPatchDword((char*)pGauntInfoBox + 3,  20,  PARENT_LOCAL_X(g_layout.gaunt_infobox_x), "GauntInfoBoxX");
-        VerifyAndPatchDword((char*)pGauntInfoBox + 10, 60,  PARENT_LOCAL_Y(g_layout.gaunt_infobox_y), "GauntInfoBoxY");
-        VerifyAndPatchDword((char*)pGauntInfoBox + 17, 150, (DWORD)g_layout.gaunt_infobox_w, "GauntInfoBoxW");
-        VerifyAndPatchDword((char*)pGauntInfoBox + 24, 100, SDIM_VAL(g_layout.gaunt_infobox_h), "GauntInfoBoxH");
+        DWORD val_ib_x = PARENT_LOCAL_X(g_layout.gaunt_infobox_x);
+        DWORD val_ib_y = PARENT_LOCAL_Y(g_layout.gaunt_infobox_y);
+        DWORD val_ib_w = (DWORD)g_layout.gaunt_infobox_w;
+        DWORD val_ib_h = SDIM_VAL(g_layout.gaunt_infobox_h);
+        VerifyAndPatchDword((char*)pGauntInfoBox + 3,  20,  val_ib_x, "GauntInfoBoxX");
+        VerifyAndPatchDword((char*)pGauntInfoBox + 10, 60,  val_ib_y, "GauntInfoBoxY");
+        VerifyAndPatchDword((char*)pGauntInfoBox + 17, 150, val_ib_w, "GauntInfoBoxW");
+        VerifyAndPatchDword((char*)pGauntInfoBox + 24, 100, val_ib_h, "GauntInfoBoxH");
+        LogF("[GAUNT_RUNTIME] Patch GauntInfoBoxX: %u", val_ib_x);
+        LogF("[GAUNT_RUNTIME] Patch GauntInfoBoxY: %u", val_ib_y);
+        LogF("[GAUNT_RUNTIME] Patch GauntInfoBoxW: %u", val_ib_w);
+        LogF("[GAUNT_RUNTIME] Patch GauntInfoBoxH: %u", val_ib_h);
     }
 
     void *pGauntInfoCall = FindPattern("8B CF C6 45 FC 03 FF 92 88 00 00 00");
