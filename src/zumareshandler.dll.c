@@ -862,6 +862,12 @@ static inline int GauntLabelsDim(int v) {
     return SDIM_VAL(v);
 }
 
+static inline void CheckGauntBounds(const char *name, int x, int y) {
+    if (x < 0 || x > 900 || y < 0 || y > 675) {
+        LogF("[GAUNT_RUNTIME][WARN] %s out of bounds: x=%d y=%d (expected 0..900 x 0..675)", name, x, y);
+    }
+}
+
 typedef void (THISCALL *fWidgetResize)(void *w, int x, int y, int width, int height);
 typedef void (THISCALL *fDrawDoors)(void *this, void *g, int start, int end);
 typedef void (THISCALL *fSetDrawMode)(void *g, int mode);
@@ -952,6 +958,8 @@ static void PopulateGauntletDoors(void *this) {
     if (!s_logged_gaunt_doors) {
         s_logged_gaunt_doors = 1;
         for (int i = 0; i < 4; i++) {
+            char dname[32]; snprintf(dname, sizeof(dname), "Door %d", i);
+            CheckGauntBounds(dname, gd[i].mX, gd[i].mY);
             LogF("[GAUNT_RUNTIME] Door %d: x=%d y=%d", i, gd[i].mX, gd[i].mY);
         }
     }
@@ -1412,6 +1420,12 @@ static void THISCALL hk_gauntlet_resize(void *this, int x, int y, int w, int h) 
     static int s_logged_gaunt_buttons = 0;
     if (!s_logged_gaunt_buttons) {
         s_logged_gaunt_buttons = 1;
+        CheckGauntBounds("BtnPractice", GauntButtonsX(g_layout.gaunt_btn_practice_x), GauntButtonsY(g_layout.gaunt_btn_practice_y));
+        CheckGauntBounds("BtnSurvival", GauntButtonsX(g_layout.gaunt_btn_survival_x), GauntButtonsY(g_layout.gaunt_btn_survival_y));
+        CheckGauntBounds("BtnBack", GauntButtonsX(g_layout.gaunt_btn_back_x), GauntButtonsY(g_layout.gaunt_btn_back_y));
+        CheckGauntBounds("BtnMainMenu", GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), GauntButtonsY(g_layout.gaunt_btn_mainmenu_y));
+        CheckGauntBounds("BtnNext", GauntButtonsX(g_layout.gaunt_btn_next_x), GauntButtonsY(g_layout.gaunt_btn_next_y));
+        CheckGauntBounds("BtnPlay", GauntButtonsX(g_layout.gaunt_btn_play_x), GauntButtonsY(g_layout.gaunt_btn_play_y));
         LogF("[GAUNT_RUNTIME] BtnPractice: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_practice_x), GauntButtonsY(g_layout.gaunt_btn_practice_y));
         LogF("[GAUNT_RUNTIME] BtnSurvival: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_survival_x), GauntButtonsY(g_layout.gaunt_btn_survival_y));
         LogF("[GAUNT_RUNTIME] BtnBack: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_back_x), GauntButtonsY(g_layout.gaunt_btn_back_y));

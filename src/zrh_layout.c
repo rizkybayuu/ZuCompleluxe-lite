@@ -758,6 +758,17 @@ void ZRH_LoadLayoutXml(void) {
         }
     }
 
+    char sp_doors[32] = "canon";
+    char sp_btn[32]   = "canon";
+    char sp_lbl[32]   = "canon";
+    if (g_layout.gaunt_doors_space_w > 0)
+        snprintf(sp_doors, sizeof(sp_doors), "%dx%d", g_layout.gaunt_doors_space_w, g_layout.gaunt_doors_space_h);
+    if (g_layout.gaunt_buttons_space_w > 0)
+        snprintf(sp_btn, sizeof(sp_btn), "%dx%d", g_layout.gaunt_buttons_space_w, g_layout.gaunt_buttons_space_h);
+    if (g_layout.gaunt_labels_space_w > 0)
+        snprintf(sp_lbl, sizeof(sp_lbl), "%dx%d", g_layout.gaunt_labels_space_w, g_layout.gaunt_labels_space_h);
+    LogF("[GAUNT_LAYOUT] space doors=%s buttons=%s labels=%s", sp_doors, sp_btn, sp_lbl);
+
     /* Parse Main Menu Buttons & Frog Elements */
     const char *mm_sec = strstr(buf, "<MainMenu");
     const char *mm_sec_end = mm_sec ? strstr(mm_sec, "</MainMenu>") : NULL;
