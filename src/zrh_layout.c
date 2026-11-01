@@ -137,6 +137,12 @@ void ZRH_InitLayoutDefaults(void) {
     g_layout.adv_buttons_space_h = 0;
     g_layout.adv_labels_space_w  = 0;
     g_layout.adv_labels_space_h  = 0;
+    g_layout.gaunt_doors_space_w   = 0;
+    g_layout.gaunt_doors_space_h   = 0;
+    g_layout.gaunt_buttons_space_w = 0;
+    g_layout.gaunt_buttons_space_h = 0;
+    g_layout.gaunt_labels_space_w  = 0;
+    g_layout.gaunt_labels_space_h  = 0;
 
     /* In-Game HUD & Banners */
     g_layout.hud_level_banner_offset_x = 40;
@@ -622,6 +628,14 @@ void ZRH_LoadLayoutXml(void) {
     const char *gaunt_doors_sec = strstr(buf, "<GauntletDoors");
     const char *gaunt_doors_sec_end = gaunt_doors_sec ? strstr(gaunt_doors_sec, "</GauntletDoors>") : NULL;
     if (gaunt_doors_sec && gaunt_doors_sec_end) {
+        const char *open_end = strchr(gaunt_doors_sec, ">");
+        if (open_end && open_end < gaunt_doors_sec_end) {
+            const char *sp = strstr(gaunt_doors_sec, "space=\"");
+            if (!sp) sp = strstr(gaunt_doors_sec, "space='");
+            if (sp && sp < open_end) {
+                sscanf(sp + 7, "%dx%d", &g_layout.gaunt_doors_space_w, &g_layout.gaunt_doors_space_h);
+            }
+        }
         const char *scan = gaunt_doors_sec;
         while ((scan = find_tag_start(scan, gaunt_doors_sec_end, "Door", &tend)) != NULL) {
             int id = -1;
@@ -637,6 +651,14 @@ void ZRH_LoadLayoutXml(void) {
     const char *gaunt_btn_sec = strstr(buf, "<GauntletButtons");
     const char *gaunt_btn_sec_end = gaunt_btn_sec ? strstr(gaunt_btn_sec, "</GauntletButtons>") : NULL;
     if (gaunt_btn_sec && gaunt_btn_sec_end) {
+        const char *open_end = strchr(gaunt_btn_sec, ">");
+        if (open_end && open_end < gaunt_btn_sec_end) {
+            const char *sp = strstr(gaunt_btn_sec, "space=\"");
+            if (!sp) sp = strstr(gaunt_btn_sec, "space='");
+            if (sp && sp < open_end) {
+                sscanf(sp + 7, "%dx%d", &g_layout.gaunt_buttons_space_w, &g_layout.gaunt_buttons_space_h);
+            }
+        }
         if ((t = find_tag_start(gaunt_btn_sec, gaunt_btn_sec_end, "Practice", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.gaunt_btn_practice_x);
             parse_xml_attr(t, tend, "y", &g_layout.gaunt_btn_practice_y);
@@ -673,6 +695,14 @@ void ZRH_LoadLayoutXml(void) {
     const char *gaunt_lbl_sec = strstr(buf, "<GauntletLabels");
     const char *gaunt_lbl_sec_end = gaunt_lbl_sec ? strstr(gaunt_lbl_sec, "</GauntletLabels>") : NULL;
     if (gaunt_lbl_sec && gaunt_lbl_sec_end) {
+        const char *open_end = strchr(gaunt_lbl_sec, ">");
+        if (open_end && open_end < gaunt_lbl_sec_end) {
+            const char *sp = strstr(gaunt_lbl_sec, "space=\"");
+            if (!sp) sp = strstr(gaunt_lbl_sec, "space='");
+            if (sp && sp < open_end) {
+                sscanf(sp + 7, "%dx%d", &g_layout.gaunt_labels_space_w, &g_layout.gaunt_labels_space_h);
+            }
+        }
         if ((t = find_tag_start(gaunt_lbl_sec, gaunt_lbl_sec_end, "DoorFrame", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.gaunt_door_frame_x);
             parse_xml_attr(t, tend, "y", &g_layout.gaunt_door_frame_y);

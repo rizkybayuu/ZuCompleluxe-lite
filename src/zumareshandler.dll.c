@@ -815,6 +815,53 @@ static inline int AdvLabelsDim(int v) {
     return SDIM_VAL(v);
 }
 
+/* Gauntlet Coordinate Space Helpers (space="1200x675" or fallback 640x480) */
+static inline int GauntDoorsX(int v) {
+    if (g_layout.gaunt_doors_space_w == 1200 && g_layout.gaunt_doors_space_h == 675) {
+        int xo = (TARGET_W - 900) / 2;
+        return v - xo;
+    }
+    return PARENT_LOCAL_X(v);
+}
+static inline int GauntDoorsY(int v) {
+    if (g_layout.gaunt_doors_space_w == 1200 && g_layout.gaunt_doors_space_h == 675) {
+        return v;
+    }
+    return PARENT_LOCAL_Y(v);
+}
+static inline int GauntButtonsX(int v) {
+    if (g_layout.gaunt_buttons_space_w == 1200 && g_layout.gaunt_buttons_space_h == 675) {
+        int xo = (TARGET_W - 900) / 2;
+        return v - xo;
+    }
+    return PARENT_LOCAL_X(v);
+}
+static inline int GauntButtonsY(int v) {
+    if (g_layout.gaunt_buttons_space_w == 1200 && g_layout.gaunt_buttons_space_h == 675) {
+        return v;
+    }
+    return PARENT_LOCAL_Y(v);
+}
+static inline int GauntLabelsX(int v) {
+    if (g_layout.gaunt_labels_space_w == 1200 && g_layout.gaunt_labels_space_h == 675) {
+        int xo = (TARGET_W - 900) / 2;
+        return v - xo;
+    }
+    return PARENT_LOCAL_X(v);
+}
+static inline int GauntLabelsY(int v) {
+    if (g_layout.gaunt_labels_space_w == 1200 && g_layout.gaunt_labels_space_h == 675) {
+        return v;
+    }
+    return PARENT_LOCAL_Y(v);
+}
+static inline int GauntLabelsDim(int v) {
+    if (g_layout.gaunt_labels_space_w == 1200 && g_layout.gaunt_labels_space_h == 675) {
+        return v;
+    }
+    return SDIM_VAL(v);
+}
+
 typedef void (THISCALL *fWidgetResize)(void *w, int x, int y, int width, int height);
 typedef void (THISCALL *fDrawDoors)(void *this, void *g, int start, int end);
 typedef void (THISCALL *fSetDrawMode)(void *g, int mode);
@@ -898,8 +945,8 @@ static void PopulateGauntletDoors(void *this) {
     if (!this) return;
     struct GauntletDoor *gd = (struct GauntletDoor *)((char *)this + 0x9C);
     for (int i = 0; i < 4; i++) {
-        gd[i].mX = PARENT_LOCAL_X(g_layout.gaunt_doors[i].x);
-        gd[i].mY = PARENT_LOCAL_Y(g_layout.gaunt_doors[i].y);
+        gd[i].mX = GauntDoorsX(g_layout.gaunt_doors[i].x);
+        gd[i].mY = GauntDoorsY(g_layout.gaunt_doors[i].y);
     }
     static int s_logged_gaunt_doors = 0;
     if (!s_logged_gaunt_doors) {
@@ -1162,8 +1209,8 @@ static void PatchCall6(void *site, void *new_target, const char *name) {
 
 /* 1. Gauntlet Title Image Hook */
 static void THISCALL hk_DrawGauntletTitle(void *g, void *img, int x, int y) {
-    int rx = PARENT_LOCAL_X(g_layout.gaunt_title_x);
-    int ry = PARENT_LOCAL_Y(g_layout.gaunt_title_y);
+    int rx = GauntLabelsX(g_layout.gaunt_title_x);
+    int ry = GauntLabelsY(g_layout.gaunt_title_y);
     static int s_logged_gaunt_title = 0;
     if (!s_logged_gaunt_title) {
         s_logged_gaunt_title = 1;
@@ -1174,8 +1221,8 @@ static void THISCALL hk_DrawGauntletTitle(void *g, void *img, int x, int y) {
 
 /* 2. Gauntlet Highscore Title Image Hook */
 static void THISCALL hk_DrawGauntletHsTitle(void *g, void *img, int x, int y) {
-    int rx = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x);
-    int ry = PARENT_LOCAL_Y(g_layout.gaunt_hs_title_y);
+    int rx = GauntLabelsX(g_layout.gaunt_hs_title_x);
+    int ry = GauntLabelsY(g_layout.gaunt_hs_title_y);
     static int s_logged_gaunt_hstitle = 0;
     if (!s_logged_gaunt_hstitle) {
         s_logged_gaunt_hstitle = 1;
@@ -1200,21 +1247,21 @@ static void THISCALL hk_DrawAdventureHsTitle(void *g, void *img, int x, int y) {
 static void THISCALL hk_DrawGauntletScore(void *g, void *str, int x, int y) {
     EnsureGraphicsFns();
     int diff = (y >= 70) ? (y - 70) : 0;
-    int base_y = PARENT_LOCAL_Y(g_layout.gaunt_hs_base_y);
+    int base_y = GauntLabelsY(g_layout.gaunt_hs_base_y);
     int real_y;
     if (g_layout.gaunt_hs_spacing != 0 && g_layout.gaunt_hs_spacing != 18) {
         int row = (diff + 7) / 14;
-        real_y = base_y + row * SDIM_VAL(g_layout.gaunt_hs_spacing);
+        real_y = base_y + row * GauntLabelsDim(g_layout.gaunt_hs_spacing);
     } else {
-        real_y = base_y + SDIM_VAL(diff);
+        real_y = base_y + GauntLabelsDim(diff);
     }
 
     int real_x;
     if (g_layout.gaunt_hs_scores_x != 575) {
-        real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_scores_x);
+        real_x = GauntLabelsX(g_layout.gaunt_hs_scores_x);
     } else {
         /* Adaptively align to the right edge of 'SCORES' on gaunthighscore.gif */
-        real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x + 185) - 44;
+        real_x = GauntLabelsX(g_layout.gaunt_hs_title_x + 185) - 44;
     }
         static int s_logged_gaunt_score = 0;
     if (!s_logged_gaunt_score) {
@@ -1228,21 +1275,21 @@ if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
 static void THISCALL hk_DrawGauntletName(void *g, void *str, int x, int y) {
     EnsureGraphicsFns();
     int diff = (y >= 70) ? (y - 70) : 0;
-    int base_y = PARENT_LOCAL_Y(g_layout.gaunt_hs_base_y);
+    int base_y = GauntLabelsY(g_layout.gaunt_hs_base_y);
     int real_y;
     if (g_layout.gaunt_hs_spacing != 0 && g_layout.gaunt_hs_spacing != 18) {
         int row = (diff + 7) / 14;
-        real_y = base_y + row * SDIM_VAL(g_layout.gaunt_hs_spacing);
+        real_y = base_y + row * GauntLabelsDim(g_layout.gaunt_hs_spacing);
     } else {
-        real_y = base_y + SDIM_VAL(diff);
+        real_y = base_y + GauntLabelsDim(diff);
     }
 
     int real_x;
     if (g_layout.gaunt_hs_names_x != 445) {
-        real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_names_x);
+        real_x = GauntLabelsX(g_layout.gaunt_hs_names_x);
     } else {
         /* Synchronously track Gauntlet Highscore Title */
-        real_x = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x + 11);
+        real_x = GauntLabelsX(g_layout.gaunt_hs_title_x + 11);
     }
         static int s_logged_gaunt_name = 0;
     if (!s_logged_gaunt_name) {
@@ -1318,12 +1365,12 @@ static void THISCALL hk_DrawAdventureName(void *g, void *str, int x, int y) {
 /* 8. Gauntlet InfoBox DrawStringWordWrap Hook */
 static void THISCALL hk_GauntletWordWrap(void *g, void *font, int *rect, void *str, int line_spacing, int max_lines) {
     if (rect) {
-        rect[0] = PARENT_LOCAL_X(g_layout.gaunt_infobox_x);
-        rect[1] = PARENT_LOCAL_Y(g_layout.gaunt_infobox_y);
-        rect[2] = g_layout.gaunt_infobox_w; /* keep canonical width so unscaled font wraps identically */
-        rect[3] = SDIM_VAL(g_layout.gaunt_infobox_h);
+        rect[0] = GauntLabelsX(g_layout.gaunt_infobox_x);
+        rect[1] = GauntLabelsY(g_layout.gaunt_infobox_y);
+        rect[2] = (g_layout.gaunt_labels_space_w == 1200) ? 150 : g_layout.gaunt_infobox_w; /* keep canonical width so unscaled font wraps identically */
+        rect[3] = GauntLabelsDim(g_layout.gaunt_infobox_h);
     }
-    int ls = g_layout.gaunt_infobox_line_spacing ? SDIM_VAL(g_layout.gaunt_infobox_line_spacing) : line_spacing;
+    int ls = g_layout.gaunt_infobox_line_spacing ? GauntLabelsDim(g_layout.gaunt_infobox_line_spacing) : line_spacing;
     void **vtable = *(void ***)g;
     fDrawStringWordWrap orig = (fDrawStringWordWrap)(vtable[0x88 / sizeof(void*)]);
     orig(g, font, rect, str, ls, max_lines);
@@ -1365,31 +1412,31 @@ static void THISCALL hk_gauntlet_resize(void *this, int x, int y, int w, int h) 
     static int s_logged_gaunt_buttons = 0;
     if (!s_logged_gaunt_buttons) {
         s_logged_gaunt_buttons = 1;
-        LogF("[GAUNT_RUNTIME] BtnPractice: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_practice_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_practice_y));
-        LogF("[GAUNT_RUNTIME] BtnSurvival: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_survival_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_survival_y));
-        LogF("[GAUNT_RUNTIME] BtnBack: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_back_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_back_y));
-        LogF("[GAUNT_RUNTIME] BtnMainMenu: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_mainmenu_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_mainmenu_y));
-        LogF("[GAUNT_RUNTIME] BtnNext: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_next_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_next_y));
-        LogF("[GAUNT_RUNTIME] BtnPlay: x=%d y=%d", PARENT_LOCAL_X(g_layout.gaunt_btn_play_x), PARENT_LOCAL_Y(g_layout.gaunt_btn_play_y));
+        LogF("[GAUNT_RUNTIME] BtnPractice: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_practice_x), GauntButtonsY(g_layout.gaunt_btn_practice_y));
+        LogF("[GAUNT_RUNTIME] BtnSurvival: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_survival_x), GauntButtonsY(g_layout.gaunt_btn_survival_y));
+        LogF("[GAUNT_RUNTIME] BtnBack: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_back_x), GauntButtonsY(g_layout.gaunt_btn_back_y));
+        LogF("[GAUNT_RUNTIME] BtnMainMenu: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), GauntButtonsY(g_layout.gaunt_btn_mainmenu_y));
+        LogF("[GAUNT_RUNTIME] BtnNext: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_next_x), GauntButtonsY(g_layout.gaunt_btn_next_y));
+        LogF("[GAUNT_RUNTIME] BtnPlay: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_play_x), GauntButtonsY(g_layout.gaunt_btn_play_y));
     }
 
     if (btn_practice) {
-        (*(fWidgetResize *)(*(void ***)btn_practice + 0x34/4))(btn_practice, x + PARENT_LOCAL_X(g_layout.gaunt_btn_practice_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_practice_y), *(int*)((char*)btn_practice+16), *(int*)((char*)btn_practice+20));
+        (*(fWidgetResize *)(*(void ***)btn_practice + 0x34/4))(btn_practice, x + GauntButtonsX(g_layout.gaunt_btn_practice_x), y + GauntButtonsY(g_layout.gaunt_btn_practice_y), *(int*)((char*)btn_practice+16), *(int*)((char*)btn_practice+20));
     }
     if (btn_survival) {
-        (*(fWidgetResize *)(*(void ***)btn_survival + 0x34/4))(btn_survival, x + PARENT_LOCAL_X(g_layout.gaunt_btn_survival_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_survival_y), *(int*)((char*)btn_survival+16), *(int*)((char*)btn_survival+20));
+        (*(fWidgetResize *)(*(void ***)btn_survival + 0x34/4))(btn_survival, x + GauntButtonsX(g_layout.gaunt_btn_survival_x), y + GauntButtonsY(g_layout.gaunt_btn_survival_y), *(int*)((char*)btn_survival+16), *(int*)((char*)btn_survival+20));
     }
     if (btn_back) {
-        (*(fWidgetResize *)(*(void ***)btn_back + 0x34/4))(btn_back, x + PARENT_LOCAL_X(g_layout.gaunt_btn_back_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_back_y), *(int*)((char*)btn_back+16), *(int*)((char*)btn_back+20));
+        (*(fWidgetResize *)(*(void ***)btn_back + 0x34/4))(btn_back, x + GauntButtonsX(g_layout.gaunt_btn_back_x), y + GauntButtonsY(g_layout.gaunt_btn_back_y), *(int*)((char*)btn_back+16), *(int*)((char*)btn_back+20));
     }
     if (btn_mainmenu) {
-        (*(fWidgetResize *)(*(void ***)btn_mainmenu + 0x34/4))(btn_mainmenu, x + PARENT_LOCAL_X(g_layout.gaunt_btn_mainmenu_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_mainmenu_y), *(int*)((char*)btn_mainmenu+16), *(int*)((char*)btn_mainmenu+20));
+        (*(fWidgetResize *)(*(void ***)btn_mainmenu + 0x34/4))(btn_mainmenu, x + GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), y + GauntButtonsY(g_layout.gaunt_btn_mainmenu_y), *(int*)((char*)btn_mainmenu+16), *(int*)((char*)btn_mainmenu+20));
     }
     if (btn_next) {
-        (*(fWidgetResize *)(*(void ***)btn_next + 0x34/4))(btn_next, x + PARENT_LOCAL_X(g_layout.gaunt_btn_next_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_next_y), *(int*)((char*)btn_next+16), *(int*)((char*)btn_next+20));
+        (*(fWidgetResize *)(*(void ***)btn_next + 0x34/4))(btn_next, x + GauntButtonsX(g_layout.gaunt_btn_next_x), y + GauntButtonsY(g_layout.gaunt_btn_next_y), *(int*)((char*)btn_next+16), *(int*)((char*)btn_next+20));
     }
     if (btn_play) {
-        (*(fWidgetResize *)(*(void ***)btn_play + 0x34/4))(btn_play, x + PARENT_LOCAL_X(g_layout.gaunt_btn_play_x), y + PARENT_LOCAL_Y(g_layout.gaunt_btn_play_y), *(int*)((char*)btn_play+16), *(int*)((char*)btn_play+20));
+        (*(fWidgetResize *)(*(void ***)btn_play + 0x34/4))(btn_play, x + GauntButtonsX(g_layout.gaunt_btn_play_x), y + GauntButtonsY(g_layout.gaunt_btn_play_y), *(int*)((char*)btn_play+16), *(int*)((char*)btn_play+20));
     }
 }
 
@@ -2300,8 +2347,8 @@ static void ApplyUIPatches(void) {
 
     void *pGauntDoorFrameY = FindPattern("DC 00 00 00 68 AA 00 00 00");
     if (pGauntDoorFrameY) {
-        DWORD val_df_y = PARENT_LOCAL_Y(g_layout.gaunt_door_frame_y);
-        DWORD val_df_x = PARENT_LOCAL_X(g_layout.gaunt_door_frame_x);
+        DWORD val_df_y = GauntLabelsY(g_layout.gaunt_door_frame_y);
+        DWORD val_df_x = GauntLabelsX(g_layout.gaunt_door_frame_x);
         VerifyAndPatchDword(pGauntDoorFrameY, 220, val_df_y, "GauntDoorFrameY");
         VerifyAndPatchDword((char*)pGauntDoorFrameY + 5, 170, val_df_x, "GauntDoorFrameX");
         LogF("[GAUNT_RUNTIME] Patch GauntDoorFrameY: %u", val_df_y);
@@ -2332,21 +2379,21 @@ static void ApplyUIPatches(void) {
 
     void *pGauntHsTitleX = FindPattern("B2 01 00 00 50");
     if (pGauntHsTitleX) {
-        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_hs_title_x);
+        DWORD val = GauntLabelsX(g_layout.gaunt_hs_title_x);
         VerifyAndPatchDword(pGauntHsTitleX, 434, val, "GauntHighscoreTitleX");
         LogF("[GAUNT_RUNTIME] Patch GauntHighscoreTitleX: %u", val);
     }
 
     void *pGauntDoorNameY = FindPattern("AB 01 00 00 8D 45 BC 50 8B");
     if (pGauntDoorNameY) {
-        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_door_name_y);
+        DWORD val = GauntLabelsY(g_layout.gaunt_door_name_y);
         VerifyAndPatchDword(pGauntDoorNameY, 427, val, "GauntDoorNameY");
         LogF("[GAUNT_RUNTIME] Patch GauntDoorNameY: %u", val);
     }
 
     void *pGauntDoorNameX = FindPattern("AA 00 00 00 50 8D");
     if (pGauntDoorNameX) {
-        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_door_name_x);
+        DWORD val = GauntLabelsX(g_layout.gaunt_door_name_x);
         VerifyAndPatchDword(pGauntDoorNameX, 170, val, "GauntDoorNameX");
         LogF("[GAUNT_RUNTIME] Patch GauntDoorNameX: %u", val);
     }
@@ -2355,20 +2402,20 @@ static void ApplyUIPatches(void) {
     if (pGauntDoorNameW) {
         unsigned char expected[6] = { 0x8B, 0x4F, 0x74, 0x8B, 0x51, 0x04 };
         unsigned char repl[6]     = { 0xBA, 0, 0, 0, 0, 0x90 };
-        *(DWORD *)(repl + 1) = SDIM_VAL(320);
+        *(DWORD *)(repl + 1) = GauntLabelsDim(320);
         VerifyAndPatchBytes(pGauntDoorNameW, expected, repl, 6, "GauntDoorNameW");
     }
 
     void *pGauntPracticeY = FindPattern("04 01 00 00 8D 45 BC");
     if (pGauntPracticeY) {
-        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_practice_text_y);
+        DWORD val = GauntLabelsY(g_layout.gaunt_practice_text_y);
         VerifyAndPatchDword(pGauntPracticeY, 260, val, "GauntPracticeTextY");
         LogF("[GAUNT_RUNTIME] Patch GauntPracticeTextY: %u", val);
     }
 
     void *pGauntPracticeX = FindPattern("96 00 00 00 52 8D");
     if (pGauntPracticeX) {
-        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_practice_text_x);
+        DWORD val = GauntLabelsX(g_layout.gaunt_practice_text_x);
         VerifyAndPatchDword(pGauntPracticeX, 150, val, "GauntPracticeTextX");
         LogF("[GAUNT_RUNTIME] Patch GauntPracticeTextX: %u", val);
     }
@@ -2377,15 +2424,15 @@ static void ApplyUIPatches(void) {
     if (pGauntPracticeW) {
         unsigned char expected[6] = { 0x8B, 0x4F, 0x74, 0x8B, 0x51, 0x04 };
         unsigned char repl[6]     = { 0xBA, 0, 0, 0, 0, 0x90 };
-        *(DWORD *)(repl + 1) = SDIM_VAL(320);
+        *(DWORD *)(repl + 1) = GauntLabelsDim(320);
         VerifyAndPatchBytes(pGauntPracticeW, expected, repl, 6, "GauntPracticeTextW");
     }
 
     void *pGauntCustomMap = FindPattern("68 04 01 00 00 68 ?? ?? ?? ?? 8D 45 BC 50 89 F1");
     if (pGauntCustomMap) {
         DWORD old_x = *(DWORD *)((char *)pGauntCustomMap + 6);
-        DWORD val_y = (DWORD)PARENT_LOCAL_Y(g_layout.gaunt_custom_map_y);
-        DWORD val_x = (DWORD)PARENT_LOCAL_X(g_layout.gaunt_custom_map_x);
+        DWORD val_y = (DWORD)GauntLabelsY(g_layout.gaunt_custom_map_y);
+        DWORD val_x = (DWORD)GauntLabelsX(g_layout.gaunt_custom_map_x);
         VerifyAndPatchDword((char *)pGauntCustomMap + 1, 260, val_y, "GauntCustomMapTagY");
         VerifyAndPatchDword((char *)pGauntCustomMap + 6, old_x, val_x, "GauntCustomMapTagX");
         LogF("[GAUNT_RUNTIME] Patch GauntCustomMapTagY: %u", val_y);
@@ -2394,35 +2441,35 @@ static void ApplyUIPatches(void) {
 
     void *pGauntGemY = FindPattern("DC 00 00 00 2B C3");
     if (pGauntGemY) {
-        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_gem_y);
+        DWORD val = GauntLabelsY(g_layout.gaunt_gem_y);
         VerifyAndPatchDword(pGauntGemY, 220, val, "GauntGemY");
         LogF("[GAUNT_RUNTIME] Patch GauntGemY: %u", val);
     }
 
     void *pGauntGemX = FindPattern("30 02 00 00 2B D0");
     if (pGauntGemX) {
-        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_gem_x);
+        DWORD val = GauntLabelsX(g_layout.gaunt_gem_x);
         VerifyAndPatchDword(pGauntGemX, 560, val, "GauntGemX");
         LogF("[GAUNT_RUNTIME] Patch GauntGemX: %u", val);
     }
 
     void *pGauntGem3X = FindPattern("BB 30 02 00 00 2B D8");
     if (pGauntGem3X) {
-        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_gem_x);
+        DWORD val = GauntLabelsX(g_layout.gaunt_gem_x);
         VerifyAndPatchDword((char*)pGauntGem3X + 1, 560, val, "GauntGem3X");
         LogF("[GAUNT_RUNTIME] Patch GauntGem3X: %u", val);
     }
 
     void *pGauntGem3Y = FindPattern("B8 DC 00 00 00 2B C1");
     if (pGauntGem3Y) {
-        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_gem_y);
+        DWORD val = GauntLabelsY(g_layout.gaunt_gem_y);
         VerifyAndPatchDword((char*)pGauntGem3Y + 1, 220, val, "GauntGem3Y");
         LogF("[GAUNT_RUNTIME] Patch GauntGem3Y: %u", val);
     }
 
     void *pGauntGem2Y = FindPattern("BA DC 00 00 00 2B D3");
     if (pGauntGem2Y) {
-        DWORD val = PARENT_LOCAL_Y(g_layout.gaunt_gem_y);
+        DWORD val = GauntLabelsY(g_layout.gaunt_gem_y);
         VerifyAndPatchDword((char*)pGauntGem2Y + 1, 220, val, "GauntGem2Y");
         LogF("[GAUNT_RUNTIME] Patch GauntGem2Y: %u", val);
     }
@@ -2439,7 +2486,7 @@ static void ApplyUIPatches(void) {
 
     void *pGauntHsScoresX = FindPattern("3F 02 00 00 53 8D 8D 38");
     if (pGauntHsScoresX) {
-        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_hs_scores_x);
+        DWORD val = GauntLabelsX(g_layout.gaunt_hs_scores_x);
         VerifyAndPatchDword(pGauntHsScoresX, 575, val, "GauntHighscoreScoresX");
         LogF("[GAUNT_RUNTIME] Patch GauntHighscoreScoresX: %u", val);
     }
@@ -2451,7 +2498,7 @@ static void ApplyUIPatches(void) {
 
     void *pGauntHsNamesX = FindPattern("BD 01 00 00 8D");
     if (pGauntHsNamesX) {
-        DWORD val = PARENT_LOCAL_X(g_layout.gaunt_hs_names_x);
+        DWORD val = GauntLabelsX(g_layout.gaunt_hs_names_x);
         VerifyAndPatchDword(pGauntHsNamesX, 445, val, "GauntHighscoreNamesX");
         LogF("[GAUNT_RUNTIME] Patch GauntHighscoreNamesX: %u", val);
     }
@@ -2465,17 +2512,17 @@ static void ApplyUIPatches(void) {
     if (pGauntHsClipX) {
         VerifyAndPatchDword((char*)pGauntHsClipX - 5, 480, (DWORD)content_h, "GauntHighscoreClipH");
         LogF("[GAUNT_RUNTIME] Patch GauntHighscoreClipH: %u", (DWORD)content_h);
-        DWORD val_clip_w = PARENT_LOCAL_X(g_layout.gaunt_hs_clip_w);
+        DWORD val_clip_w = GauntLabelsDim(g_layout.gaunt_hs_clip_w);
         VerifyAndPatchDword(pGauntHsClipX, 567, val_clip_w, "GauntHighscoreClipW");
         LogF("[GAUNT_RUNTIME] Patch GauntHighscoreClipW: %u", val_clip_w);
     }
 
     void *pGauntInfoBox = FindPattern("C7 45 90 14 00 00 00 C7 45 94 3C 00 00 00 C7 45 98 96 00 00 00 C7 45 9C 64 00 00 00 E8 ?? ?? ?? ?? 68 0A 01 5B 00");
     if (pGauntInfoBox) {
-        DWORD val_ib_x = PARENT_LOCAL_X(g_layout.gaunt_infobox_x);
-        DWORD val_ib_y = PARENT_LOCAL_Y(g_layout.gaunt_infobox_y);
-        DWORD val_ib_w = (DWORD)g_layout.gaunt_infobox_w;
-        DWORD val_ib_h = SDIM_VAL(g_layout.gaunt_infobox_h);
+        DWORD val_ib_x = GauntLabelsX(g_layout.gaunt_infobox_x);
+        DWORD val_ib_y = GauntLabelsY(g_layout.gaunt_infobox_y);
+        DWORD val_ib_w = (DWORD)((g_layout.gaunt_labels_space_w == 1200) ? 150 : g_layout.gaunt_infobox_w);
+        DWORD val_ib_h = GauntLabelsDim(g_layout.gaunt_infobox_h);
         VerifyAndPatchDword((char*)pGauntInfoBox + 3,  20,  val_ib_x, "GauntInfoBoxX");
         VerifyAndPatchDword((char*)pGauntInfoBox + 10, 60,  val_ib_y, "GauntInfoBoxY");
         VerifyAndPatchDword((char*)pGauntInfoBox + 17, 150, val_ib_w, "GauntInfoBoxW");

@@ -101,43 +101,45 @@
 
     <!-- ===================================================================== -->
     <!-- 5. Gauntlet Map Doors (id: 0..3)                                      -->
-    <!-- ===================================================================== -->
-    <GauntletDoors>
-        <Door id="0" x="209" y="179" />
-        <Door id="1" x="232" y="129" />
-        <Door id="2" x="249" y="82" />
-        <Door id="3" x="265" y="28" />
+    <!-- Coordinates in 1200x675 space; mX = 150 subtracted at runtime         -->
+    <GauntletDoors space="1200x675">
+        <Door id="0" x="444" y="252" />
+        <Door id="1" x="476" y="181" />
+        <Door id="2" x="500" y="115" />
+        <Door id="3" x="523" y="39" />
     </GauntletDoors>
 
-    <!-- ===================================================================== -->
     <!-- 6. Gauntlet Navigation Buttons                                        -->
-    <!-- ===================================================================== -->
-    <GauntletButtons>
-        <Practice x="177" y="444" />
-        <Survival x="277" y="444" />
-        <Back x="390" y="444" />
-        <MainMenu x="10" y="422" />
-        <Next x="506" y="413" />
-        <Play x="505" y="446" />
+    <!-- Coordinates in 1200x675 space; mX = 150 subtracted at runtime         -->
+    <GauntletButtons space="1200x675">
+        <Practice x="399" y="624" />
+        <Survival x="540" y="624" />
+        <Back x="698" y="624" />
+        <MainMenu x="164" y="593" />
+        <Next x="862" y="581" />
+        <Play x="860" y="627" />
     </GauntletButtons>
 
-    <!-- ===================================================================== -->
     <!-- 7. Gauntlet Screen UI Labels & Controls                               -->
-    <!-- ===================================================================== -->
-    <GauntletLabels>
-        <GauntletTitle x="0" y="0" />
-        <DoorFrame x="170" y="220" />
-        <HighscoreTitle x="434" y="0" />
-        <DoorName x="170" y="427" />
-        <PracticeText x="150" y="260" w="320" />
-        <!-- Custom Map Indicator Badge Tag: 190 inside doorway -->
-        <CustomMapTag x="190" y="260" />
-        <Gem x="560" y="220" />
-        <HighscoreScores x="575" y="70" />
-        <HighscoreNames x="445" y="70" />
-        <HighscoreRow spacing="18" />
-        <HighscoreClip w="567" />
-        <InfoBox x="20" y="60" w="150" h="100" lineSpacing="14" />
+    <!-- Coordinates in 1200x675 space                                         -->
+    <!-- Exceptions documented:                                                -->
+    <!-- - InfoBox w="150": tidak diskalakan (font FONT_CANCUN_12 tidak diskalakan: asumsi parity) -->
+    <!-- - PracticeText w="450": SDIM_VAL(320)=450 (wadah teks rata kanan di x lokal 661)          -->
+    <!-- - Thumbnail frame destRect: SDIM_VAL(320)=450, SDIM_VAL(240)=338                       -->
+    <GauntletLabels space="1200x675">
+        <GauntletTitle x="150" y="0" />
+        <DoorFrame x="389" y="309" />
+        <HighscoreTitle x="760" y="0" />
+        <DoorName x="389" y="600" />
+        <PracticeText x="361" y="366" w="450" />
+        <!-- Custom Map Indicator Badge Tag: 267 inside doorway -->
+        <CustomMapTag x="417" y="366" />
+        <Gem x="938" y="309" />
+        <HighscoreScores x="959" y="98" />
+        <HighscoreNames x="776" y="98" />
+        <HighscoreRow spacing="25" />
+        <HighscoreClip w="797" />
+        <InfoBox x="178" y="84" w="150" h="141" lineSpacing="20" />
     </GauntletLabels>
 
     <!-- ===================================================================== -->

@@ -61,6 +61,11 @@ typedef struct {
     int adv_buttons_space_w, adv_buttons_space_h;
     int adv_labels_space_w,  adv_labels_space_h;
 
+    /* Gauntlet Coordinate Spaces (e.g. space="1200x675") */
+    int gaunt_doors_space_w,   gaunt_doors_space_h;
+    int gaunt_buttons_space_w, gaunt_buttons_space_h;
+    int gaunt_labels_space_w,  gaunt_labels_space_h;
+
     /* Gauntlet Map Doors (0..3) */
     struct { int x, y; } gaunt_doors[4];
 
