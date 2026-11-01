@@ -1101,8 +1101,18 @@ static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h)
     int bw = btn ? *(int *)((char *)btn + 0x10) : 0;
     int bh = btn ? *(int *)((char *)btn + 0x14) : 0;
 
+    static int s_logged_slide_start = 0;
+    static int s_logged_slide_end = 0;
+    if (x == -1200 && !s_logged_slide_start) {
+        s_logged_slide_start = 1;
+        LogF("[MG_RUNTIME] slide x=%d t0=%d", x, x + t0_x);
+    } else if (x == 0 && !s_logged_slide_end) {
+        s_logged_slide_end = 1;
+        LogF("[MG_RUNTIME] slide x=%d t0=%d", x, x + t0_x);
+    }
+
     static int s_logged_mg = 0;
-    if (!s_logged_mg) {
+    if (!s_logged_mg && x == 0) {
         s_logged_mg = 1;
         LogF("[MG_RUNTIME] MoreGamesScreen widget: x=%d y=%d w=%d h=%d", x, y, w, h);
         LogF("[MG_RUNTIME] Thumb0: x=%d y=%d w=%d h=%d", t0_x, t0_y, t0_w, t0_h);
@@ -1112,11 +1122,11 @@ static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h)
         LogF("[MG_RUNTIME] BtnBack: x=%d y=%d w=%d h=%d", btn_x, btn_y, bw, bh);
     }
 
-    if (t0) (*(fWidgetResize *)(*(void ***)t0 + 0x34/4))(t0, t0_x, t0_y, t0_w, t0_h);
-    if (t1) (*(fWidgetResize *)(*(void ***)t1 + 0x34/4))(t1, t1_x, t1_y, t1_w, t1_h);
-    if (t2) (*(fWidgetResize *)(*(void ***)t2 + 0x34/4))(t2, t2_x, t2_y, t2_w, t2_h);
-    if (t3) (*(fWidgetResize *)(*(void ***)t3 + 0x34/4))(t3, t3_x, t3_y, t3_w, t3_h);
-    if (btn) (*(fWidgetResize *)(*(void ***)btn + 0x34/4))(btn, btn_x, btn_y, bw, bh);
+    if (t0) (*(fWidgetResize *)(*(void ***)t0 + 0x34/4))(t0, x + t0_x, y + t0_y, t0_w, t0_h);
+    if (t1) (*(fWidgetResize *)(*(void ***)t1 + 0x34/4))(t1, x + t1_x, y + t1_y, t1_w, t1_h);
+    if (t2) (*(fWidgetResize *)(*(void ***)t2 + 0x34/4))(t2, x + t2_x, y + t2_y, t2_w, t2_h);
+    if (t3) (*(fWidgetResize *)(*(void ***)t3 + 0x34/4))(t3, x + t3_x, y + t3_y, t3_w, t3_h);
+    if (btn) (*(fWidgetResize *)(*(void ***)btn + 0x34/4))(btn, x + btn_x, y + btn_y, bw, bh);
 }
 
 static inline int GetGauntletFrameW(void) {
