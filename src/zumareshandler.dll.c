@@ -2836,8 +2836,12 @@ static void ApplyUIPatches(void) {
     /* 9o. HelpScreen Background Image Draw Position (IMAGE_HELP_BACK @ 0x434440) */
     void *pHelpBack = FindPattern("8B 4D 08 6A 33 6A 0B 50");
     if (pHelpBack) {
-        BYTE new_y = (BYTE)(SY_VAL(g_layout.help_back_y) > 127 ? 127 : SY_VAL(g_layout.help_back_y));
-        BYTE new_x = (BYTE)(SX_VAL(g_layout.help_back_x) > 127 ? 127 : SX_VAL(g_layout.help_back_x));
+        int raw_y = SY_VAL(g_layout.help_back_y);
+        int raw_x = SX_VAL(g_layout.help_back_x);
+        if (raw_y > 127) LogF("[HELP_LAYOUT][WARN] HelpBackY clamped from %d to 127!", raw_y);
+        if (raw_x > 127) LogF("[HELP_LAYOUT][WARN] HelpBackX clamped from %d to 127!", raw_x);
+        BYTE new_y = (BYTE)(raw_y > 127 ? 127 : raw_y);
+        BYTE new_x = (BYTE)(raw_x > 127 ? 127 : raw_x);
         VerifyAndPatchByte((char *)pHelpBack + 4, 0x33, new_y, "HelpBackY");
         VerifyAndPatchByte((char *)pHelpBack + 6, 0x0B, new_x, "HelpBackX");
     }
@@ -2925,7 +2929,9 @@ static void ApplyUIPatches(void) {
     /* HelpScreen w1 Frog Tutorial Pos */
     void *pW1FrogPos = FindPattern("2B C2 D1 F8 83 C0 3C 50 8B 41 24 99 2B C2 D1 F8 83 C0 0A 50 E8");
     if (pW1FrogPos) {
-        BYTE new_frog_y = (BYTE)(60.0f * h_sy + 0.5f > 127 ? 127 : 60.0f * h_sy + 0.5f);
+        int raw_frog_y = (int)(60.0f * h_sy + 0.5f);
+        if (raw_frog_y > 127) LogF("[HELP_LAYOUT][WARN] HelpW1FrogPosY clamped from %d to 127!", raw_frog_y);
+        BYTE new_frog_y = (BYTE)(raw_frog_y > 127 ? 127 : raw_frog_y);
         VerifyAndPatchByte((char *)pW1FrogPos + 6, 0x3C, new_frog_y, "HelpW1FrogPosY");
     }
 
