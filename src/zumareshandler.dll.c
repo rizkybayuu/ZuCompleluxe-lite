@@ -810,6 +810,17 @@ static void PopulateAdventureDoors(void *this) {
         d[i].mX2 = PARENT_LOCAL_X(g_layout.adv_doors[i].x2);
         d[i].mY2 = PARENT_LOCAL_Y(g_layout.adv_doors[i].y2);
     }
+
+    static int s_logged_doors = 0;
+    if (!s_logged_doors) {
+        s_logged_doors = 1;
+        for (int i = 0; i < 12; i++) {
+            LogF("[ADV_RUNTIME] Door %d: x1=%d y1=%d x2=%d y2=%d", i, d[i].mX1, d[i].mY1, d[i].mX2, d[i].mY2);
+        }
+        LogF("[ADV_RUNTIME] Door 12: x1=%d y1=%d x2=%d y2=%d",
+             PARENT_LOCAL_X(g_layout.adv_doors[12].x1), PARENT_LOCAL_Y(g_layout.adv_doors[12].y1),
+             PARENT_LOCAL_X(g_layout.adv_doors[12].x2), PARENT_LOCAL_Y(g_layout.adv_doors[12].y2));
+    }
 }
 
 struct GauntletDoor {
@@ -832,6 +843,18 @@ static void PopulateGauntletDoors(void *this) {
 /* Temple Draw Sidecar Hooks */
 static void THISCALL hk_adv_draw_temple1(void *this, void *g) {
     PopulateAdventureDoors(this);
+    static int s_logged_temples = 0;
+    if (!s_logged_temples) {
+        s_logged_temples = 1;
+        LogF("[ADV_RUNTIME] Temple1: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_temple1_x), PARENT_LOCAL_Y(g_layout.adv_temple1_y));
+        LogF("[ADV_RUNTIME] Temple2: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_temple2_x), PARENT_LOCAL_Y(g_layout.adv_temple2_y));
+        LogF("[ADV_RUNTIME] Temple2V: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_temple2v_x), PARENT_LOCAL_Y(g_layout.adv_temple2v_y));
+        LogF("[ADV_RUNTIME] Temple3: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_temple3_x), PARENT_LOCAL_Y(g_layout.adv_temple3_y));
+        LogF("[ADV_RUNTIME] Temple3V: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_temple3v_x), PARENT_LOCAL_Y(g_layout.adv_temple3v_y));
+        LogF("[ADV_RUNTIME] Temple4: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_temple4_x), PARENT_LOCAL_Y(g_layout.adv_temple4_y));
+        LogF("[ADV_RUNTIME] Temple5: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_temple5_x), PARENT_LOCAL_Y(g_layout.adv_temple5_y));
+        LogF("[ADV_RUNTIME] Middle: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_middle_x), PARENT_LOCAL_Y(g_layout.adv_middle_y));
+    }
     if (IMG_ADVTEMPLE1)
         DrawImg(g, IMG_ADVTEMPLE1, PARENT_LOCAL_X(g_layout.adv_temple1_x), PARENT_LOCAL_Y(g_layout.adv_temple1_y));
     DrawDoors(this, g, 0, 3);
@@ -1085,6 +1108,11 @@ static void THISCALL hk_DrawGauntletHsTitle(void *g, void *img, int x, int y) {
 static void THISCALL hk_DrawAdventureHsTitle(void *g, void *img, int x, int y) {
     int rx = PARENT_LOCAL_X(g_layout.adv_hs_title_x);
     int ry = PARENT_LOCAL_Y(g_layout.adv_hs_title_y);
+    static int s_logged_title = 0;
+    if (!s_logged_title) {
+        s_logged_title = 1;
+        LogF("[ADV_RUNTIME] AdvHsTitle: x=%d y=%d", rx, ry);
+    }
     DrawImg(g, img, rx, ry);
 }
 
@@ -1154,6 +1182,11 @@ static void THISCALL hk_DrawAdventureScore(void *g, void *str, int x, int y) {
         /* Adaptively align to the right edge of 'SCORES' on advhighscore.gif */
         real_x = PARENT_LOCAL_X(g_layout.adv_hs_title_x + 163) - 44;
     }
+    static int s_logged_score = 0;
+    if (!s_logged_score) {
+        s_logged_score = 1;
+        LogF("[ADV_RUNTIME] AdvHsScore: x=%d y=%d", real_x, real_y);
+    }
     if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
 }
 
@@ -1175,6 +1208,11 @@ static void THISCALL hk_DrawAdventureName(void *g, void *str, int x, int y) {
         real_x = PARENT_LOCAL_X(g_layout.adv_hs_names_x);
     } else {
         real_x = PARENT_LOCAL_X(g_layout.adv_hs_title_x + 14);
+    }
+    static int s_logged_name = 0;
+    if (!s_logged_name) {
+        s_logged_name = 1;
+        LogF("[ADV_RUNTIME] AdvHsName: x=%d y=%d", real_x, real_y);
     }
     if (g_pfnDrawString) g_pfnDrawString(g, str, real_x, real_y);
 }
@@ -1202,6 +1240,11 @@ static void THISCALL hk_AdventureWordWrap(void *g, void *font, int *rect, void *
         rect[3] = SDIM_VAL(g_layout.adv_infobox_h);
     }
     int ls = g_layout.adv_infobox_line_spacing ? SDIM_VAL(g_layout.adv_infobox_line_spacing) : line_spacing;
+    static int s_logged_info = 0;
+    if (!s_logged_info && rect) {
+        s_logged_info = 1;
+        LogF("[ADV_RUNTIME] AdvInfoBox: x=%d y=%d w=%d h=%d ls=%d", rect[0], rect[1], rect[2], rect[3], ls);
+    }
     void **vtable = *(void ***)g;
     fDrawStringWordWrap orig = (fDrawStringWordWrap)(vtable[0x88 / sizeof(void*)]);
     orig(g, font, rect, str, ls, max_lines);
@@ -1248,6 +1291,13 @@ static void THISCALL hk_adventure_resize(void *this, int x, int y, int w, int h)
 
     void *btn_mainmenu = *(void **)((char *)this + 0x5C);
     void *btn_play     = *(void **)((char *)this + 0x60);
+
+    static int s_logged_buttons = 0;
+    if (!s_logged_buttons) {
+        s_logged_buttons = 1;
+        LogF("[ADV_RUNTIME] BtnMainMenu: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_btn_mainmenu_x), PARENT_LOCAL_Y(g_layout.adv_btn_mainmenu_y));
+        LogF("[ADV_RUNTIME] BtnPlay: x=%d y=%d", PARENT_LOCAL_X(g_layout.adv_btn_play_x), PARENT_LOCAL_Y(g_layout.adv_btn_play_y));
+    }
 
     char vis = (x == 0);
     if (btn_mainmenu) {
