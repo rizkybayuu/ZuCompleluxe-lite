@@ -1140,10 +1140,10 @@ __declspec(dllexport) int __cdecl ZTK_CheckDoor5Hit(void *mapScreen, int mouseX,
 
     /* advdoor5 bounding box: retrieved dynamically from layout.xml (door 12) */
     const ZRH_LayoutConfig *cfg_hit = ztk_get_layout();
-    int d5_door_x = (cfg_hit && cfg_hit->adv_doors[12].x1 != 0) ? cfg_hit->adv_doors[12].x1 : 291;
-    int d5_door_y = (cfg_hit && cfg_hit->adv_doors[12].y1 != 0) ? cfg_hit->adv_doors[12].y1 : 176;
-    int d5_x1 = ztk_sx(d5_door_x), d5_x2 = ztk_sx(d5_door_x + 64);
-    int d5_y1 = ztk_sy(d5_door_y), d5_y2 = ztk_sy(d5_door_y + 50);
+    int d5_door_x = (cfg_hit && cfg_hit->adv_doors[12].x1 != 0) ? cfg_hit->adv_doors[12].x1 : 559;
+    int d5_door_y = (cfg_hit && cfg_hit->adv_doors[12].y1 != 0) ? cfg_hit->adv_doors[12].y1 : 248;
+    int d5_x1 = d5_door_x, d5_x2 = d5_door_x + 64;
+    int d5_y1 = d5_door_y, d5_y2 = d5_door_y + 50;
     if (mouseX >= d5_x1 && mouseX < d5_x2 && mouseY >= d5_y1 && mouseY < d5_y2) {
         g_Door5Hover = 1;
         return 12; /* Hand cursor trigger in Zuma MapScreen */
@@ -1159,10 +1159,10 @@ __declspec(dllexport) int __cdecl ZTK_CheckDoor5Click(void *mapScreen, int mouse
 
     /* advdoor5 bounding box: retrieved dynamically from layout.xml (door 12) */
     const ZRH_LayoutConfig *cfg_clk = ztk_get_layout();
-    int d5_door_x = (cfg_clk && cfg_clk->adv_doors[12].x1 != 0) ? cfg_clk->adv_doors[12].x1 : 291;
-    int d5_door_y = (cfg_clk && cfg_clk->adv_doors[12].y1 != 0) ? cfg_clk->adv_doors[12].y1 : 176;
-    int d5_x1 = ztk_sx(d5_door_x), d5_x2 = ztk_sx(d5_door_x + 64);
-    int d5_y1 = ztk_sy(d5_door_y), d5_y2 = ztk_sy(d5_door_y + 50);
+    int d5_door_x = (cfg_clk && cfg_clk->adv_doors[12].x1 != 0) ? cfg_clk->adv_doors[12].x1 : 559;
+    int d5_door_y = (cfg_clk && cfg_clk->adv_doors[12].y1 != 0) ? cfg_clk->adv_doors[12].y1 : 248;
+    int d5_x1 = d5_door_x, d5_x2 = d5_door_x + 64;
+    int d5_y1 = d5_door_y, d5_y2 = d5_door_y + 50;
     if (mouseX >= d5_x1 && mouseX < d5_x2 && mouseY >= d5_y1 && mouseY < d5_y2) {
         if (!g_Door5Selected) {
             /* First click: select Door 5 */
@@ -1240,13 +1240,13 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
     fn_SetColor setColor = (fn_SetColor)0x00447850;
 
     const ZRH_LayoutConfig *cfg_t5 = ztk_get_layout();
-    int t5_render_x = cfg_t5 ? cfg_t5->adv_temple5_x : 126;
-    int t5_render_y = cfg_t5 ? cfg_t5->adv_temple5_y : 148;
-    int d5_render_x = (cfg_t5 && cfg_t5->adv_doors[12].x1 != 0) ? cfg_t5->adv_doors[12].x1 : 291;
-    int d5_render_y = (cfg_t5 && cfg_t5->adv_doors[12].y1 != 0) ? cfg_t5->adv_doors[12].y1 : 176;
+    int t5_render_x = cfg_t5 ? cfg_t5->adv_temple5_x : 327;
+    int t5_render_y = cfg_t5 ? cfg_t5->adv_temple5_y : 208;
+    int d5_render_x = (cfg_t5 && cfg_t5->adv_doors[12].x1 != 0) ? cfg_t5->adv_doors[12].x1 : 559;
+    int d5_render_y = (cfg_t5 && cfg_t5->adv_doors[12].y1 != 0) ? cfg_t5->adv_doors[12].y1 : 248;
 
     /* 1. Render advtemple5 configured from layout.xml */
-    drawImage(graphics, g_ImageAdvTemple5, ztk_sx(t5_render_x), ztk_sy(t5_render_y));
+    drawImage(graphics, g_ImageAdvTemple5, t5_render_x, t5_render_y);
 
     /* 2. Render advdoor5 configured from layout.xml */
     int door_cel = 0; /* Frame 0: Open (Black) */
@@ -1255,7 +1255,7 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
     } else if (g_Door5Hover) {
         door_cel = 1; /* Frame 1: Hover (Green) */
     }
-    drawImageCel(graphics, g_ImageAdvDoor5, ztk_sx(d5_render_x), ztk_sy(d5_render_y), door_cel);
+    drawImageCel(graphics, g_ImageAdvDoor5, d5_render_x, d5_render_y, door_cel);
 
     /* 3. Re-apply 50% Fog via IMAGE_ADVMIDDLE overlay */
     void *advmiddle = *(void**)0x00547EB4;
@@ -1263,7 +1263,9 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
         setColorize(graphics, 1);
         PopCapColor fogColor = { 255, 255, 255, 128 }; /* 50% opacity */
         setColor(graphics, &fogColor);
-        drawImage(graphics, advmiddle, ztk_sx(0), ztk_sy(72));
+        int mid_x = cfg_t5 ? cfg_t5->adv_middle_x : 150;
+        int mid_y = cfg_t5 ? cfg_t5->adv_middle_y : 101;
+        drawImage(graphics, advmiddle, mid_x, mid_y);
         setColorize(graphics, 0);
     }
 }
@@ -1287,18 +1289,18 @@ __declspec(dllexport) void __cdecl ZTK_DrawStage13Banner(void *mapScreen, void *
     PopCapColor colorGold  = { 255, 234, 1, 255 }; /* 0xFFEA01 matching vanilla description color */
 
     const ZRH_LayoutConfig *cfg_b = ztk_get_layout();
-    int b_badge_x = cfg_b ? cfg_b->adv_s13_badge_x : 289;
-    int b_badge_y = cfg_b ? cfg_b->adv_s13_badge_y : 382;
-    int b_num_x   = cfg_b ? cfg_b->adv_s13_num_x   : 344;
-    int b_num_y   = cfg_b ? cfg_b->adv_s13_num_y   : 396;
-    int b_title_x = cfg_b ? cfg_b->adv_s13_title_x : 326;
-    int b_title_y = cfg_b ? cfg_b->adv_s13_title_y : 422;
-    int b_sub_x   = cfg_b ? cfg_b->adv_s13_sub_x   : 326;
-    int b_sub_y   = cfg_b ? cfg_b->adv_s13_sub_y   : 456;
+    int b_badge_x = cfg_b ? cfg_b->adv_s13_badge_x : 556;
+    int b_badge_y = cfg_b ? cfg_b->adv_s13_badge_y : 537;
+    int b_num_x   = cfg_b ? cfg_b->adv_s13_num_x   : 634;
+    int b_num_y   = cfg_b ? cfg_b->adv_s13_num_y   : 557;
+    int b_title_x = cfg_b ? cfg_b->adv_s13_title_x : 608;
+    int b_title_y = cfg_b ? cfg_b->adv_s13_title_y : 593;
+    int b_sub_x   = cfg_b ? cfg_b->adv_s13_sub_x   : 608;
+    int b_sub_y   = cfg_b ? cfg_b->adv_s13_sub_y   : 641;
 
     /* 1. Stage Badge: IMAGE_ADVSTAGE configured from layout.xml */
     if (stageBadge) {
-        drawImage(graphics, stageBadge, ztk_sx(b_badge_x), ztk_sy(b_badge_y));
+        drawImage(graphics, stageBadge, b_badge_x, b_badge_y);
     }
 
     /* 2. Stage number "13" beside STAGE badge */
@@ -1307,18 +1309,18 @@ __declspec(dllexport) void __cdecl ZTK_DrawStage13Banner(void *mapScreen, void *
         ztk_init_string(str_num, "13");
         setFont(graphics, fontMain14);
         setColor(graphics, &colorWhite);
-        drawStr(graphics, str_num, ztk_sx(b_num_x), ztk_sy(b_num_y));
+        drawStr(graphics, str_num, b_num_x, b_num_y);
         ztk_free_string(str_num);
     }
 
     /* 3. Temple Title: "THE VOID" centered */
     if (fontTitle32) {
-        ztk_draw_text_centered(graphics, fontTitle32, "THE VOID", ztk_sx(b_title_x), ztk_sy(b_title_y), &colorWhite);
+        ztk_draw_text_centered(graphics, fontTitle32, "THE VOID", b_title_x, b_title_y, &colorWhite);
     }
 
     /* 4. Door Description: "THE PLACE OF NO ENDING" centered */
     if (fontBrowser) {
-        ztk_draw_text_centered(graphics, fontBrowser, "THE PLACE OF NO ENDING", ztk_sx(b_sub_x), ztk_sy(b_sub_y), &colorGold);
+        ztk_draw_text_centered(graphics, fontBrowser, "THE PLACE OF NO ENDING", b_sub_x, b_sub_y, &colorGold);
     }
 }
 
