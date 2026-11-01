@@ -1067,6 +1067,25 @@ static void THISCALL hk_adv_draw_temple4(void *this, void *g) {
     if (IMG_ADVMIDDLE) DrawImg(g, IMG_ADVMIDDLE, AdvTemplesX(g_layout.adv_middle_x), AdvTemplesY(g_layout.adv_middle_y));
 }
 
+static inline int MoreGamesX(int v) {
+    if (g_layout.mg_space_w == 1200 && g_layout.mg_space_h == 675) {
+        return v - 150;
+    }
+    return PARENT_LOCAL_X(v);
+}
+static inline int MoreGamesY(int v) {
+    if (g_layout.mg_space_w == 1200 && g_layout.mg_space_h == 675) {
+        return v;
+    }
+    return PARENT_LOCAL_Y(v);
+}
+static inline int MoreGamesDim(int v) {
+    if (g_layout.mg_space_w == 1200 && g_layout.mg_space_h == 675) {
+        return v;
+    }
+    return SDIM_VAL(v);
+}
+
 static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h) {
     WidgetResize(this, x, y, w, h);
 
@@ -1076,28 +1095,28 @@ static void THISCALL hk_moregames_resize(void *this, int x, int y, int w, int h)
     void *t3 = *(void **)((char *)this + 0x68);
     void *btn = *(void **)((char *)this + 0x6C);
 
-    int t0_x = PARENT_LOCAL_X(g_layout.mg_t0_x);
-    int t0_y = PARENT_LOCAL_Y(g_layout.mg_t0_y);
-    int t0_w = SDIM_VAL(g_layout.mg_t0_w);
-    int t0_h = SDIM_VAL(g_layout.mg_t0_h);
+    int t0_x = MoreGamesX(g_layout.mg_t0_x);
+    int t0_y = MoreGamesY(g_layout.mg_t0_y);
+    int t0_w = MoreGamesDim(g_layout.mg_t0_w);
+    int t0_h = MoreGamesDim(g_layout.mg_t0_h);
 
-    int t1_x = PARENT_LOCAL_X(g_layout.mg_t1_x);
-    int t1_y = PARENT_LOCAL_Y(g_layout.mg_t1_y);
-    int t1_w = SDIM_VAL(g_layout.mg_t1_w);
-    int t1_h = SDIM_VAL(g_layout.mg_t1_h);
+    int t1_x = MoreGamesX(g_layout.mg_t1_x);
+    int t1_y = MoreGamesY(g_layout.mg_t1_y);
+    int t1_w = MoreGamesDim(g_layout.mg_t1_w);
+    int t1_h = MoreGamesDim(g_layout.mg_t1_h);
 
-    int t2_x = PARENT_LOCAL_X(g_layout.mg_t2_x);
-    int t2_y = PARENT_LOCAL_Y(g_layout.mg_t2_y);
-    int t2_w = SDIM_VAL(g_layout.mg_t2_w);
-    int t2_h = SDIM_VAL(g_layout.mg_t2_h);
+    int t2_x = MoreGamesX(g_layout.mg_t2_x);
+    int t2_y = MoreGamesY(g_layout.mg_t2_y);
+    int t2_w = MoreGamesDim(g_layout.mg_t2_w);
+    int t2_h = MoreGamesDim(g_layout.mg_t2_h);
 
-    int t3_x = PARENT_LOCAL_X(g_layout.mg_t3_x);
-    int t3_y = PARENT_LOCAL_Y(g_layout.mg_t3_y);
-    int t3_w = SDIM_VAL(g_layout.mg_t3_w);
-    int t3_h = SDIM_VAL(g_layout.mg_t3_h);
+    int t3_x = MoreGamesX(g_layout.mg_t3_x);
+    int t3_y = MoreGamesY(g_layout.mg_t3_y);
+    int t3_w = MoreGamesDim(g_layout.mg_t3_w);
+    int t3_h = MoreGamesDim(g_layout.mg_t3_h);
 
-    int btn_x = PARENT_LOCAL_X(g_layout.mg_btn_back_x);
-    int btn_y = PARENT_LOCAL_Y(g_layout.mg_btn_back_y);
+    int btn_x = MoreGamesX(g_layout.mg_btn_back_x);
+    int btn_y = MoreGamesY(g_layout.mg_btn_back_y);
     int bw = btn ? *(int *)((char *)btn + 0x10) : 0;
     int bh = btn ? *(int *)((char *)btn + 0x14) : 0;
 
