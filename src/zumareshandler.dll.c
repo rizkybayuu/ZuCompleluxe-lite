@@ -1274,14 +1274,7 @@ static void THISCALL hk_draw_gauntlet_card(void *g, void *card_img, int x, int y
     int src_w  = *(int *)((char *)card_img + 4);
     int src_h  = *(int *)((char *)card_img + 8);
     if (dest_w > 0 && dest_h > 0 && src_w > 0 && src_h > 0) {
-        int frame_w = GetGauntletFrameW();
-        int frame_h = GetGauntletFrameH();
-        static int s_logged_card_frame = 0;
-        if (!s_logged_card_frame) {
-            s_logged_card_frame = 1;
-            LogF("[GAUNT_RUNTIME] GauntletCard frame: %dx%d", frame_w, frame_h);
-        }
-        int destRect[4] = { x, y, frame_w, frame_h };
+        int destRect[4] = { 0, 0, 320, 240 };
         int srcRect[4]  = { 0, 0, src_w,  src_h  };
         g_pfnDrawImageStretch(g, card_img, destRect, srcRect);
     } else {
