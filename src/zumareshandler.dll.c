@@ -2465,7 +2465,6 @@ static void ApplyUIPatches(void) {
     if (pGauntHsClipX) {
         VerifyAndPatchDword((char*)pGauntHsClipX - 5, 480, (DWORD)content_h, "GauntHighscoreClipH");
         LogF("[GAUNT_RUNTIME] Patch GauntHighscoreClipH: %u", (DWORD)content_h);
-        LogF("[GAUNT_RUNTIME] Patch GauntHighscoreClipH: %u", (DWORD)content_h);
         DWORD val_clip_w = PARENT_LOCAL_X(g_layout.gaunt_hs_clip_w);
         VerifyAndPatchDword(pGauntHsClipX, 567, val_clip_w, "GauntHighscoreClipW");
         LogF("[GAUNT_RUNTIME] Patch GauntHighscoreClipW: %u", val_clip_w);
