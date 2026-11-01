@@ -151,7 +151,7 @@
         <OptionsBtn x="738" y="332" />
         <MoreGamesBtn x="704" y="429" />
         <QuitBtn x="848" y="443" />
-        <WelcomeText y="-6" />
+        <WelcomeText y="8" />
         <UserSwitchText y="53" />
         <FrogEyes x="419" y="465" />
         <Hat x="414" y="347" />
