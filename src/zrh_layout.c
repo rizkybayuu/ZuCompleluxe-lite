@@ -769,6 +769,28 @@ void ZRH_LoadLayoutXml(void) {
         snprintf(sp_lbl, sizeof(sp_lbl), "%dx%d", g_layout.gaunt_labels_space_w, g_layout.gaunt_labels_space_h);
     LogF("[GAUNT_LAYOUT] space doors=%s buttons=%s labels=%s", sp_doors, sp_btn, sp_lbl);
 
+    /* Sanity check: log ERROR if space was not parsed but coordinates exceed canonical 640x480 */
+    if (g_layout.gaunt_doors_space_w == 0) {
+        for (int i = 0; i < 4; i++) {
+            if (g_layout.gaunt_doors[i].x > 640 || g_layout.gaunt_doors[i].y > 480) {
+                LogF("[GAUNT_LAYOUT][ERROR] GauntletDoors space not set, but Door %d exceeds canonical bounds: x=%d y=%d!",
+                     i, g_layout.gaunt_doors[i].x, g_layout.gaunt_doors[i].y);
+            }
+        }
+    }
+    if (g_layout.gaunt_buttons_space_w == 0) {
+        if (g_layout.gaunt_btn_play_x > 640 || g_layout.gaunt_btn_play_y > 480 ||
+            g_layout.gaunt_btn_practice_x > 640 || g_layout.gaunt_btn_practice_y > 480) {
+            LogF("[GAUNT_LAYOUT][ERROR] GauntletButtons space not set, but button coordinates exceed canonical bounds!");
+        }
+    }
+    if (g_layout.gaunt_labels_space_w == 0) {
+        if (g_layout.gaunt_hs_title_x > 640 || g_layout.gaunt_hs_title_y > 480 ||
+            g_layout.gaunt_door_frame_x > 640 || g_layout.gaunt_door_frame_y > 480) {
+            LogF("[GAUNT_LAYOUT][ERROR] GauntletLabels space not set, but label coordinates exceed canonical bounds!");
+        }
+    }
+
     /* Parse Main Menu Buttons & Frog Elements */
     const char *mm_sec = strstr(buf, "<MainMenu");
     const char *mm_sec_end = mm_sec ? strstr(mm_sec, "</MainMenu>") : NULL;

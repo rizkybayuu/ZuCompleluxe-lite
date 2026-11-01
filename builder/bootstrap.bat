@@ -391,11 +391,11 @@ set "DLL_STATUS_!OUT!=failed"
 
 if not "!GCC32!"=="" (
     echo [COMPILING] !OUT! with GCC: !GCC32!
-    "!GCC32!" -m32 -O2 -s -shared !XFLAGS! -o "!BUILD_TMP!\!OUT!" !SRC! -static !LIBS! -Wl,--kill-at -Wl,--no-insert-timestamp >"!LOG!" 2>&1
+    "!GCC32!" -m32 -O2 -s -shared -Wall -Werror=int-conversion !XFLAGS! -o "!BUILD_TMP!\!OUT!" !SRC! -static !LIBS! -Wl,--kill-at -Wl,--no-insert-timestamp >"!LOG!" 2>&1
     if not errorlevel 1 set "DLL_STATUS_!OUT!=built (gcc)"
 ) else if "!ZIG_OK!"=="1" (
     echo [COMPILING] !OUT! with Zig CC
-    "!PYTHON_BIN!" -m ziglang cc -target x86-windows-gnu -O2 -s -shared !XFLAGS! -o "!BUILD_TMP!\!OUT!" !SRC! !LIBS! >"!LOG!" 2>&1
+    "!PYTHON_BIN!" -m ziglang cc -target x86-windows-gnu -O2 -s -shared -Wall -Werror=int-conversion !XFLAGS! -o "!BUILD_TMP!\!OUT!" !SRC! !LIBS! >"!LOG!" 2>&1
     if not errorlevel 1 set "DLL_STATUS_!OUT!=built (zig)"
 ) else (
     echo [ERROR] No compiler available for !OUT! >"!LOG!"
@@ -408,6 +408,17 @@ if "!DLL_STATUS_!OUT!"=="failed" (
     type "!LOG!"
     echo -------------------------------------------------------
     exit /b 1
+) else (
+    if exist "!LOG!" (
+        for %%A in ("!LOG!") do (
+            if %%~zA gtr 0 (
+                echo [COMPILER WARNINGS] !OUT!:
+                echo -------------------------------------------------------
+                type "!LOG!"
+                echo -------------------------------------------------------
+            )
+        )
+    )
 )
 
 REM Exact Export Verification via pefile
