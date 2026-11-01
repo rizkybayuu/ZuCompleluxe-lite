@@ -1279,7 +1279,7 @@ static void THISCALL hk_draw_gauntlet_card(void *g, void *card_img, int x, int y
     int src_w  = *(int *)((char *)card_img + 4);
     int src_h  = *(int *)((char *)card_img + 8);
     if (dest_w > 0 && dest_h > 0 && src_w > 0 && src_h > 0) {
-        int destRect[4] = { 0, 0, 320, 240 };
+        int destRect[4] = { 0, 0, dest_w, dest_h };
         int srcRect[4]  = { 0, 0, src_w,  src_h  };
         int cx = *(int *)((char *)g + 0x10), cy = *(int *)((char *)g + 0x14);
         int cw = *(int *)((char *)g + 0x18), ch = *(int *)((char *)g + 0x1c);
