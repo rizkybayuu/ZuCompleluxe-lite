@@ -30,6 +30,7 @@
     <!-- 1. Adventure Map Temples Background Graphics                          -->
     <!-- ===================================================================== -->
     <AdventureTemples space="1200x675">
+        <AdvBack x="150" y="0" />
         <Temple1 x="150" y="264" />
         <Temple2 x="150" y="158" />
         <Temple2V x="150" y="158" />
@@ -90,8 +91,8 @@
         <HighscoreScores x="959" y="98" />
         <HighscoreDate x="947" />
         <HighscoreNames x="811" y="98" />
-        <HighscoreRow spacing="25" />
-        <InfoBox x="178" y="84" w="150" h="141" lineSpacing="20" />
+        <HighscoreRow spacing="21" />
+        <InfoBox x="178" y="84" w="211" h="141" lineSpacing="20" />
         <!-- Secret Stage 13 Banner Typography -->
         <Stage13Badge x="556" y="537" />
         <Stage13Num x="634" y="557" />
@@ -112,12 +113,12 @@
     <!-- 6. Gauntlet Navigation Buttons                                        -->
     <!-- Coordinates in 1200x675 space; mX = 150 subtracted at runtime         -->
     <GauntletButtons space="1200x675">
-        <Practice x="399" y="624" />
-        <Survival x="540" y="624" />
-        <Back x="698" y="624" />
+        <Back x="399" y="624" />
+        <Play x="540" y="624" />
+        <Next x="698" y="624" />
         <MainMenu x="164" y="593" />
-        <Next x="862" y="581" />
-        <Play x="860" y="627" />
+        <Survival x="862" y="581" />
+        <Practice x="860" y="627" />
     </GauntletButtons>
 
     <!-- 7. Gauntlet Screen UI Labels & Controls                               -->
@@ -137,8 +138,8 @@
         <Gem x="938" y="309" />
         <HighscoreScores x="959" y="98" />
         <HighscoreNames x="776" y="98" />
-        <HighscoreRow spacing="25" />
-        <HighscoreClip w="797" />
+        <HighscoreRow spacing="21" />
+        <HighscoreClip w="947" />
         <InfoBox x="178" y="84" w="150" h="141" lineSpacing="20" />
     </GauntletLabels>
 

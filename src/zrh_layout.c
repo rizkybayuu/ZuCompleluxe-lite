@@ -10,6 +10,7 @@ void ZRH_InitLayoutDefaults(void) {
     g_layout.valid = 1;
 
     /* Adventure Temples */
+    g_layout.adv_back_x     = 0;   g_layout.adv_back_y     = 0;
     g_layout.adv_temple1_x  = 0;   g_layout.adv_temple1_y  = 188;
     g_layout.adv_temple2_x  = 0;   g_layout.adv_temple2_y  = 112;
     g_layout.adv_temple2v_x = 0;   g_layout.adv_temple2v_y = 112;
@@ -70,13 +71,13 @@ void ZRH_InitLayoutDefaults(void) {
     g_layout.gaunt_doors[2].x = 249; g_layout.gaunt_doors[2].y = 82;
     g_layout.gaunt_doors[3].x = 265; g_layout.gaunt_doors[3].y = 28;
 
-    /* Gauntlet Navigation Buttons */
-    g_layout.gaunt_btn_practice_x = 177; g_layout.gaunt_btn_practice_y = 444;
-    g_layout.gaunt_btn_survival_x = 277; g_layout.gaunt_btn_survival_y = 444;
-    g_layout.gaunt_btn_back_x     = 390; g_layout.gaunt_btn_back_y     = 444;
+    /* Gauntlet Navigation Buttons (640x480 canonical defaults) */
+    g_layout.gaunt_btn_back_x     = 177; g_layout.gaunt_btn_back_y     = 444;
+    g_layout.gaunt_btn_play_x     = 277; g_layout.gaunt_btn_play_y     = 444;
+    g_layout.gaunt_btn_next_x     = 390; g_layout.gaunt_btn_next_y     = 444;
     g_layout.gaunt_btn_mainmenu_x = 10;  g_layout.gaunt_btn_mainmenu_y = 422;
-    g_layout.gaunt_btn_next_x     = 506; g_layout.gaunt_btn_next_y     = 413;
-    g_layout.gaunt_btn_play_x     = 505; g_layout.gaunt_btn_play_y     = 446;
+    g_layout.gaunt_btn_survival_x = 506; g_layout.gaunt_btn_survival_y = 413;
+    g_layout.gaunt_btn_practice_x = 505; g_layout.gaunt_btn_practice_y = 446;
 
     /* Gauntlet Labels & Highscores */
     g_layout.gaunt_title_x         = 0;   g_layout.gaunt_title_y        = 0;
@@ -105,6 +106,7 @@ void ZRH_InitLayoutDefaults(void) {
     g_layout.mm_eyes_x     = 419; g_layout.mm_eyes_y     = 465;
     g_layout.mm_hat_x      = 414; g_layout.mm_hat_y      = 347;
     g_layout.mm_sun_x      = 53;  g_layout.mm_sun_y      = -89;
+    g_layout.mm_sun_face_x = 150; g_layout.mm_sun_face_y = 3;
     g_layout.mm_eye_ray1_x = 191; g_layout.mm_eye_ray1_y = 35;
     g_layout.mm_eye_ray2_x = 272; g_layout.mm_eye_ray2_y = 23;
     g_layout.mm_eye_idle1_x= 458; g_layout.mm_eye_idle1_y= 518;
@@ -249,12 +251,12 @@ void ZRH_InitLayoutDefaults(void) {
     /* Alignments & Anchor Adjustments */
     g_layout.adv_btn_mainmenu_align = 7;
     g_layout.adv_btn_play_align     = 9;
-    g_layout.gaunt_btn_practice_align = 8;
-    g_layout.gaunt_btn_survival_align = 8;
     g_layout.gaunt_btn_back_align     = 8;
+    g_layout.gaunt_btn_play_align     = 8;
+    g_layout.gaunt_btn_next_align     = 8;
     g_layout.gaunt_btn_mainmenu_align = 7;
-    g_layout.gaunt_btn_next_align     = 9;
-    g_layout.gaunt_btn_play_align     = 9;
+    g_layout.gaunt_btn_survival_align = 9;
+    g_layout.gaunt_btn_practice_align = 9;
     g_layout.hud_level_banner_align   = 9;
     g_layout.hud_lives_banner_align   = 5;
     g_layout.hud_menubar_align        = 2;
@@ -400,18 +402,47 @@ static const char *find_tag_start(const char *buf, const char *end, const char *
 }
 
 void ZRH_LoadLayoutXml(void) {
-    char xmlpath[MAX_PATH];
-    GetModuleFileNameA(NULL, xmlpath, MAX_PATH);
-    char *slash = strrchr(xmlpath, '\\');
-    if (slash) *(slash + 1) = '\0';
-    strcat(xmlpath, "properties\\layout.xml");
+    char chosen_path[MAX_PATH] = {0};
+    char test_path[MAX_PATH];
+    FILE *f = NULL;
 
-    FILE *f = fopen(xmlpath, "rb");
-    if (!f) f = fopen("properties\\layout.xml", "rb");
-    if (!f) f = fopen("properties/layout.xml", "rb");
-    if (!f) f = fopen("layout.xml", "rb");
+    /* Candidate 1: exe_dir\properties\layout.xml */
+    if (GetModuleFileNameA(NULL, test_path, MAX_PATH)) {
+        char *slash = strrchr(test_path, '\\');
+        if (slash) *(slash + 1) = '\0';
+        strcat(test_path, "properties\\layout.xml");
+        f = fopen(test_path, "rb");
+        if (f) strcpy(chosen_path, test_path);
+    }
+
+    /* Candidate 2: dll_dir\..\properties\layout.xml */
     if (!f) {
-        LogF("[ZRES] properties/layout.xml not found (%s) - using built-in default layout coordinates.", xmlpath);
+        HMODULE hDll = GetModuleHandleA("zumareshandler.dll");
+        if (hDll && GetModuleFileNameA(hDll, test_path, MAX_PATH)) {
+            char *slash = strrchr(test_path, '\\');
+            if (slash) *(slash + 1) = '\0';
+            strcat(test_path, "..\\properties\\layout.xml");
+            f = fopen(test_path, "rb");
+            if (f) strcpy(chosen_path, test_path);
+        }
+    }
+
+    /* Candidate 3: dll_dir\properties\layout.xml */
+    if (!f) {
+        HMODULE hDll = GetModuleHandleA("zumareshandler.dll");
+        if (hDll && GetModuleFileNameA(hDll, test_path, MAX_PATH)) {
+            char *slash = strrchr(test_path, '\\');
+            if (slash) *(slash + 1) = '\0';
+            strcat(test_path, "properties\\layout.xml");
+            f = fopen(test_path, "rb");
+            if (f) strcpy(chosen_path, test_path);
+        }
+    }
+
+    if (f && chosen_path[0]) {
+        LogF("[ZRES] layout.xml = %s", chosen_path);
+    } else {
+        LogF("[ZRES] [ERROR] properties/layout.xml not found across all search candidates (exe_dir, dll_dir\\.., dll_dir). Layout patching aborted!");
         return;
     }
 
@@ -453,6 +484,13 @@ void ZRH_LoadLayoutXml(void) {
         }
     }
 
+    if ((t = find_tag_start(buf, buf_end, "AdvBack", &tend)) != NULL) {
+        parse_xml_attr(t, tend, "x", &g_layout.adv_back_x);
+        parse_xml_attr(t, tend, "y", &g_layout.adv_back_y);
+    } else if (g_layout.adv_temples_space_w == 1200) {
+        g_layout.adv_back_x = 150;
+        g_layout.adv_back_y = 0;
+    }
     if ((t = find_tag_start(buf, buf_end, "Temple1", &tend)) != NULL) {
         parse_xml_attr(t, tend, "x", &g_layout.adv_temple1_x);
         parse_xml_attr(t, tend, "y", &g_layout.adv_temple1_y);
@@ -847,6 +885,10 @@ void ZRH_LoadLayoutXml(void) {
         } else if ((t = find_tag_start(mm_sec, mm_sec_end, "Sun1", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.mm_sun_x);
             parse_xml_attr(t, tend, "y", &g_layout.mm_sun_y);
+        }
+        if ((t = find_tag_start(mm_sec, mm_sec_end, "MMSun", &tend)) != NULL) {
+            parse_xml_attr(t, tend, "x", &g_layout.mm_sun_face_x);
+            parse_xml_attr(t, tend, "y", &g_layout.mm_sun_face_y);
         }
         if ((t = find_tag_start(mm_sec, mm_sec_end, "EyeRay1", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.mm_eye_ray1_x);

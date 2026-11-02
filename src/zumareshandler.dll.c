@@ -965,12 +965,25 @@ static void PopulateGauntletDoors(void *this) {
     }
 }
 
+/* Adventure Background (advback.jpg) Draw Hook */
+static void THISCALL hk_DrawAdventureBack(void *g, void *img, int x, int y) {
+    int rx = AdvTemplesX(g_layout.adv_back_x);
+    int ry = AdvTemplesY(g_layout.adv_back_y);
+    static int s_logged_back = 0;
+    if (!s_logged_back) {
+        s_logged_back = 1;
+        LogF("[ADV_RUNTIME] AdvBack: x=%d y=%d", rx, ry);
+    }
+    DrawImg(g, img, rx, ry);
+}
+
 /* Temple Draw Sidecar Hooks */
 static void THISCALL hk_adv_draw_temple1(void *this, void *g) {
     PopulateAdventureDoors(this);
     static int s_logged_temples = 0;
     if (!s_logged_temples) {
         s_logged_temples = 1;
+        LogF("[ADV_RUNTIME] AdvBack: x=%d y=%d", AdvTemplesX(g_layout.adv_back_x), AdvTemplesY(g_layout.adv_back_y));
         LogF("[ADV_RUNTIME] Temple1: x=%d y=%d", AdvTemplesX(g_layout.adv_temple1_x), AdvTemplesY(g_layout.adv_temple1_y));
         LogF("[ADV_RUNTIME] Temple2: x=%d y=%d", AdvTemplesX(g_layout.adv_temple2_x), AdvTemplesY(g_layout.adv_temple2_y));
         LogF("[ADV_RUNTIME] Temple2V: x=%d y=%d", AdvTemplesX(g_layout.adv_temple2v_x), AdvTemplesY(g_layout.adv_temple2v_y));
@@ -1406,7 +1419,7 @@ static void THISCALL hk_DrawAdventureScore(void *g, void *str, int x, int y) {
     int diff = (y >= 70) ? (y - 70) : 0;
     int base_y = AdvLabelsY(g_layout.adv_hs_base_y);
     int real_y;
-    if (g_layout.adv_hs_spacing != 0 && g_layout.adv_hs_spacing != 18 && g_layout.adv_hs_spacing != 25) {
+    if (g_layout.adv_hs_spacing > 0 && g_layout.adv_hs_spacing != 18) {
         int row = (diff + 7) / 14;
         real_y = base_y + row * AdvLabelsDim(g_layout.adv_hs_spacing);
     } else {
@@ -1438,7 +1451,7 @@ static void THISCALL hk_DrawAdventureName(void *g, void *str, int x, int y) {
     int diff = (y >= 70) ? (y - 70) : 0;
     int base_y = AdvLabelsY(g_layout.adv_hs_base_y);
     int real_y;
-    if (g_layout.adv_hs_spacing != 0 && g_layout.adv_hs_spacing != 18 && g_layout.adv_hs_spacing != 25) {
+    if (g_layout.adv_hs_spacing > 0 && g_layout.adv_hs_spacing != 18) {
         int row = (diff + 7) / 14;
         real_y = base_y + row * AdvLabelsDim(g_layout.adv_hs_spacing);
     } else {
@@ -1503,47 +1516,47 @@ static void THISCALL hk_gauntlet_resize(void *this, int x, int y, int w, int h) 
 
     PopulateGauntletDoors(this);
 
-    void *btn_practice = *(void **)((char *)this + 0x60);
-    void *btn_survival = *(void **)((char *)this + 0x64);
-    void *btn_back     = *(void **)((char *)this + 0x5C);
+    void *btn_next     = *(void **)((char *)this + 0x5C);
+    void *btn_back     = *(void **)((char *)this + 0x60);
+    void *btn_play     = *(void **)((char *)this + 0x64);
     void *btn_mainmenu = *(void **)((char *)this + 0x68);
-    void *btn_next     = *(void **)((char *)this + 0x70);
-    void *btn_play     = *(void **)((char *)this + 0x6C);
+    void *btn_practice = *(void **)((char *)this + 0x6C);
+    void *btn_survival = *(void **)((char *)this + 0x70);
 
     static int s_logged_gaunt_buttons = 0;
     if (!s_logged_gaunt_buttons) {
         s_logged_gaunt_buttons = 1;
-        CheckGauntBounds("BtnPractice", GauntButtonsX(g_layout.gaunt_btn_practice_x), GauntButtonsY(g_layout.gaunt_btn_practice_y));
-        CheckGauntBounds("BtnSurvival", GauntButtonsX(g_layout.gaunt_btn_survival_x), GauntButtonsY(g_layout.gaunt_btn_survival_y));
         CheckGauntBounds("BtnBack", GauntButtonsX(g_layout.gaunt_btn_back_x), GauntButtonsY(g_layout.gaunt_btn_back_y));
-        CheckGauntBounds("BtnMainMenu", GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), GauntButtonsY(g_layout.gaunt_btn_mainmenu_y));
-        CheckGauntBounds("BtnNext", GauntButtonsX(g_layout.gaunt_btn_next_x), GauntButtonsY(g_layout.gaunt_btn_next_y));
         CheckGauntBounds("BtnPlay", GauntButtonsX(g_layout.gaunt_btn_play_x), GauntButtonsY(g_layout.gaunt_btn_play_y));
-        LogF("[GAUNT_RUNTIME] BtnPractice: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_practice_x), GauntButtonsY(g_layout.gaunt_btn_practice_y));
-        LogF("[GAUNT_RUNTIME] BtnSurvival: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_survival_x), GauntButtonsY(g_layout.gaunt_btn_survival_y));
+        CheckGauntBounds("BtnNext", GauntButtonsX(g_layout.gaunt_btn_next_x), GauntButtonsY(g_layout.gaunt_btn_next_y));
+        CheckGauntBounds("BtnMainMenu", GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), GauntButtonsY(g_layout.gaunt_btn_mainmenu_y));
+        CheckGauntBounds("BtnSurvival", GauntButtonsX(g_layout.gaunt_btn_survival_x), GauntButtonsY(g_layout.gaunt_btn_survival_y));
+        CheckGauntBounds("BtnPractice", GauntButtonsX(g_layout.gaunt_btn_practice_x), GauntButtonsY(g_layout.gaunt_btn_practice_y));
         LogF("[GAUNT_RUNTIME] BtnBack: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_back_x), GauntButtonsY(g_layout.gaunt_btn_back_y));
-        LogF("[GAUNT_RUNTIME] BtnMainMenu: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), GauntButtonsY(g_layout.gaunt_btn_mainmenu_y));
-        LogF("[GAUNT_RUNTIME] BtnNext: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_next_x), GauntButtonsY(g_layout.gaunt_btn_next_y));
         LogF("[GAUNT_RUNTIME] BtnPlay: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_play_x), GauntButtonsY(g_layout.gaunt_btn_play_y));
+        LogF("[GAUNT_RUNTIME] BtnNext: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_next_x), GauntButtonsY(g_layout.gaunt_btn_next_y));
+        LogF("[GAUNT_RUNTIME] BtnMainMenu: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), GauntButtonsY(g_layout.gaunt_btn_mainmenu_y));
+        LogF("[GAUNT_RUNTIME] BtnSurvival: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_survival_x), GauntButtonsY(g_layout.gaunt_btn_survival_y));
+        LogF("[GAUNT_RUNTIME] BtnPractice: x=%d y=%d", GauntButtonsX(g_layout.gaunt_btn_practice_x), GauntButtonsY(g_layout.gaunt_btn_practice_y));
     }
 
-    if (btn_practice) {
-        (*(fWidgetResize *)(*(void ***)btn_practice + 0x34/4))(btn_practice, x + GauntButtonsX(g_layout.gaunt_btn_practice_x), y + GauntButtonsY(g_layout.gaunt_btn_practice_y), *(int*)((char*)btn_practice+16), *(int*)((char*)btn_practice+20));
-    }
-    if (btn_survival) {
-        (*(fWidgetResize *)(*(void ***)btn_survival + 0x34/4))(btn_survival, x + GauntButtonsX(g_layout.gaunt_btn_survival_x), y + GauntButtonsY(g_layout.gaunt_btn_survival_y), *(int*)((char*)btn_survival+16), *(int*)((char*)btn_survival+20));
-    }
     if (btn_back) {
         (*(fWidgetResize *)(*(void ***)btn_back + 0x34/4))(btn_back, x + GauntButtonsX(g_layout.gaunt_btn_back_x), y + GauntButtonsY(g_layout.gaunt_btn_back_y), *(int*)((char*)btn_back+16), *(int*)((char*)btn_back+20));
     }
-    if (btn_mainmenu) {
-        (*(fWidgetResize *)(*(void ***)btn_mainmenu + 0x34/4))(btn_mainmenu, x + GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), y + GauntButtonsY(g_layout.gaunt_btn_mainmenu_y), *(int*)((char*)btn_mainmenu+16), *(int*)((char*)btn_mainmenu+20));
+    if (btn_play) {
+        (*(fWidgetResize *)(*(void ***)btn_play + 0x34/4))(btn_play, x + GauntButtonsX(g_layout.gaunt_btn_play_x), y + GauntButtonsY(g_layout.gaunt_btn_play_y), *(int*)((char*)btn_play+16), *(int*)((char*)btn_play+20));
     }
     if (btn_next) {
         (*(fWidgetResize *)(*(void ***)btn_next + 0x34/4))(btn_next, x + GauntButtonsX(g_layout.gaunt_btn_next_x), y + GauntButtonsY(g_layout.gaunt_btn_next_y), *(int*)((char*)btn_next+16), *(int*)((char*)btn_next+20));
     }
-    if (btn_play) {
-        (*(fWidgetResize *)(*(void ***)btn_play + 0x34/4))(btn_play, x + GauntButtonsX(g_layout.gaunt_btn_play_x), y + GauntButtonsY(g_layout.gaunt_btn_play_y), *(int*)((char*)btn_play+16), *(int*)((char*)btn_play+20));
+    if (btn_mainmenu) {
+        (*(fWidgetResize *)(*(void ***)btn_mainmenu + 0x34/4))(btn_mainmenu, x + GauntButtonsX(g_layout.gaunt_btn_mainmenu_x), y + GauntButtonsY(g_layout.gaunt_btn_mainmenu_y), *(int*)((char*)btn_mainmenu+16), *(int*)((char*)btn_mainmenu+20));
+    }
+    if (btn_survival) {
+        (*(fWidgetResize *)(*(void ***)btn_survival + 0x34/4))(btn_survival, x + GauntButtonsX(g_layout.gaunt_btn_survival_x), y + GauntButtonsY(g_layout.gaunt_btn_survival_y), *(int*)((char*)btn_survival+16), *(int*)((char*)btn_survival+20));
+    }
+    if (btn_practice) {
+        (*(fWidgetResize *)(*(void ***)btn_practice + 0x34/4))(btn_practice, x + GauntButtonsX(g_layout.gaunt_btn_practice_x), y + GauntButtonsY(g_layout.gaunt_btn_practice_y), *(int*)((char*)btn_practice+16), *(int*)((char*)btn_practice+20));
     }
 }
 
@@ -2233,6 +2246,24 @@ static void ApplyUIPatches(void) {
         }
     }
 
+        /* Hook IMAGE_MM_SUN (Aztec Sun Stone Face @ 0x00432060) decoupled from Sun via MMSun tag */
+        int mmsun_local_x = ProjectLocalX(g_layout.mm_sun_face_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+        int mmsun_local_y = ProjectLocalY(g_layout.mm_sun_face_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
+
+        void *pMMSunPattern = FindPattern("6A 02 6A 00 52 8B CE");
+        if (pMMSunPattern) {
+            void *pMMSunCave = AllocCodeCave(16);
+            if (pMMSunCave) {
+                BYTE *c = (BYTE *)pMMSunCave;
+                c[0] = 0x68; *(DWORD *)(c + 1) = (DWORD)mmsun_local_y;
+                c[5] = 0x68; *(DWORD *)(c + 6) = (DWORD)mmsun_local_x;
+                c[10] = 0x52; /* push edx */
+                c[11] = 0xE9; *(DWORD *)(c + 12) = (DWORD)((char *)0x00432065 - ((char *)c + 16));
+                InstallCodeCave5(pMMSunPattern, pMMSunCave, "MainMenuSunFaceCave");
+            }
+        }
+
+
     /* 4. MainMenu Frog Eyes: Idle coordinates, Raycast starts, Eyelid Blink */
     void *pEyeIdle = FindPattern("C7 45 DC 00 60 6B 40 8B 55 DC 89 50 04");
     if (pEyeIdle) {
@@ -2290,6 +2321,11 @@ static void ApplyUIPatches(void) {
             VirtualProtect(slot, 4, old_prot, &old_prot);
             LogF("[ZRES] Hooked AdventureScreen VTable Resize @ %p -> %p", slot, hk_adventure_resize);
         }
+    }
+
+    void *pAdvBackCall = FindPattern("A1 4C 7F 54 00 6A 00 6A 00 50 8B CE E8");
+    if (pAdvBackCall) {
+        VerifyAndPatchCall((char *)pAdvBackCall + 12, (void *)0x44D470, (void *)hk_DrawAdventureBack, "AdvBackDrawImage");
     }
 
     void *pCallT1 = FindPattern("E8 ?? ?? ?? ?? 8B 87 B8 01 00 00");

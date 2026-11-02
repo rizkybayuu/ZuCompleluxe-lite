@@ -15,6 +15,7 @@ typedef struct {
     int valid;
 
     /* Adventure Map Temples */
+    int adv_back_x,     adv_back_y; /* Waterfall background graphic (advback.jpg) */
     int adv_temple1_x,  adv_temple1_y;
     int adv_temple2_x,  adv_temple2_y;
     int adv_temple2v_x, adv_temple2v_y;
@@ -102,6 +103,7 @@ typedef struct {
     int mm_eyes_x, mm_eyes_y;
     int mm_hat_x, mm_hat_y;
     int mm_sun_x, mm_sun_y;
+    int mm_sun_face_x, mm_sun_face_y;
     int mm_eye_ray1_x, mm_eye_ray1_y;
     int mm_eye_ray2_x, mm_eye_ray2_y;
     int mm_eye_idle1_x, mm_eye_idle1_y;
