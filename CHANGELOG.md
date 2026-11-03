@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0.1] - 2026-11-03
+
+### Fixed & Improved
+- **Universal Canonical 640x480 UI Layout Standardization (`properties/layout.xml`)**:
+  - Completely purged legacy hardcoded `space="1200x675"` widescreen tags and manual pixel offset subtractions from `properties/layout.xml`.
+  - Standardized all 17 UI sections (Adventure Temples, Adventure Doors, Navigation Buttons, Labels, Gauntlet Doors, Gauntlet Controls, Main Menu buttons & frog head/sun effects, More Games quadrants, Loading Screen progress bar, and In-Game Menubar HUD) to pure Canonical PopCap 640x480 coordinates.
+  - Eliminated the brittle `xo = (TARGET_W - 900) / 2` and `v - 150` subtraction hacks in `src/zumareshandler.dll.c`.
+  - Upgraded coordinate transformations to use dynamic mathematical projection (`ProjectLocalX` / `ProjectLocalY` and `PARENT_LOCAL_X` / `PARENT_LOCAL_Y`) so that every UI element dynamically and perfectly scales to ANY screen resolution and aspect ratio (4:3, 16:9, 16:10, 21:9 Ultrawide, 4K, 8K) without hardcoded drift or overlapping.
+  - Synchronized `ZRH_InitLayoutDefaults(void)` in `src/zrh_layout.c` to provide pure 640x480 canonical fallbacks across all screens.
+  - Decoupled `IMAGE_MM_SUN` (Aztec Sun Stone Face) on Main Menu via dedicated `MMSun` XML tag.
+
 ## [0.6.0] - 2026-10-30
 
 ### Added

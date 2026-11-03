@@ -104,7 +104,7 @@ REM 1. Terminate game if running to prevent file locks
 taskkill /f /im Zuma.exe >nul 2>&1
 
 echo =======================================================
-echo    ZuCompleluxe v0.6 Lite - 1-Click Game Patcher ^& Builder
+echo    ZuCompleluxe v0.6.0.1 Lite - 1-Click Game Patcher ^& Builder
 echo    Direct Installation Folder Patcher - Lite Edition
 echo =======================================================
 echo.

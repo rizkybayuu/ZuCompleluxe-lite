@@ -97,24 +97,24 @@ void ZRH_InitLayoutDefaults(void) {
     g_layout.gaunt_infobox_w       = 150; g_layout.gaunt_infobox_h      = 100;
     g_layout.gaunt_infobox_line_spacing = 14;
 
-    /* Main Menu Buttons & Frog Elements (1200x675 canvas coordinates) */
-    g_layout.mm_btn1_x     = 786; g_layout.mm_btn1_y     = 90;
-    g_layout.mm_btn2_x     = 763; g_layout.mm_btn2_y     = 215;
-    g_layout.mm_btn3_x     = 738; g_layout.mm_btn3_y     = 332;
-    g_layout.mm_btn4_x     = 704; g_layout.mm_btn4_y     = 429;
-    g_layout.mm_btn5_x     = 848; g_layout.mm_btn5_y     = 443;
-    g_layout.mm_eyes_x     = 419; g_layout.mm_eyes_y     = 465;
-    g_layout.mm_hat_x      = 414; g_layout.mm_hat_y      = 347;
-    g_layout.mm_sun_x      = 53;  g_layout.mm_sun_y      = -89;
-    g_layout.mm_sun_face_x = 150; g_layout.mm_sun_face_y = 3;
-    g_layout.mm_eye_ray1_x = 191; g_layout.mm_eye_ray1_y = 35;
-    g_layout.mm_eye_ray2_x = 272; g_layout.mm_eye_ray2_y = 23;
-    g_layout.mm_eye_idle1_x= 458; g_layout.mm_eye_idle1_y= 518;
-    g_layout.mm_eye_idle2_x= 538; g_layout.mm_eye_idle2_y= 499;
-    g_layout.mm_welcome_y     = -6;
-    g_layout.mm_user_switch_y = 53;
-    g_layout.mm_space_w       = 1200;
-    g_layout.mm_space_h       = 675;
+    /* Main Menu Buttons & Frog Elements (640x480 canonical coordinates) */
+    g_layout.mm_btn1_x     = 452; g_layout.mm_btn1_y     = 64;
+    g_layout.mm_btn2_x     = 436; g_layout.mm_btn2_y     = 153;
+    g_layout.mm_btn3_x     = 418; g_layout.mm_btn3_y     = 236;
+    g_layout.mm_btn4_x     = 394; g_layout.mm_btn4_y     = 305;
+    g_layout.mm_btn5_x     = 496; g_layout.mm_btn5_y     = 315;
+    g_layout.mm_eyes_x     = 191; g_layout.mm_eyes_y     = 331;
+    g_layout.mm_hat_x      = 188; g_layout.mm_hat_y      = 247;
+    g_layout.mm_sun_x      = -135; g_layout.mm_sun_y     = -140;
+    g_layout.mm_sun_face_x = 0;   g_layout.mm_sun_face_y = 0;
+    g_layout.mm_eye_ray1_x = 29;  g_layout.mm_eye_ray1_y = 25;
+    g_layout.mm_eye_ray2_x = 87;  g_layout.mm_eye_ray2_y = 16;
+    g_layout.mm_eye_idle1_x= 219; g_layout.mm_eye_idle1_y= 368;
+    g_layout.mm_eye_idle2_x= 276; g_layout.mm_eye_idle2_y= 355;
+    g_layout.mm_welcome_y     = 2;
+    g_layout.mm_user_switch_y = 43;
+    g_layout.mm_space_w       = 0;
+    g_layout.mm_space_h       = 0;
 
     /* More Games Quadrants */
     g_layout.mg_t0_x = 58;  g_layout.mg_t0_y = 107; g_layout.mg_t0_w = 250; g_layout.mg_t0_h = 150;
@@ -125,12 +125,12 @@ void ZRH_InitLayoutDefaults(void) {
     g_layout.mg_space_w = 0;
     g_layout.mg_space_h = 0;
 
-    /* Loading Screen (1200x675 canvas coordinates) */
-    g_layout.load_bar_x        = 330;
-    g_layout.load_bar_y        = 491;
-    g_layout.load_click_play_y = 605;
-    g_layout.load_space_w      = 1200;
-    g_layout.load_space_h      = 675;
+    /* Loading Screen (640x480 canonical coordinates) */
+    g_layout.load_bar_x        = 128;
+    g_layout.load_bar_y        = 349;
+    g_layout.load_click_play_y = 430;
+    g_layout.load_space_w      = 0;
+    g_layout.load_space_h      = 0;
 
     /* Adventure Coordinate Spaces (default 0 for legacy canonical 640x480) */
     g_layout.adv_temples_space_w = 0;
@@ -487,9 +487,6 @@ void ZRH_LoadLayoutXml(void) {
     if ((t = find_tag_start(buf, buf_end, "AdvBack", &tend)) != NULL) {
         parse_xml_attr(t, tend, "x", &g_layout.adv_back_x);
         parse_xml_attr(t, tend, "y", &g_layout.adv_back_y);
-    } else if (g_layout.adv_temples_space_w == 1200) {
-        g_layout.adv_back_x = 150;
-        g_layout.adv_back_y = 0;
     }
     if ((t = find_tag_start(buf, buf_end, "Temple1", &tend)) != NULL) {
         parse_xml_attr(t, tend, "x", &g_layout.adv_temple1_x);

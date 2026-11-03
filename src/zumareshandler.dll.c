@@ -752,119 +752,112 @@ static inline int PARENT_LOCAL_Y(int v) {
     return SDIM_VAL(v);
 }
 
-/* Adventure Coordinate Space Helpers (space="1200x675" or fallback 640x480) */
+/* Adventure Coordinate Space Helpers (Canonical 640x480 default with arbitrary space projection fallback) */
 static inline int AdvDoorsX(int v) {
-    if (g_layout.adv_doors_space_w == 1200 && g_layout.adv_doors_space_h == 675) {
-        int xo = (TARGET_W - 900) / 2;
-        return v - xo;
+    if (g_layout.adv_doors_space_w > 0 && g_layout.adv_doors_space_w != 640) {
+        return ProjectLocalX(v, g_layout.adv_doors_space_w, g_layout.adv_doors_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_X(v);
 }
 static inline int AdvDoorsY(int v) {
-    if (g_layout.adv_doors_space_w == 1200 && g_layout.adv_doors_space_h == 675) {
-        return v;
+    if (g_layout.adv_doors_space_h > 0 && g_layout.adv_doors_space_h != 480) {
+        return ProjectLocalY(v, g_layout.adv_doors_space_w, g_layout.adv_doors_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_Y(v);
 }
 
 static inline int AdvTemplesX(int v) {
-    if (g_layout.adv_temples_space_w == 1200 && g_layout.adv_temples_space_h == 675) {
-        int xo = (TARGET_W - 900) / 2;
-        return v - xo;
+    if (g_layout.adv_temples_space_w > 0 && g_layout.adv_temples_space_w != 640) {
+        return ProjectLocalX(v, g_layout.adv_temples_space_w, g_layout.adv_temples_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_X(v);
 }
 static inline int AdvTemplesY(int v) {
-    if (g_layout.adv_temples_space_w == 1200 && g_layout.adv_temples_space_h == 675) {
-        return v;
+    if (g_layout.adv_temples_space_h > 0 && g_layout.adv_temples_space_h != 480) {
+        return ProjectLocalY(v, g_layout.adv_temples_space_w, g_layout.adv_temples_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_Y(v);
 }
 
 static inline int AdvButtonsX(int v) {
-    if (g_layout.adv_buttons_space_w == 1200 && g_layout.adv_buttons_space_h == 675) {
-        int xo = (TARGET_W - 900) / 2;
-        return v - xo;
+    if (g_layout.adv_buttons_space_w > 0 && g_layout.adv_buttons_space_w != 640) {
+        return ProjectLocalX(v, g_layout.adv_buttons_space_w, g_layout.adv_buttons_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_X(v);
 }
 static inline int AdvButtonsY(int v) {
-    if (g_layout.adv_buttons_space_w == 1200 && g_layout.adv_buttons_space_h == 675) {
-        return v;
+    if (g_layout.adv_buttons_space_h > 0 && g_layout.adv_buttons_space_h != 480) {
+        return ProjectLocalY(v, g_layout.adv_buttons_space_w, g_layout.adv_buttons_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_Y(v);
 }
 
 static inline int AdvLabelsX(int v) {
-    if (g_layout.adv_labels_space_w == 1200 && g_layout.adv_labels_space_h == 675) {
-        int xo = (TARGET_W - 900) / 2;
-        return v - xo;
+    if (g_layout.adv_labels_space_w > 0 && g_layout.adv_labels_space_w != 640) {
+        return ProjectLocalX(v, g_layout.adv_labels_space_w, g_layout.adv_labels_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_X(v);
 }
 static inline int AdvLabelsY(int v) {
-    if (g_layout.adv_labels_space_w == 1200 && g_layout.adv_labels_space_h == 675) {
-        return v;
+    if (g_layout.adv_labels_space_h > 0 && g_layout.adv_labels_space_h != 480) {
+        return ProjectLocalY(v, g_layout.adv_labels_space_w, g_layout.adv_labels_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_Y(v);
 }
 static inline int AdvLabelsDim(int v) {
-    if (g_layout.adv_labels_space_w == 1200 && g_layout.adv_labels_space_h == 675) {
-        return v;
+    if (g_layout.adv_labels_space_w > 0 && g_layout.adv_labels_space_w != 640) {
+        return ProjectLocalX(v, g_layout.adv_labels_space_w, g_layout.adv_labels_space_h, TARGET_W, TARGET_H);
     }
     return SDIM_VAL(v);
 }
 
-/* Gauntlet Coordinate Space Helpers (space="1200x675" or fallback 640x480) */
+/* Gauntlet Coordinate Space Helpers (Canonical 640x480 default with arbitrary space projection fallback) */
 static inline int GauntDoorsX(int v) {
-    if (g_layout.gaunt_doors_space_w == 1200 && g_layout.gaunt_doors_space_h == 675) {
-        int xo = (TARGET_W - 900) / 2;
-        return v - xo;
+    if (g_layout.gaunt_doors_space_w > 0 && g_layout.gaunt_doors_space_w != 640) {
+        return ProjectLocalX(v, g_layout.gaunt_doors_space_w, g_layout.gaunt_doors_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_X(v);
 }
 static inline int GauntDoorsY(int v) {
-    if (g_layout.gaunt_doors_space_w == 1200 && g_layout.gaunt_doors_space_h == 675) {
-        return v;
+    if (g_layout.gaunt_doors_space_h > 0 && g_layout.gaunt_doors_space_h != 480) {
+        return ProjectLocalY(v, g_layout.gaunt_doors_space_w, g_layout.gaunt_doors_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_Y(v);
 }
 static inline int GauntButtonsX(int v) {
-    if (g_layout.gaunt_buttons_space_w == 1200 && g_layout.gaunt_buttons_space_h == 675) {
-        int xo = (TARGET_W - 900) / 2;
-        return v - xo;
+    if (g_layout.gaunt_buttons_space_w > 0 && g_layout.gaunt_buttons_space_w != 640) {
+        return ProjectLocalX(v, g_layout.gaunt_buttons_space_w, g_layout.gaunt_buttons_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_X(v);
 }
 static inline int GauntButtonsY(int v) {
-    if (g_layout.gaunt_buttons_space_w == 1200 && g_layout.gaunt_buttons_space_h == 675) {
-        return v;
+    if (g_layout.gaunt_buttons_space_h > 0 && g_layout.gaunt_buttons_space_h != 480) {
+        return ProjectLocalY(v, g_layout.gaunt_buttons_space_w, g_layout.gaunt_buttons_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_Y(v);
 }
 static inline int GauntLabelsX(int v) {
-    if (g_layout.gaunt_labels_space_w == 1200 && g_layout.gaunt_labels_space_h == 675) {
-        int xo = (TARGET_W - 900) / 2;
-        return v - xo;
+    if (g_layout.gaunt_labels_space_w > 0 && g_layout.gaunt_labels_space_w != 640) {
+        return ProjectLocalX(v, g_layout.gaunt_labels_space_w, g_layout.gaunt_labels_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_X(v);
 }
 static inline int GauntLabelsY(int v) {
-    if (g_layout.gaunt_labels_space_w == 1200 && g_layout.gaunt_labels_space_h == 675) {
-        return v;
+    if (g_layout.gaunt_labels_space_h > 0 && g_layout.gaunt_labels_space_h != 480) {
+        return ProjectLocalY(v, g_layout.gaunt_labels_space_w, g_layout.gaunt_labels_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_Y(v);
 }
 static inline int GauntLabelsDim(int v) {
-    if (g_layout.gaunt_labels_space_w == 1200 && g_layout.gaunt_labels_space_h == 675) {
-        return v;
+    if (g_layout.gaunt_labels_space_w > 0 && g_layout.gaunt_labels_space_w != 640) {
+        return ProjectLocalX(v, g_layout.gaunt_labels_space_w, g_layout.gaunt_labels_space_h, TARGET_W, TARGET_H);
     }
     return SDIM_VAL(v);
 }
 
 static inline void CheckGauntBounds(const char *name, int x, int y) {
-    if (x < 0 || x > 900 || y < 0 || y > 675) {
-        LogF("[GAUNT_RUNTIME][WARN] %s out of bounds: x=%d y=%d (expected 0..900 x 0..675)", name, x, y);
+    if (x < 0 || x > TARGET_W || y < 0 || y > TARGET_H) {
+        LogF("[GAUNT_RUNTIME][WARN] %s out of bounds: x=%d y=%d", name, x, y);
     }
 }
 
@@ -1083,20 +1076,20 @@ static void THISCALL hk_adv_draw_temple4(void *this, void *g) {
 }
 
 static inline int MoreGamesX(int v) {
-    if (g_layout.mg_space_w == 1200 && g_layout.mg_space_h == 675) {
-        return v - 150;
+    if (g_layout.mg_space_w > 0 && g_layout.mg_space_w != 640) {
+        return ProjectLocalX(v, g_layout.mg_space_w, g_layout.mg_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_X(v);
 }
 static inline int MoreGamesY(int v) {
-    if (g_layout.mg_space_w == 1200 && g_layout.mg_space_h == 675) {
-        return v;
+    if (g_layout.mg_space_h > 0 && g_layout.mg_space_h != 480) {
+        return ProjectLocalY(v, g_layout.mg_space_w, g_layout.mg_space_h, TARGET_W, TARGET_H);
     }
     return PARENT_LOCAL_Y(v);
 }
 static inline int MoreGamesDim(int v) {
-    if (g_layout.mg_space_w == 1200 && g_layout.mg_space_h == 675) {
-        return v;
+    if (g_layout.mg_space_w > 0 && g_layout.mg_space_w != 640) {
+        return ProjectLocalX(v, g_layout.mg_space_w, g_layout.mg_space_h, TARGET_W, TARGET_H);
     }
     return SDIM_VAL(v);
 }
@@ -2460,7 +2453,7 @@ static void ApplyUIPatches(void) {
     if (pAdvInfoBox) {
         DWORD val_x = AdvLabelsX(g_layout.adv_infobox_x);
         DWORD val_y = AdvLabelsY(g_layout.adv_infobox_y);
-        DWORD val_w = (g_layout.adv_labels_space_w == 1200) ? 150 : (DWORD)g_layout.adv_infobox_w;
+        DWORD val_w = (DWORD)AdvLabelsDim(g_layout.adv_infobox_w);
         DWORD val_h = AdvLabelsDim(g_layout.adv_infobox_h);
         VerifyAndPatchDword((char*)pAdvInfoBox + 3,  20,  val_x, "AdvInfoBoxX");
         VerifyAndPatchDword((char*)pAdvInfoBox + 10, 60,  val_y, "AdvInfoBoxY");
