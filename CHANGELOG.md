@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prioritized dynamic rendering for sprites and cutouts with priority >= 10 (`ZPL_PRI_MIN = 10`, `ZPL_PRI_MAX = 19`) above Frog, Coins, and Bullets across normal gameplay (State 0), level intro pan (State 1), stage transition (State 6), and score countdown (State 4).
   - Stage Completion Earthquake Engine (State 5): whole-board snapshot bake (`ZPL_DrawBake`) rendering layers 0..4 onto `MemoryImage` bake canvas before breaking into crumbling puzzle pieces with authentic screen shake and rumble.
   - Zero hooks on vanilla PopCap XML parser for 100% crash resilience and memory safety.
-- **Complete 33 Affinity Photo Blend Modes Engine (`docs/blend_modes_specification.md`)**:
+- **Complete 33 Affinity Blend Modes Engine (`docs/blend_modes_specification.md`)**:
   - Implemented the full suite of 33 industry-standard Affinity blend modes across Normal, Darken (Multiply, Color Burn, Linear Burn, Darker Color), Lighten (Screen, Color Dodge, Add, Lighter Color), Contrast (Overlay, Soft Light, Hard Light, Vivid Light, Linear Light, Pin Light, Hard Mix), Comparative (Difference, Exclusion, Subtract, Divide), and Component categories.
   - Pure 32-bit hardware backbuffer direct locking (`DDImage::Lock` / `Unlock`) and software fast lookup tables with zero performance penalty.
 - **Universal XML UI Layout Configuration Engine (`properties/layout.xml`, `src/zrh_layout.c`, `src/zrh_layout.h`)**:
