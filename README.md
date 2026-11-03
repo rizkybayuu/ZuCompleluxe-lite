@@ -82,6 +82,22 @@ ZuCompleluxe replaces static address patching with **Dynamic AOB (Array of Bytes
 - **Standalone Interactive Developer Credits (`zumacplxcredit.dll` & `.zcc`)**:
   - Extended developer credits roll (entries 39–41) with interactive `GitHub` button opening repository URL via `ShellExecuteA`.
 
+- **High-Priority Sprite & Cutout Layer & Earthquake Engine (`zumapriolayer.dll` & `.zprio`)** *(New in v0.6)*:
+  - Injected a 7th modular sidecar (`zumapriolayer.dll`) in Lite Edition via new executable PE code section `.zprio` (`0x60000020 [RX]`).
+  - Added 100% dynamic AOB signature scanning across 13 code caves with zero hardcoded virtual addresses.
+  - Dynamic rendering for sprites and cutouts with priority >= 10 (`ZPL_PRI_MIN = 10`, `ZPL_PRI_MAX = 19`) above Frog, Coins, and Bullets across normal gameplay (State 0) and level intro pan (State 1).
+  - Stage Completion Earthquake Engine (State 5): whole-board snapshot bake (`ZPL_DrawBake`) rendering layers 0..4 onto `MemoryImage` bake canvas before breaking into crumbling puzzle pieces with authentic rumble.
+- **Complete 33 Affinity Blend Modes Engine (`docs/blend_modes_specification.md`)** *(New in v0.6)*:
+  - Implemented the full suite of 33 industry-standard Affinity blend modes across Normal, Darken (Multiply, Color Burn, Linear Burn, Darker Color), Lighten (Screen, Color Dodge, Add, Lighter Color), Contrast (Overlay, Soft Light, Hard Light, Vivid Light, Linear Light, Pin Light, Hard Mix), Comparative (Difference, Exclusion, Subtract, Divide), and Component categories.
+  - Direct 32-bit hardware backbuffer direct locking (`DDImage::Lock` / `Unlock`) and software fast lookup tables with zero performance penalty.
+- **Universal XML UI Layout Configuration Engine (`properties/layout.xml`, `src/zrh_layout.c`, `src/zrh_layout.h`)** *(New in v0.6)*:
+  - Extracted over 16 distinct UI coordinate blocks into user-editable `properties/layout.xml`.
+  - Dynamic aspect-ratio adaptation engine: all elements defined in canonical PopCap 640x480 space and mapped with sub-pixel precision across ANY aspect ratio (4:3, 3:2, 16:9, 16:10, 21:9).
+  - Configurable UI modules include Adventure Map Temples (Temple 1..5, Middle), Doors (0..12 with separate `doorX/doorY` and `frogX/frogY`), navigation buttons, labels & stats, practice/survival carousel, score banner, lives banner, HUD menubar margins, dialogs, and DevHelpScreen.
+  - Automated self-generating template fallback via `ensure_layout_xml()` in `builder/patch_assets.py`.
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`, `docs/layout_specification.md`)** *(New in v0.6)*:
+  - Full granular control over previously hardcoded UI elements: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, `<LevelBanner>`, `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`, `<Sun>`, `<MMSun>`, `<EyeRay1>`, `<EyeRay2>`, `<DontShowCheckbox>`, `<DoneBtn>`, `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
+
 ---
 
 ## Repository Structure
@@ -95,10 +111,11 @@ ZuCompleluxe-lite/
 │   ├── find_target_exe.py       # Adaptive Zuma Deluxe executable discovery
 │   ├── patch_assets.py          # Asset patcher (Temple 5 & Dev Help media, --lite mode)
 │   ├── patch_custommap.py       # Gauntlet Custom Map hooks (.zcm RX section)
-│   ├── patch_customres.py       # .zres RX section injection, .zdata ZTable setup & resolution AOB patching
-│   ├── patch_customres_assets.py# Bicubic-scaled high-res UI asset generator (imagescustomres/)
+│   ├── patch_customres.py        # .zres RX section injection, .zdata ZTable setup & resolution AOB patching
+│   ├── patch_customres_assets.py # Bicubic-scaled high-res UI asset generator (imagescustomres/)
 │   ├── patch_imports.py         # Mandatory gatekeeper + dynamic loader (.zldr) with --lite support
 │   ├── patch_menubar.py         # Smart menubar synthesizer for arbitrary target widths
+│   ├── patch_priolayer.py       # High-priority sprite/cutout layer, earthquake bake & blend modes (.zprio RX section)
 │   ├── patch_testingkit.py      # Developer Testing Kit hooks (.ztk RX section)
 │   ├── patch_zccredit.py        # Developer Credits & GitHub button hooks (.zcc RX section)
 │   ├── pe_util.py               # Pure-Python PE parser and section manipulator
@@ -110,11 +127,15 @@ ZuCompleluxe-lite/
 │   ├── site_resolver.py         # Dynamic AOB & Capstone structural site resolver
 │   └── verify_pe.py             # Automated PE security, section, and export audit (--lite)
 ├── assets/
-│   └── media/                   # Menubar tile assets, outscreen.jpg, and Secret Temple 5 / DevTester media
+│   ├── media/                   # Menubar tile assets, outscreen.jpg, and Secret Temple 5 / DevTester media
+│   └── properties/              # User-editable UI layout configuration
+│       └── layout.xml           # Universal XML layout specification for all aspect ratios
 ├── docs/                        # Reverse engineering audits, memory maps, and struct notes
+│   ├── blend_modes_specification.md # Complete mathematical & technical specification for 33 Affinity blend modes
 │   ├── cached_thumbnail_and_skull_rotation.md
 │   ├── credits_system.md
 │   ├── custom_resolution_system.md
+│   ├── layout_specification.md  # Universal aspect-ratio XML layout engine architecture & schema
 │   ├── map_audit.md
 │   ├── map_curve.md
 │   ├── map_curvecreate.md
@@ -125,9 +146,14 @@ ZuCompleluxe-lite/
 │   ├── repositioning_and_coordinate_spaces.md
 │   ├── sidecar_dll_overview.md
 │   ├── toolchain_and_dll.md
-│   └── unique_attributes_and_signatures.md
-├── src/                         # C source files for the 6 Lite sidecar DLLs
+│   ├── unique_attributes_and_signatures.md
+│   ├── UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md # Granular control guide for all extended and unmapped UI elements
+│   ├── ZUMA_ENGINE_MECHANICS_AND_ZUPATHER_INTEGRATION_GUIDE.md # Cross-project integration guide with ZuPather
+│   └── ZUMA_EXE_DEEP_TRACE_AND_LAYOUT_SPECIFICATION.md # Deep assembly trace of 134 native Zuma UI elements
+├── src/                         # C source files for the 7 Lite sidecar DLLs
 │   ├── zumadllchecker.dll.c     # Mandatory pre-launch gatekeeper, PE metadata reader & dependency UI
+│   ├── zumapriolayer.c / .h / .def # High-priority sprite & cutout rendering layer, earthquake bake & blend modes
+│   ├── zrh_layout.c / .h        # XML layout parser and coordinate mapping subsystem for zumareshandler
 │   ├── zumacplxcredit.dll.c     # Standalone Developer Credits & interactive GitHub button
 │   ├── zumacustommap.dll.c      # Gauntlet Custom Map discovery, carousel & progression
 │   ├── zumatestingkit.dll.c     # Virtual DevTester profile, Temple 5, MMB cheat & DevTester Guide
