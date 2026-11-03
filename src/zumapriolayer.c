@@ -375,7 +375,7 @@ static void parse_levels_xml_blends(void)
 
             if (pri >= 0 && g_num_blend_entries < MAX_BLEND_ENTRIES) {
                 SpriteBlendEntry *e = &g_blend_entries[g_num_blend_entries++];
-                strncpy(e->level_id, cur_level, sizeof(e->level_id) - 1);
+                snprintf(e->level_id, sizeof(e->level_id), "%s", cur_level);
                 e->pri = pri;
                 e->blend_mode = parse_blend_name(blend_name);
                 logf_("XML-Blend: level='%s' pri=%d blend='%s' -> mode=%d",
@@ -1034,7 +1034,8 @@ static inline HRESULT validate_device(void *dev, DWORD *passes) {
     return fn(dev, passes);
 }
 
-static int s_hw_mode = 0, s_hw_ok = -1;   /* 0 off / 2 multiply / 3 screen ; -1 = belum diuji */
+static int s_hw_mode = 0;
+__attribute__((unused)) static int s_hw_ok = -1;   /* 0 off / 2 multiply / 3 screen ; -1 = belum diuji */
 static void *s_dev = NULL;                /* hanya valid di dalam SATU DrawNode */
 
 static void hw_reset(void *dev) {
@@ -1073,7 +1074,7 @@ int ZPL_API ZPL_HwBlendHook(void *dev) {
     return 1;
 }
 
-static void hw_end(void) {
+__attribute__((unused)) static void hw_end(void) {
     if (s_dev) { hw_reset(s_dev); s_dev = NULL; }   /* hanya jika hook benar-benar jalan */
     s_hw_mode = 0;
 }

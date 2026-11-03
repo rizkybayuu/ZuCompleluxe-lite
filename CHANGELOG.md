@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
   - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
     - In-Game HUD: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, and `<LevelBanner>`.
-    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`.
+    - Main Menu: `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`, `<Sun>`, `<MMSun>`, `<EyeRay1>`, `<EyeRay2>`.
     - Help Screen: `<DontShowCheckbox>`, `<DoneBtn>`.
     - Gauntlet & Adventure Screen: `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
 

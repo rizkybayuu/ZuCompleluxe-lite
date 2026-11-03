@@ -207,9 +207,9 @@ static void LoadZumaMetadata(void) {
     const char *pSlash = strrchr(exePath, '\\');
     if (!pSlash) pSlash = strrchr(exePath, '/');
     if (pSlash) {
-        strncpy(g_meta.fileName, pSlash + 1, sizeof(g_meta.fileName) - 1);
+        snprintf(g_meta.fileName, sizeof(g_meta.fileName), "%s", pSlash + 1);
     } else {
-        strncpy(g_meta.fileName, exePath, sizeof(g_meta.fileName) - 1);
+        snprintf(g_meta.fileName, sizeof(g_meta.fileName), "%s", exePath);
     }
 
     DWORD dwDummy = 0;
@@ -245,7 +245,7 @@ static void LoadZumaMetadata(void) {
                             if (dst[0] == '\0') { \
                                 snprintf(subBlock, sizeof(subBlock), "\\StringFileInfo\\%04x%04x\\" key, lpTranslate[t].wLanguage, lpTranslate[t].wCodePage); \
                                 if (VerQueryValueA(pData, subBlock, (LPVOID*)&strVal, &strLen) && strVal && strLen > 0) { \
-                                    strncpy(dst, strVal, sizeof(dst) - 1); \
+                                    snprintf(dst, sizeof(dst), "%s", strVal); \
                                 } \
                             } \
                         } while(0)

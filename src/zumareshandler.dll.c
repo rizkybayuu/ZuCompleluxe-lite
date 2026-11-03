@@ -1013,7 +1013,8 @@ static void THISCALL hk_adv_draw_temple2(void *this, void *g) {
     }
     int trans = *(int *)((char *)this + 0x1DC);
     int alpha = (trans * 255) / 100;
-    if (alpha < 0) alpha = 0; if (alpha > 255) alpha = 255;
+    if (alpha < 0) alpha = 0;
+    if (alpha > 255) alpha = 255;
     SetDrawMode(g, 1);
     int col[4];
     ColorCtor(col, 255, 255, 255, 255 - alpha);
@@ -1041,7 +1042,8 @@ static void THISCALL hk_adv_draw_temple3(void *this, void *g) {
     }
     int trans = *(int *)((char *)this + 0x1DC);
     int alpha = (trans * 255) / 100;
-    if (alpha < 0) alpha = 0; if (alpha > 255) alpha = 255;
+    if (alpha < 0) alpha = 0;
+    if (alpha > 255) alpha = 255;
     SetDrawMode(g, 1);
     int col[4];
     ColorCtor(col, 255, 255, 255, 255 - alpha);
@@ -1822,7 +1824,7 @@ static void *FindVTableSlot(void *func_ptr) {
     return NULL;
 }
 
-static float s_zero = 0.0f;
+__attribute__((unused)) static float s_zero = 0.0f;
 static float s_star_max_y = 0.0f;
 
 static unsigned char s_trampoline_FillRect[16];
@@ -3089,7 +3091,8 @@ static void ApplyUIPatches(void) {
     /* "COMPLETE" Sparkle Float Y @ 0x4292A1 */
     void *pCompleteSparkleFloatY = FindPattern("03 D1 68 00 00 7A 43 51 8B 4E 04");
     if (pCompleteSparkleFloatY) {
-        DWORD dw_float_y = *(DWORD *)&f_complete_cy;
+        DWORD dw_float_y;
+        memcpy(&dw_float_y, &f_complete_cy, sizeof(DWORD));
         VerifyAndPatchDword((char *)pCompleteSparkleFloatY + 3, 0x437A0000, dw_float_y, "StageCompleteSparkleFloatY");
     }
 

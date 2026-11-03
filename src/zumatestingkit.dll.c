@@ -526,8 +526,8 @@ static void ztk_center_dialog(void *dlg, int width)
                 ch = (int)(480.0f * s + 0.5f);
                 yo = (screen_h - ch) / 2;
             }
-            cx = (cw - w) / 2;
-            cy = (ch - h) / 2;
+            cx = xo + (cw - w) / 2;
+            cy = yo + (ch - h) / 2;
         }
         if (cy < 10) cy = 10;
 
@@ -838,11 +838,11 @@ static void **g_ppFontPlain = NULL;
 static void **g_ppFontCancun10 = NULL;
 static void **g_ppFontCancun14 = NULL;
 static void **g_ppImageHelpBack = NULL;
-static void *g_ImageBallBlue = NULL;
-static void *g_ImageBallYellow = NULL;
-static void *g_ImageBallRed = NULL;
-static void *g_ImageBallGreen = NULL;
-static void *g_ImageBallPurple = NULL;
+__attribute__((unused)) static void *g_ImageBallBlue = NULL;
+__attribute__((unused)) static void *g_ImageBallYellow = NULL;
+__attribute__((unused)) static void *g_ImageBallRed = NULL;
+__attribute__((unused)) static void *g_ImageBallGreen = NULL;
+__attribute__((unused)) static void *g_ImageBallPurple = NULL;
 static void *g_ImageExplosion = NULL;
 static int g_help_resolved = 0;
 
@@ -1827,7 +1827,7 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     int ball_y = D_LY(cfg ? cfg->dev_help_demo_balls_y : 295);
 
     /* Clockwise ball rotation with slow cadence */
-    int ball_cel = (50 - ((update_cnt / 3) % 50)) % 50;
+    __attribute__((unused)) int ball_cel = (50 - ((update_cnt / 3) % 50)) % 50;
 
     void *ball_imgs[5] = {
         imgBallRed,

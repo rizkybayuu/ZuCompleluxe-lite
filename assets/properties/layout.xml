@@ -158,6 +158,8 @@
         <Hat x="414" y="347" />
         <!-- Solar Flare Sun Ray Effects -->
         <Sun x="53" y="-89" />
+        <!-- Aztec Sun Stone Face on Staff -->
+        <MMSun x="150" y="2" />
         <!-- Eye Raycast Starting Coordinates -->
         <EyeRay1 x="191" y="35" />
         <EyeRay2 x="272" y="23" />

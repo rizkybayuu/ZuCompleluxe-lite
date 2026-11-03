@@ -61,7 +61,7 @@ static void LogF(const char *fmt, ...)
     }
 }
 
-static void Offsets(int W, int H, int *xo, int *yo, int *cw, int *ch)
+__attribute__((unused)) static void Offsets(int W, int H, int *xo, int *yo, int *cw, int *ch)
 {
     float sw = (float)W / (float)LW;
     float sh = (float)H / (float)LH;
