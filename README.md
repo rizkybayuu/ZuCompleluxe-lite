@@ -1,4 +1,4 @@
-# ZuCompleluxe Lite (v0.6)
+# ZuCompleluxe Lite (v0.6.0.1)
 
 > **Version:** 0.6.0.1 (Lite Edition)  
 > **Target Game:** *Zuma Deluxe* v1.0.0.1 (GameHouse / PopCap / Regional PE Builds)  
@@ -32,7 +32,7 @@ Modifications are isolated cleanly from vanilla game files:
 Unlike the optional feature sidecars, `modules\zumadllchecker.dll` is a **strictly binding dependency**:
 - **Hard Gatekeeper Enforcement in `.zldr` (`0x0058C000`)**: Before loading any optional feature modules or executing game code, `.zldr` enforces `modules\zumadllchecker.dll`. If `zumadllchecker.dll` is missing or fails to load, `Zuma.exe` displays a modal error dialog and immediately terminates via `ExitProcess(1)`.
 - **Dynamic PE Version Metadata Extraction**: Reads `ProductName`, `CompanyName`, `FileVersion`, `SpecialBuild`, and `FileName` dynamically from `Zuma.exe`'s Win32 PE Version Resource (`VS_FIXEDFILEINFO` and `\VarFileInfo\Translation`) with zero hardcoded game strings.
-- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.6 Lite`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), aspect ratio, resolution, and real-time presence checks for all 7 sidecars in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
+- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.6.0.1 Lite`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), aspect ratio, resolution, and real-time presence checks for all 7 sidecars in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
 
 ### 3. 100% Independent & Optional Feature Sidecars (Zero-Dependency Graceful Degradation)
 Every feature sidecar DLL in ZuCompleluxe Lite is completely optional and independent:
@@ -68,7 +68,7 @@ ZuCompleluxe replaces static address patching with **Dynamic AOB (Array of Bytes
   - Completely eliminates cursor movement lag and top-right ghost cursor artifacts in fullscreen.
 - **Pre-Launch Module & Dependency Checker (`zumadllchecker.dll`)**:
   - Mandatory gatekeeper dialog executed prior to engine initialization.
-  - Dynamically queries PE version resources alongside `ZuCompleluxe v0.6 Lite` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
+  - Dynamically queries PE version resources alongside `ZuCompleluxe v0.6.0.1 Lite` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
   - Verifies presence and health of all sidecars in `modules\` with interactive checkbox toggles.
 - **1-Click Direct Installation Folder Patcher (`build_lite.bat`)**:
   - Opens a modern Windows Explorer folder selection dialog (`builder/select_folder.ps1`) or accepts CLI arguments (`build_lite.bat /yes -d "<path>" -w 800 -h 600`).
@@ -82,20 +82,20 @@ ZuCompleluxe replaces static address patching with **Dynamic AOB (Array of Bytes
 - **Standalone Interactive Developer Credits (`zumacplxcredit.dll` & `.zcc`)**:
   - Extended developer credits roll (entries 39–41) with interactive `GitHub` button opening repository URL via `ShellExecuteA`.
 
-- **High-Priority Sprite & Cutout Layer & Earthquake Engine (`zumapriolayer.dll` & `.zprio`)** *(New in v0.6)*:
+- **High-Priority Sprite & Cutout Layer & Earthquake Engine (`zumapriolayer.dll` & `.zprio`)** *(New in v0.6.0.1)*:
   - Injected a 7th modular sidecar (`zumapriolayer.dll`) in Lite Edition via new executable PE code section `.zprio` (`0x60000020 [RX]`).
   - Added 100% dynamic AOB signature scanning across 13 code caves with zero hardcoded virtual addresses.
   - Dynamic rendering for sprites and cutouts with priority >= 10 (`ZPL_PRI_MIN = 10`, `ZPL_PRI_MAX = 19`) above Frog, Coins, and Bullets across normal gameplay (State 0) and level intro pan (State 1).
   - Stage Completion Earthquake Engine (State 5): whole-board snapshot bake (`ZPL_DrawBake`) rendering layers 0..4 onto `MemoryImage` bake canvas before breaking into crumbling puzzle pieces with authentic rumble.
-- **Complete 33 Affinity Blend Modes Engine (`docs/blend_modes_specification.md`)** *(New in v0.6)*:
+- **Complete 33 Affinity Blend Modes Engine (`docs/blend_modes_specification.md`)** *(New in v0.6.0.1)*:
   - Implemented the full suite of 33 industry-standard Affinity blend modes across Normal, Darken (Multiply, Color Burn, Linear Burn, Darker Color), Lighten (Screen, Color Dodge, Add, Lighter Color), Contrast (Overlay, Soft Light, Hard Light, Vivid Light, Linear Light, Pin Light, Hard Mix), Comparative (Difference, Exclusion, Subtract, Divide), and Component categories.
   - Direct 32-bit hardware backbuffer direct locking (`DDImage::Lock` / `Unlock`) and software fast lookup tables with zero performance penalty.
-- **Universal XML UI Layout Configuration Engine (`properties/layout.xml`, `src/zrh_layout.c`, `src/zrh_layout.h`)** *(New in v0.6)*:
+- **Universal XML UI Layout Configuration Engine (`properties/layout.xml`, `src/zrh_layout.c`, `src/zrh_layout.h`)** *(New in v0.6.0.1)*:
   - Extracted over 16 distinct UI coordinate blocks into user-editable `properties/layout.xml`.
   - Dynamic aspect-ratio adaptation engine: all elements defined in canonical PopCap 640x480 space and mapped with sub-pixel precision across ANY aspect ratio (4:3, 3:2, 16:9, 16:10, 21:9).
   - Configurable UI modules include Adventure Map Temples (Temple 1..5, Middle), Doors (0..12 with separate `doorX/doorY` and `frogX/frogY`), navigation buttons, labels & stats, practice/survival carousel, score banner, lives banner, HUD menubar margins, dialogs, and DevHelpScreen.
   - Automated self-generating template fallback via `ensure_layout_xml()` in `builder/patch_assets.py`.
-- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`, `docs/layout_specification.md`)** *(New in v0.6)*:
+- **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`, `docs/layout_specification.md`)** *(New in v0.6.0.1)*:
   - Full granular control over previously hardcoded UI elements: `<LivesPos>`, `<StageName>`, `<ScoreText>`, `<ProgressBar>`, `<MenuBtn>`, `<LevelBanner>`, `<WelcomeText>`, `<UserSwitchText>`, `<Hat>`, `<Sun>`, `<MMSun>`, `<EyeRay1>`, `<EyeRay2>`, `<DontShowCheckbox>`, `<DoneBtn>`, `<GauntletTitle>`, `<HighscoreRow>`, `<HighscoreTitle>`.
 
 ---
@@ -185,7 +185,7 @@ ZuCompleluxe-lite/
 
 > [!IMPORTANT]
 > **Do NOT extract the patcher files directly into your Zuma Deluxe folder!**  
-> Extract the downloaded release archive (`ZuCompleluxe-lite-v0.6-windows.zip`) into its own separate folder (e.g. `Downloads\ZuCompleluxe-lite\` or `Desktop\ZuCompleluxe-lite\`). The patcher will safely inject the necessary modules, assets, and code caves into your target game directory.
+> Extract the downloaded release archive (`ZuCompleluxe-lite-v0.6.0.1-windows.zip`) into its own separate folder (e.g. `Downloads\ZuCompleluxe-lite\` or `Desktop\ZuCompleluxe-lite\`). The patcher will safely inject the necessary modules, assets, and code caves into your target game directory.
 
 #### Step 1: Close the Game
 Ensure *Zuma Deluxe* (`Zuma.exe`) is completely closed and not running in the background.
@@ -228,7 +228,7 @@ The builder pipeline automatically handles the entire installation process:
 1. Open your *Zuma Deluxe* game folder.
 2. Launch **`Zuma.exe`**.
 3. The **ZuCompleluxe Pre-Launch Gatekeeper** (`zumadllchecker.dll`) dialog will appear:
-   - It displays detected game metadata, patch version (`ZuCompleluxe v0.6 Lite`), and the real-time presence of all modules in `modules\`.
+   - It displays detected game metadata, patch version (`ZuCompleluxe v0.6.0.1 Lite`), and the real-time presence of all modules in `modules\`.
    - Click **Run** to start the game!
 
 ---
