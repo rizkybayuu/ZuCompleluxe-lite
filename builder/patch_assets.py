@@ -9,6 +9,25 @@ from PIL import Image
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TABLES_PATH = os.path.join(SCRIPT_DIR, 'color_tables.json')
 
+_ATTR_RE = re.compile(r'(\w+)=("[^"]*"|[^\s/>]+)')
+
+def _image_attrs(text, image_id):
+    m = re.search(r'<Image\s+id="%s"([^>]*)>' % re.escape(image_id), text)
+    if not m:
+        return None
+    return {k: v.strip('"') for k, v in _ATTR_RE.findall(m.group(1))}
+
+def _fmt_ball(id_, path, alphagrid, rows, alias=None):
+    s = f'<Image id="{id_}"\t\t\t\t\t\tpath="{path}" alphagrid="{alphagrid}" rows={rows}'
+    if alias:
+        s += f' alias="{alias}"'
+    return s + ' />'
+
+# (warna ekstra, warna vanilla sumber) - SATU sumber kebenaran
+EXTRA_COLOR_SOURCES = [('ORANGE','BLUE'), ('NAVY','YELLOW'), ('CYAN','RED'),
+                       ('BLACK','GREEN'), ('CREAM','WHITE')]
+
+
 def load_tables():
     if os.path.exists(TABLES_PATH):
         with open(TABLES_PATH, 'r', encoding='utf-8') as f:
@@ -130,13 +149,7 @@ def patch_images(zuma_dir, tables, is_lite=False):
 
     # 2. In Full Edition, generate 30 extra color files (Orange, Navy, Cyan, Black, Cream)
     if not is_lite:
-        pairs = [
-            ('Blue', 'Orange'),
-            ('Yellow', 'Navy'),
-            ('Red', 'Cyan'),
-            ('Green', 'Black'),
-            ('White', 'Cream')
-        ]
+        pairs = [(src.capitalize(), col.capitalize()) for col, src in EXTRA_COLOR_SOURCES]
         types = ['Accuracy', 'Backwards', 'Ball', 'Bomb', 'Light', 'Slow']
 
         print(f"[ASSET] Patching extra color images into: {img_dir}")
@@ -192,10 +205,32 @@ def patch_resources_file(zuma_dir, is_lite=False):
     with open(p_res, 'r', encoding='utf-8', errors='ignore') as f:
         text = f.read()
 
+    # Extract attributes of vanilla ball sources
+    white = _image_attrs(text, 'WHITE_BALL')
+    src_attrs = {src: _image_attrs(text, f'{src}_BALL') for _, src in EXTRA_COLOR_SOURCES}
+    if not white or 'rows' not in white or 'alphagrid' not in white or any(not src_attrs[src] or 'rows' not in src_attrs[src] or 'alphagrid' not in src_attrs[src] for _, src in EXTRA_COLOR_SOURCES):
+        print("[ERROR] Missing WHITE_BALL or source ball attributes (rows/alphagrid) in resources.xml!")
+        return
+
+    # Sanity check: verify image height % rows == 0
+    img_dir = os.path.join(zuma_dir, 'images')
+    if os.path.isdir(img_dir):
+        check_items = [('White', int(white['rows']))] + [(col.capitalize(), int(src_attrs[src]['rows'])) for col, src in EXTRA_COLOR_SOURCES]
+        for col_name, r_val in check_items:
+            gif_file = os.path.join(img_dir, f'baBall{col_name}.gif')
+            if os.path.isfile(gif_file):
+                try:
+                    with Image.open(gif_file) as im_chk:
+                        _, chk_h = im_chk.size
+                        if r_val > 0 and chk_h % r_val != 0:
+                            print(f"[WARN] Sanity check: {gif_file} height {chk_h} is not divisible by rows {r_val}")
+                except Exception:
+                    pass
+
     # Clean resources.xml so that it is strictly 6 colors
     balls_pat = r'<Image\s+id="WHITE_BALL"[^>]*>.*?</Image>|<Image\s+id="WHITE_BALL"[^>]*/>(?:\s*<Image\s+id="(?:ORANGE|NAVY|CYAN|BLACK|CREAM)_BALL"[^>]*/>)+'
-    vanilla_white_ball = '<Image id="WHITE_BALL"\t\t\t\t\t\tpath="baBallWhite" alphagrid="_ballalpha" rows=50 alias="BALL_END" />'
-    text_clean = re.sub(balls_pat, vanilla_white_ball, text, flags=re.S)
+    vanilla_white_ball = _fmt_ball('WHITE_BALL', white['path'], white['alphagrid'], white['rows'], 'BALL_END')
+    text_clean = re.sub(balls_pat, lambda m: vanilla_white_ball, text, flags=re.S)
 
     # Remove extra powerup tags: ORANGE_, NAVY_, CYAN_, BLACK_, CREAM_
     text_clean = re.sub(r'\s*<Image\s+id="(?:ORANGE|NAVY|CYAN|BLACK|CREAM)_[^>]*/>', '', text_clean)
@@ -241,22 +276,21 @@ def patch_resources_file(zuma_dir, is_lite=False):
     if 'cols=2' in text_clean:
         text_clean = text_clean.replace('cols=2', 'cols="2"')
 
-    # Save clean 6-color manifest to properties/resources.xml
-    with open(p_res, 'w', encoding='utf-8', newline='\r\n') as f:
-        f.write(text_clean)
-    print("  [OK] resources.xml preserved as clean vanilla 6-color manifest (cols=6).")
+    # IMPORTANT: DO NOT modify or overwrite properties/resources.xml!
+    # resources.xml is the game's pristine vanilla manifest and must remain 100% untouched.
+    # All extensions and additions are strictly written to properties/resources_extra.xml.
 
     # In Full Edition, generate 11-color properties/resources_extra.xml
     if not is_lite:
-        extra_balls = (
-            '<Image id="WHITE_BALL"\t\t\t\t\t\tpath="baBallWhite" alphagrid="_ballalpha" rows=50 />\n'
-            '<Image id="ORANGE_BALL"\t\t\t\t\t\tpath="baBallOrange" alphagrid="_ballalpha" rows=47 />\n'
-            '<Image id="NAVY_BALL"\t\t\t\t\t\tpath="baBallNavy" alphagrid="_ballalpha" rows=50 />\n'
-            '<Image id="CYAN_BALL"\t\t\t\t\t\tpath="baBallCyan" alphagrid="_ballalpha" rows=50 />\n'
-            '<Image id="BLACK_BALL"\t\t\t\t\t\tpath="baBallBlack" alphagrid="_ballalpha" rows=50 />\n'
-            '<Image id="CREAM_BALL"\t\t\t\t\t\tpath="baBallCream" alphagrid="_ballalpha" rows=50 alias="BALL_END" />'
-        )
-        text_extra = re.sub(r'<Image\s+id="WHITE_BALL"[^>]*alias="BALL_END"[^>]*/>', extra_balls, text_clean)
+        extra_ball_lines = [_fmt_ball('WHITE_BALL', white['path'], white['alphagrid'], white['rows'])]
+        for col, src in EXTRA_COLOR_SOURCES:
+            extra_ball_lines.append(
+                _fmt_ball(f'{col}_BALL', f'baBall{col.capitalize()}',
+                          src_attrs[src]['alphagrid'], src_attrs[src]['rows'],
+                          'BALL_END' if col == 'CREAM' else None)
+            )
+        extra_balls = '\n'.join(extra_ball_lines)
+        text_extra = re.sub(r'<Image\s+id="WHITE_BALL"[^>]*alias="BALL_END"[^>]*/>', lambda m: extra_balls, text_clean)
         text_extra = re.sub(r'<Image\s+id="NEXT_BALL"[^>]*/>', '<Image id="NEXT_BALL"\t\t\t\t\t\tpath="baDotz_extra" cols=11 />', text_extra)
 
         sections = [
@@ -266,8 +300,18 @@ def patch_resources_file(zuma_dir, is_lite=False):
             ('WHITE_BOMB', 'BOMB', 'baBomb', '_baBomb'),
             ('WHITE_LIGHT', 'LIGHT', 'baLight', '_baLight')
         ]
-        colors = ['ORANGE', 'NAVY', 'CYAN', 'BLACK', 'CREAM']
-        for anchor, type_name, path_prefix, alpha_name in sections:
+        colors = [col for col, _ in EXTRA_COLOR_SOURCES]
+        for anchor, type_name, def_prefix, def_alpha in sections:
+            attrs = _image_attrs(text, anchor)
+            if attrs and attrs.get('path', '').endswith('White'):
+                path_prefix = attrs['path'][:-5]
+                alpha_name = attrs.get('alphaimage') or attrs.get('alphagrid') or def_alpha
+            else:
+                if not attrs or not attrs.get('path', '').endswith('White'):
+                    print(f"[WARN] Failed to read valid attributes for {anchor}, falling back to defaults ({def_prefix}, {def_alpha}).")
+                path_prefix = def_prefix
+                alpha_name = def_alpha
+
             inserted = ['\\g<0>']
             for col in colors:
                 line = f'<Image id="{col}_{type_name}"\t\t\t\t\tpath="{path_prefix}{col.capitalize()}" alphaimage="{alpha_name}" />'
@@ -287,6 +331,12 @@ def patch_resources_file(zuma_dir, is_lite=False):
                 os.remove(legacy_extra)
             except Exception:
                 pass
+    else:
+        # In Lite Edition, write clean 6-color manifest with DialogButtonLocked, Temple 5, DevHelp to resources_extra.xml
+        p_extra = os.path.join(zuma_dir, 'properties', 'resources_extra.xml')
+        with open(p_extra, 'w', encoding='utf-8', newline='\r\n') as f:
+            f.write(text_clean)
+        print("  [OK] resources_extra.xml generated for Lite Edition (6 colors, DialogButtonLocked, Temple5, DevHelp).")
 
 
 def patch_dialog_button(zuma_dir, tables):
@@ -555,11 +605,11 @@ LAYOUT_XML_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
         <HighscoreNames x="470" y="70" />
         <HighscoreRow spacing="18" />
         <InfoBox x="20" y="60" w="150" h="100" lineSpacing="14" />
-        <!-- Secret Stage 13 Banner Typography -->
+        <!-- Secret Stage 13 Banner Typography (Unified with BottomBox, StageNum, StageText, Subtitle) -->
         <Stage13Badge x="289" y="382" />
         <Stage13Num x="344" y="396" />
-        <Stage13Title x="326" y="422" />
-        <Stage13Subtitle x="326" y="456" />
+        <Stage13Title y="422" centerX="326" />
+        <Stage13Subtitle y="456" centerX="326" />
     </AdventureLabels>
 
     <!-- ===================================================================== -->
@@ -794,31 +844,10 @@ def ensure_layout_xml(zuma_dir):
     else:
         template_content = LAYOUT_XML_TEMPLATE
 
-    if not os.path.exists(dst_layout):
-        with open(dst_layout, 'w', encoding='utf-8') as f:
-            f.write(template_content)
-        print("  [OK] Automatically generated properties/layout.xml from patch engine.")
-    else:
-        # Check if existing layout.xml is missing modern sections like Temple 5 or Menubar
-        with open(dst_layout, 'r', encoding='utf-8') as f:
-            cur = f.read()
-        missing_sections = []
-        if 'Temple5' not in cur: missing_sections.append('Temple5')
-        if 'Menubar' not in cur: missing_sections.append('Menubar')
-        if 'Dialogs' not in cur: missing_sections.append('Dialogs')
-        if 'DevHelpScreen' not in cur: missing_sections.append('DevHelpScreen')
-        if missing_sections:
-            print(f"  [UPGRADE] Existing properties/layout.xml found, but missing: {', '.join(missing_sections)}. Refreshing to full specification...")
-            with open(dst_layout, 'w', encoding='utf-8') as f:
-                f.write(template_content)
-            print("  [OK] Upgraded properties/layout.xml with all 16 configuration sections.")
-        else:
-            if '<WelcomeText y="-6"' in cur or '<WelcomeText y="-4"' in cur or '<WelcomeText y="8"' in cur:
-                cur = cur.replace('<WelcomeText y="-6"', '<WelcomeText y="6"').replace('<WelcomeText y="-4"', '<WelcomeText y="6"').replace('<WelcomeText y="8"', '<WelcomeText y="6"')
-                with open(dst_layout, 'w', encoding='utf-8') as f:
-                    f.write(cur)
-                print("  [FIX] Automatically aligned WelcomeText y coordinate to authentic 6.")
-        print("  [OK] Existing properties/layout.xml verified with all modern sections; preserving user layout customizations.")
+    # Unconditionally repatch/update properties/layout.xml from canonical template
+    with open(dst_layout, 'w', encoding='utf-8', newline='\r\n') as f:
+        f.write(template_content)
+    print("  [OK] Repatched properties/layout.xml to canonical adaptive specification.")
 
 
 if __name__ == '__main__':

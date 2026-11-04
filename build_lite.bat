@@ -1,7 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
 set "SCRIPT_PATH=%~f0"
-set "SCRIPT_NAME=build_lite.bat"
 cd /d "%~dp0"
 
 REM =======================================================================
@@ -104,7 +103,7 @@ REM 1. Terminate game if running to prevent file locks
 taskkill /f /im Zuma.exe >nul 2>&1
 
 echo =======================================================
-echo    ZuCompleluxe v0.6.0.1 Lite - 1-Click Game Patcher ^& Builder
+echo    ZuCompleluxe v0.6.0.2 Lite - 1-Click Game Patcher ^& Builder
 echo    Direct Installation Folder Patcher - Lite Edition
 echo =======================================================
 echo.
@@ -256,13 +255,6 @@ if "!NON_INTERACTIVE!"=="1" (
         echo         !SCRIPT_NAME! --dir "!TARGET_ZUMA_DIR!" --non-interactive -w 1200 -h 675
         exit /b 1
     )
-    if not defined CLI_CUSTOM_H (
-        echo [ERROR] Non-interactive build requires explicit resolution flags: -w 1200 -h 675 ^(or --res 1200x675^).
-        echo [ERROR] Omission of resolution flags risks silent regression to 640x480.
-        echo [ERROR] Official build command:
-        echo         !SCRIPT_NAME! --dir "!TARGET_ZUMA_DIR!" --non-interactive -w 1200 -h 675
-        exit /b 1
-    )
 )
 
 if "!NON_INTERACTIVE!"=="0" if not defined CLI_CUSTOM_W if not defined CLI_CUSTOM_H (
@@ -270,19 +262,19 @@ if "!NON_INTERACTIVE!"=="0" if not defined CLI_CUSTOM_W if not defined CLI_CUSTO
     echo  [RESOLUTION] Target Game Resolution
     echo -------------------------------------------------------
     echo  1. Vanilla Default ^(640x480^) [Default]
-    echo  2. SVGA High-Res   ^(800x600^)
+    echo  2. Zuma Compleluxe Standard ^(1200x675^)
     echo  3. Custom Resolution
     echo.
     set "RES_CHOICE="
     set /p "RES_CHOICE=Select resolution option [1-3, default=1]: "
     if "!RES_CHOICE!"=="2" (
-        set "CUSTOM_W=800"
-        set "CUSTOM_H=600"
+        set "CUSTOM_W=1200"
+        set "CUSTOM_H=675"
     ) else if "!RES_CHOICE!"=="3" (
-        set /p "CUSTOM_W=Enter width  [min 480, default=800]: "
-        if "!CUSTOM_W!"=="" set "CUSTOM_W=800"
-        set /p "CUSTOM_H=Enter height [min 320, default=600]: "
-        if "!CUSTOM_H!"=="" set "CUSTOM_H=600"
+        set /p "CUSTOM_W=Enter width  [min 480, default=1200]: "
+        if "!CUSTOM_W!"=="" set "CUSTOM_W=1200"
+        set /p "CUSTOM_H=Enter height [min 320, default=675]: "
+        if "!CUSTOM_H!"=="" set "CUSTOM_H=675"
     ) else (
         set "CUSTOM_W=640"
         set "CUSTOM_H=480"
@@ -534,7 +526,7 @@ set "OUT=zumapriolayer.dll"
 set "SRC=src\zumapriolayer.c src\zumapriolayer.def"
 set "EXPORT=ZPL_Init"
 set "XFLAGS="
-set "LIBS=-lm"
+set "LIBS=-lm -Wl,--enable-stdcall-fixup"
 call builder\bootstrap.bat compile_dll
 if errorlevel 1 (
     echo [ERROR] zumapriolayer.dll build failed.
@@ -597,23 +589,23 @@ if errorlevel 1 (
 )
 echo [OK] Developer Testing Kit support applied successfully.
 
-REM 9. Resolution ^& Viewport Config via .zres and zumareshandler.dll
-echo [PATCH 5/6] Applying Resolution ^& Viewport Config ^(!CUSTOM_W!x!CUSTOM_H!^) via .zres and zumareshandler.dll ...
-"!PYTHON_BIN!" "builder\patch_customres.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" -W !CUSTOM_W! -H !CUSTOM_H! >"!PATCH_LOG!" 2>&1
-if errorlevel 1 (
-    set "FAILED_PATCH_STEP=builder\patch_customres.py"
-    goto PatchFailed
-)
-echo [OK] Resolution ^& Viewport Config applied successfully.
-
-REM 6. High-Priority Sprite & Cutout Layer + Earthquake Bake Caves via .zprio and zumapriolayer.dll
-echo [PATCH 6/6] Applying High-Priority Layer ^& Earthquake Bake via .zprio and zumapriolayer.dll ...
+REM 5. High-Priority Sprite & Cutout Layer + Earthquake Bake Caves via .zprio and zumapriolayer.dll
+echo [PATCH 5/6] Applying High-Priority Layer ^& Earthquake Bake via .zprio and zumapriolayer.dll ...
 "!PYTHON_BIN!" "builder\patch_priolayer.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" >"!PATCH_LOG!" 2>&1
 if errorlevel 1 (
     set "FAILED_PATCH_STEP=builder\patch_priolayer.py"
     goto PatchFailed
 )
 echo [OK] High-Priority Layer ^& Earthquake Bake applied successfully.
+
+REM 6. Resolution ^& Viewport Config via .zres and zumareshandler.dll
+echo [PATCH 6/6] Applying Resolution ^& Viewport Config ^(!CUSTOM_W!x!CUSTOM_H!^) via .zres and zumareshandler.dll ...
+"!PYTHON_BIN!" "builder\patch_customres.py" "!BUILD_TMP!\Zuma.exe" "!BUILD_TMP!\Zuma.exe" -W !CUSTOM_W! -H !CUSTOM_H! >"!PATCH_LOG!" 2>&1
+if errorlevel 1 (
+    set "FAILED_PATCH_STEP=builder\patch_customres.py"
+    goto PatchFailed
+)
+echo [OK] Resolution ^& Viewport Config applied successfully.
 
 REM Deploy patched executable to target folder
 copy /y "!BUILD_TMP!\Zuma.exe" "!TARGET_ZUMA_DIR!\!TARGET_EXE_NAME!" >nul

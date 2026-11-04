@@ -642,22 +642,38 @@ void ZRH_LoadLayoutXml(void) {
             parse_xml_attr(t, tend, "lineSpacing", &g_layout.adv_infobox_line_spacing);
         }
 
-        /* Stage 13 Banner elements */
+        /* Stage 13 Banner elements (Unified with BottomBox, StageNum, StageText, Subtitle) */
         if ((t = find_tag_start(adv_lbl_sec, adv_lbl_sec_end, "Stage13Badge", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.adv_s13_badge_x);
             parse_xml_attr(t, tend, "y", &g_layout.adv_s13_badge_y);
+        } else {
+            g_layout.adv_s13_badge_x = g_layout.adv_bottom_box_x;
+            g_layout.adv_s13_badge_y = g_layout.adv_bottom_box_y;
         }
         if ((t = find_tag_start(adv_lbl_sec, adv_lbl_sec_end, "Stage13Num", &tend)) != NULL) {
             parse_xml_attr(t, tend, "x", &g_layout.adv_s13_num_x);
             parse_xml_attr(t, tend, "y", &g_layout.adv_s13_num_y);
+        } else {
+            g_layout.adv_s13_num_x = g_layout.adv_stage_num_x;
+            g_layout.adv_s13_num_y = g_layout.adv_stage_num_y;
         }
         if ((t = find_tag_start(adv_lbl_sec, adv_lbl_sec_end, "Stage13Title", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "x", &g_layout.adv_s13_title_x);
+            if (!parse_xml_attr(t, tend, "centerX", &g_layout.adv_s13_title_x)) {
+                parse_xml_attr(t, tend, "x", &g_layout.adv_s13_title_x);
+            }
             parse_xml_attr(t, tend, "y", &g_layout.adv_s13_title_y);
+        } else {
+            g_layout.adv_s13_title_x = g_layout.adv_stage_center_x;
+            g_layout.adv_s13_title_y = g_layout.adv_stage_text_y;
         }
         if ((t = find_tag_start(adv_lbl_sec, adv_lbl_sec_end, "Stage13Subtitle", &tend)) != NULL) {
-            parse_xml_attr(t, tend, "x", &g_layout.adv_s13_sub_x);
+            if (!parse_xml_attr(t, tend, "centerX", &g_layout.adv_s13_sub_x)) {
+                parse_xml_attr(t, tend, "x", &g_layout.adv_s13_sub_x);
+            }
             parse_xml_attr(t, tend, "y", &g_layout.adv_s13_sub_y);
+        } else {
+            g_layout.adv_s13_sub_x = g_layout.adv_subtitle_center_x;
+            g_layout.adv_s13_sub_y = g_layout.adv_subtitle_y;
         }
     }
 

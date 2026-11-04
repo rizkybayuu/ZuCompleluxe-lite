@@ -93,11 +93,11 @@
         <HighscoreNames x="470" y="70" />
         <HighscoreRow spacing="18" />
         <InfoBox x="20" y="60" w="150" h="100" lineSpacing="14" />
-        <!-- Secret Stage 13 Banner Typography -->
+        <!-- Secret Stage 13 Banner Typography (Unified with BottomBox, StageNum, StageText, Subtitle) -->
         <Stage13Badge x="289" y="382" />
         <Stage13Num x="344" y="396" />
-        <Stage13Title x="326" y="422" />
-        <Stage13Subtitle x="326" y="456" />
+        <Stage13Title y="422" centerX="326" />
+        <Stage13Subtitle y="456" centerX="326" />
     </AdventureLabels>
 
     <!-- ===================================================================== -->

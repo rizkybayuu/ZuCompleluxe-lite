@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0.2] - 2026-11-04
+
+### Fixed & Improved
+- **Adventure Map Secret Stage 13 ("The Void") Typography & Banner Synchronization**:
+  - Dynamically projected Stage 13 banner coordinates (`IMAGE_ADVSTAGE`, stage number `"13"`, temple title `"THE VOID"`, and subtitle `"THE PLACE OF NO ENDING"`) via newly exported `ZRH_AdvLabelsX` and `ZRH_AdvLabelsY` from `zumareshandler.dll`.
+  - Unified Stage 13 typography tags (`<Stage13Badge>`, `<Stage13Num>`, `<Stage13Title>`, `<Stage13Subtitle>`) in `properties/layout.xml` to inherit directly from canonical `<BottomBox>`, `<StageNum>`, `<StageText>`, and `<Subtitle>` coordinates.
+  - Eliminated unprojected coordinate drift that caused Stage 13 text to float over Temple 4's entrance during widescreen resolutions (e.g., 1200x675).
+  - Aligned stage number text color to authentic vanilla cream `0xFBF1B0` (`RGB(251, 241, 176)`).
+- **Target Game Resolution Menu Modernization**:
+  - Replaced legacy SVGA 800x600 option 2 in `build_lite.bat` with `2. Zuma Compleluxe Standard (1200x675)`.
+- **Compiler Warnings & Linker Cleanups**:
+  - Added `-Wl,--enable-stdcall-fixup` to MinGW `ld.exe` linker flags when linking `zumapriolayer.dll` to silence stdcall symbol decoration warnings.
+- **Resource Manifest & Dynamic Redirect**:
+  - Enhanced `RedirectResourceManifest()` in `src/zumareshandler.dll.c` to seamlessly divert vanilla XML loading from `resources.xml` to `resources_extra.xml` whenever present, maintaining strict zero-modification integrity on vanilla `properties/resources.xml`.
+  - Ensured `ensure_layout_xml()` unconditionally updates and synchronizes `properties/layout.xml` in target directories during every build.
+
 ## [0.6.0.1] - 2026-11-03
 
 ### Fixed & Improved

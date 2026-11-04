@@ -1955,47 +1955,21 @@ static fZTK_CheckDoor5Click    g_orig_ZTK_CheckDoor5Click = NULL;
 static fZTK_DrawStage13Banner  g_orig_ZTK_DrawStage13Banner = NULL;
 
 static void __cdecl hk_ZTK_DrawTemple5(void *mapScreen, void *graphics) {
-    if (!g_orig_ZTK_DrawTemple5) return;
-    int xo = ZRES_Api.off[0];
-    int yo = ZRES_Api.off[1];
-    if (graphics && (xo > 0 || yo > 0)) {
-        *(int *)((char *)graphics + 0x08) -= xo;
-        *(int *)((char *)graphics + 0x0C) -= yo;
-        g_orig_ZTK_DrawTemple5(mapScreen, graphics);
-        *(int *)((char *)graphics + 0x08) += xo;
-        *(int *)((char *)graphics + 0x0C) += yo;
-    } else {
-        g_orig_ZTK_DrawTemple5(mapScreen, graphics);
-    }
+    if (g_orig_ZTK_DrawTemple5) g_orig_ZTK_DrawTemple5(mapScreen, graphics);
 }
 
 static void __cdecl hk_ZTK_DrawStage13Banner(void *mapScreen, void *graphics) {
-    if (!g_orig_ZTK_DrawStage13Banner) return;
-    int xo = ZRES_Api.off[0];
-    int yo = ZRES_Api.off[1];
-    if (graphics && (xo > 0 || yo > 0)) {
-        *(int *)((char *)graphics + 0x08) -= xo;
-        *(int *)((char *)graphics + 0x0C) -= yo;
-        g_orig_ZTK_DrawStage13Banner(mapScreen, graphics);
-        *(int *)((char *)graphics + 0x08) += xo;
-        *(int *)((char *)graphics + 0x0C) += yo;
-    } else {
-        g_orig_ZTK_DrawStage13Banner(mapScreen, graphics);
-    }
+    if (g_orig_ZTK_DrawStage13Banner) g_orig_ZTK_DrawStage13Banner(mapScreen, graphics);
 }
 
 static int __cdecl hk_ZTK_CheckDoor5Hit(void *mapScreen, int mouseX, int mouseY, int vanilla_hit) {
     if (!g_orig_ZTK_CheckDoor5Hit) return vanilla_hit;
-    int xo = ZRES_Api.off[0];
-    int yo = ZRES_Api.off[1];
-    return g_orig_ZTK_CheckDoor5Hit(mapScreen, mouseX + xo, mouseY + yo, vanilla_hit);
+    return g_orig_ZTK_CheckDoor5Hit(mapScreen, mouseX, mouseY, vanilla_hit);
 }
 
 static int __cdecl hk_ZTK_CheckDoor5Click(void *mapScreen, int mouseX, int mouseY) {
     if (!g_orig_ZTK_CheckDoor5Click) return 0;
-    int xo = ZRES_Api.off[0];
-    int yo = ZRES_Api.off[1];
-    return g_orig_ZTK_CheckDoor5Click(mapScreen, mouseX + xo, mouseY + yo);
+    return g_orig_ZTK_CheckDoor5Click(mapScreen, mouseX, mouseY);
 }
 
 static void HookZTKIAT(void) {
@@ -2087,11 +2061,32 @@ __attribute__((naked)) static void hk_safe_redraw_asm(void) {
     );
 }
 
+static const char s_zrh_res_extra[] = "properties\\resources_extra.xml";
+
+static void RedirectResourceManifest(void) {
+    if (GetFileAttributesA(s_zrh_res_extra) == INVALID_FILE_ATTRIBUTES) return;
+    HMODULE hExe = GetModuleHandleA(NULL);
+    if (!hExe) return;
+    uint32_t *pMov  = (uint32_t *)((char *)hExe + 0x6E3CC);
+    uint32_t *pPush = (uint32_t *)((char *)hExe + 0x6E3F4);
+    DWORD old_prot;
+    if (VirtualProtect(pMov, sizeof(uint32_t), PAGE_EXECUTE_READWRITE, &old_prot)) {
+        *pMov = (uint32_t)s_zrh_res_extra;
+        VirtualProtect(pMov, sizeof(uint32_t), old_prot, &old_prot);
+    }
+    if (VirtualProtect(pPush, sizeof(uint32_t), PAGE_EXECUTE_READWRITE, &old_prot)) {
+        *pPush = (uint32_t)s_zrh_res_extra;
+        VirtualProtect(pPush, sizeof(uint32_t), old_prot, &old_prot);
+    }
+    LogF("[ZRH] Redirected properties\\resources.xml -> %s", s_zrh_res_extra);
+}
+
 static void ApplyUIPatches(void) {
     static int s_ui_patched = 0;
     if (s_ui_patched) return;
     s_ui_patched = 1;
 
+    RedirectResourceManifest();
     InstallFillRectHook();
 
     void *pCrashLoc = FindPattern("83 7D DC 02 0F 84 C0 00 00 00 8B 86 DC 02 00 00 C7 40 10 00 00 00 00");
@@ -2241,7 +2236,10 @@ static void ApplyUIPatches(void) {
         }
     }
 
-        /* Hook IMAGE_MM_SUN (Aztec Sun Stone Face @ 0x00432060) decoupled from Sun via MMSun tag */
+
+
+
+            /* Hook IMAGE_MM_SUN (Aztec Sun Stone Face @ 0x00432060) decoupled from Sun via MMSun tag */
         int mmsun_local_x = ProjectLocalX(g_layout.mm_sun_face_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
         int mmsun_local_y = ProjectLocalY(g_layout.mm_sun_face_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
 
@@ -2257,7 +2255,6 @@ static void ApplyUIPatches(void) {
                 InstallCodeCave5(pMMSunPattern, pMMSunCave, "MainMenuSunFaceCave");
             }
         }
-
 
     /* 4. MainMenu Frog Eyes: Idle coordinates, Raycast starts, Eyelid Blink */
     void *pEyeIdle = FindPattern("C7 45 DC 00 60 6B 40 8B 55 DC 89 50 04");
@@ -3425,6 +3422,12 @@ static void ApplyUIPatches(void) {
 
 /* Exports */
 __declspec(dllexport) int __cdecl ZRH_IsActive(void) { return 1; }
+__declspec(dllexport) int __cdecl ZRH_AdvTemplesX(int v) { return AdvTemplesX(v); }
+__declspec(dllexport) int __cdecl ZRH_AdvTemplesY(int v) { return AdvTemplesY(v); }
+__declspec(dllexport) int __cdecl ZRH_AdvDoorsX(int v)   { return AdvDoorsX(v); }
+__declspec(dllexport) int __cdecl ZRH_AdvDoorsY(int v)   { return AdvDoorsY(v); }
+__declspec(dllexport) int __cdecl ZRH_AdvLabelsX(int v)  { return AdvLabelsX(v); }
+__declspec(dllexport) int __cdecl ZRH_AdvLabelsY(int v)  { return AdvLabelsY(v); }
 __declspec(dllexport) int __cdecl ZRC_IsActive(void) { return 1; }
 __declspec(dllexport) int __cdecl ZCR_IsActive(void) { return 1; }
 

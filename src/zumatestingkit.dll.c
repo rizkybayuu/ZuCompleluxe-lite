@@ -30,6 +30,96 @@ static const ZRH_LayoutConfig* ztk_get_layout(void)
     return NULL;
 }
 
+typedef int (__cdecl *fn_ZRH_CoordFn)(int v);
+
+static int ztk_adv_temples_x(int v) {
+    static fn_ZRH_CoordFn s_fn = NULL;
+    static int s_resolved = 0;
+    if (!s_resolved) {
+        s_resolved = 1;
+        HMODULE hMod = GetModuleHandleA("zumareshandler.dll");
+        if (hMod) s_fn = (fn_ZRH_CoordFn)GetProcAddress(hMod, "ZRH_AdvTemplesX");
+    }
+    return s_fn ? s_fn(v) : v;
+}
+
+static int ztk_adv_temples_y(int v) {
+    static fn_ZRH_CoordFn s_fn = NULL;
+    static int s_resolved = 0;
+    if (!s_resolved) {
+        s_resolved = 1;
+        HMODULE hMod = GetModuleHandleA("zumareshandler.dll");
+        if (hMod) s_fn = (fn_ZRH_CoordFn)GetProcAddress(hMod, "ZRH_AdvTemplesY");
+    }
+    return s_fn ? s_fn(v) : v;
+}
+
+static int ztk_adv_doors_x(int v) {
+    static fn_ZRH_CoordFn s_fn = NULL;
+    static int s_resolved = 0;
+    if (!s_resolved) {
+        s_resolved = 1;
+        HMODULE hMod = GetModuleHandleA("zumareshandler.dll");
+        if (hMod) s_fn = (fn_ZRH_CoordFn)GetProcAddress(hMod, "ZRH_AdvDoorsX");
+    }
+    return s_fn ? s_fn(v) : v;
+}
+
+static int ztk_adv_doors_y(int v) {
+    static fn_ZRH_CoordFn s_fn = NULL;
+    static int s_resolved = 0;
+    if (!s_resolved) {
+        s_resolved = 1;
+        HMODULE hMod = GetModuleHandleA("zumareshandler.dll");
+        if (hMod) s_fn = (fn_ZRH_CoordFn)GetProcAddress(hMod, "ZRH_AdvDoorsY");
+    }
+    return s_fn ? s_fn(v) : v;
+}
+
+static int ztk_adv_labels_x(int v) {
+    static fn_ZRH_CoordFn s_fn = NULL;
+    static int s_resolved = 0;
+    if (!s_resolved) {
+        s_resolved = 1;
+        HMODULE hMod = GetModuleHandleA("zumareshandler.dll");
+        if (hMod) s_fn = (fn_ZRH_CoordFn)GetProcAddress(hMod, "ZRH_AdvLabelsX");
+    }
+    return s_fn ? s_fn(v) : v;
+}
+
+static int ztk_adv_labels_y(int v) {
+    static fn_ZRH_CoordFn s_fn = NULL;
+    static int s_resolved = 0;
+    if (!s_resolved) {
+        s_resolved = 1;
+        HMODULE hMod = GetModuleHandleA("zumareshandler.dll");
+        if (hMod) s_fn = (fn_ZRH_CoordFn)GetProcAddress(hMod, "ZRH_AdvLabelsY");
+    }
+    return s_fn ? s_fn(v) : v;
+}
+
+typedef struct { int tx,ty, dx,dy, dx2,dy2, mx,my; } ZTK_T5Geom;
+
+static void ztk_t5_geom(ZTK_T5Geom *o) {
+    if (!o) return;
+    const ZRH_LayoutConfig *cfg = ztk_get_layout();
+    int t5_x = cfg ? cfg->adv_temple5_x : 126;
+    int t5_y = cfg ? cfg->adv_temple5_y : 148;
+    int d5_x = (cfg && cfg->adv_doors[12].x1 != 0) ? cfg->adv_doors[12].x1 : 291;
+    int d5_y = (cfg && cfg->adv_doors[12].y1 != 0) ? cfg->adv_doors[12].y1 : 176;
+    int mid_x = cfg ? cfg->adv_middle_x : 0;
+    int mid_y = cfg ? cfg->adv_middle_y : 72;
+
+    o->tx  = ztk_adv_temples_x(t5_x);
+    o->ty  = ztk_adv_temples_y(t5_y);
+    o->dx  = ztk_adv_doors_x(d5_x);
+    o->dy  = ztk_adv_doors_y(d5_y);
+    o->dx2 = ztk_adv_doors_x(d5_x + 64);
+    o->dy2 = ztk_adv_doors_y(d5_y + 50);
+    o->mx  = ztk_adv_temples_x(mid_x);
+    o->my  = ztk_adv_temples_y(mid_y);
+}
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -1138,13 +1228,9 @@ __declspec(dllexport) int __cdecl ZTK_CheckDoor5Hit(void *mapScreen, int mouseX,
         return vanilla_hit;
     }
 
-    /* advdoor5 bounding box: retrieved dynamically from layout.xml (door 12) */
-    const ZRH_LayoutConfig *cfg_hit = ztk_get_layout();
-    int d5_door_x = (cfg_hit && cfg_hit->adv_doors[12].x1 != 0) ? cfg_hit->adv_doors[12].x1 : 559;
-    int d5_door_y = (cfg_hit && cfg_hit->adv_doors[12].y1 != 0) ? cfg_hit->adv_doors[12].y1 : 248;
-    int d5_x1 = d5_door_x, d5_x2 = d5_door_x + 64;
-    int d5_y1 = d5_door_y, d5_y2 = d5_door_y + 50;
-    if (mouseX >= d5_x1 && mouseX < d5_x2 && mouseY >= d5_y1 && mouseY < d5_y2) {
+    ZTK_T5Geom g;
+    ztk_t5_geom(&g);
+    if (mouseX >= g.dx && mouseX < g.dx2 && mouseY >= g.dy && mouseY < g.dy2) {
         g_Door5Hover = 1;
         return 12; /* Hand cursor trigger in Zuma MapScreen */
     }
@@ -1157,13 +1243,9 @@ __declspec(dllexport) int __cdecl ZTK_CheckDoor5Click(void *mapScreen, int mouse
 {
     if (!is_current_user_dev_tester()) return 0;
 
-    /* advdoor5 bounding box: retrieved dynamically from layout.xml (door 12) */
-    const ZRH_LayoutConfig *cfg_clk = ztk_get_layout();
-    int d5_door_x = (cfg_clk && cfg_clk->adv_doors[12].x1 != 0) ? cfg_clk->adv_doors[12].x1 : 559;
-    int d5_door_y = (cfg_clk && cfg_clk->adv_doors[12].y1 != 0) ? cfg_clk->adv_doors[12].y1 : 248;
-    int d5_x1 = d5_door_x, d5_x2 = d5_door_x + 64;
-    int d5_y1 = d5_door_y, d5_y2 = d5_door_y + 50;
-    if (mouseX >= d5_x1 && mouseX < d5_x2 && mouseY >= d5_y1 && mouseY < d5_y2) {
+    ZTK_T5Geom g;
+    ztk_t5_geom(&g);
+    if (mouseX >= g.dx && mouseX < g.dx2 && mouseY >= g.dy && mouseY < g.dy2) {
         if (!g_Door5Selected) {
             /* First click: select Door 5 */
             g_Door5Selected = 1;
@@ -1239,14 +1321,11 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
     fn_SetColorizeImages setColorize = (fn_SetColorizeImages)0x004478B0;
     fn_SetColor setColor = (fn_SetColor)0x00447850;
 
-    const ZRH_LayoutConfig *cfg_t5 = ztk_get_layout();
-    int t5_render_x = cfg_t5 ? cfg_t5->adv_temple5_x : 327;
-    int t5_render_y = cfg_t5 ? cfg_t5->adv_temple5_y : 208;
-    int d5_render_x = (cfg_t5 && cfg_t5->adv_doors[12].x1 != 0) ? cfg_t5->adv_doors[12].x1 : 559;
-    int d5_render_y = (cfg_t5 && cfg_t5->adv_doors[12].y1 != 0) ? cfg_t5->adv_doors[12].y1 : 248;
+    ZTK_T5Geom geom;
+    ztk_t5_geom(&geom);
 
     /* 1. Render advtemple5 configured from layout.xml */
-    drawImage(graphics, g_ImageAdvTemple5, t5_render_x, t5_render_y);
+    drawImage(graphics, g_ImageAdvTemple5, geom.tx, geom.ty);
 
     /* 2. Render advdoor5 configured from layout.xml */
     int door_cel = 0; /* Frame 0: Open (Black) */
@@ -1255,7 +1334,7 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
     } else if (g_Door5Hover) {
         door_cel = 1; /* Frame 1: Hover (Green) */
     }
-    drawImageCel(graphics, g_ImageAdvDoor5, d5_render_x, d5_render_y, door_cel);
+    drawImageCel(graphics, g_ImageAdvDoor5, geom.dx, geom.dy, door_cel);
 
     /* 3. Re-apply 50% Fog via IMAGE_ADVMIDDLE overlay */
     void *advmiddle = *(void**)0x00547EB4;
@@ -1263,9 +1342,7 @@ __declspec(dllexport) void __cdecl ZTK_DrawTemple5(void *mapScreen, void *graphi
         setColorize(graphics, 1);
         PopCapColor fogColor = { 255, 255, 255, 128 }; /* 50% opacity */
         setColor(graphics, &fogColor);
-        int mid_x = cfg_t5 ? cfg_t5->adv_middle_x : 150;
-        int mid_y = cfg_t5 ? cfg_t5->adv_middle_y : 101;
-        drawImage(graphics, advmiddle, mid_x, mid_y);
+        drawImage(graphics, advmiddle, geom.mx, geom.my);
         setColorize(graphics, 0);
     }
 }
@@ -1288,15 +1365,26 @@ __declspec(dllexport) void __cdecl ZTK_DrawStage13Banner(void *mapScreen, void *
     PopCapColor colorWhite = { 255, 255, 255, 255 };
     PopCapColor colorGold  = { 255, 234, 1, 255 }; /* 0xFFEA01 matching vanilla description color */
 
+    PopCapColor colorStageNum = { 251, 241, 176, 255 }; /* 0xFBF1B0 matching vanilla stage number color */
+
     const ZRH_LayoutConfig *cfg_b = ztk_get_layout();
-    int b_badge_x = cfg_b ? cfg_b->adv_s13_badge_x : 556;
-    int b_badge_y = cfg_b ? cfg_b->adv_s13_badge_y : 537;
-    int b_num_x   = cfg_b ? cfg_b->adv_s13_num_x   : 634;
-    int b_num_y   = cfg_b ? cfg_b->adv_s13_num_y   : 557;
-    int b_title_x = cfg_b ? cfg_b->adv_s13_title_x : 608;
-    int b_title_y = cfg_b ? cfg_b->adv_s13_title_y : 593;
-    int b_sub_x   = cfg_b ? cfg_b->adv_s13_sub_x   : 608;
-    int b_sub_y   = cfg_b ? cfg_b->adv_s13_sub_y   : 641;
+    int raw_badge_x = cfg_b ? cfg_b->adv_s13_badge_x : 289;
+    int raw_badge_y = cfg_b ? cfg_b->adv_s13_badge_y : 382;
+    int raw_num_x   = cfg_b ? cfg_b->adv_s13_num_x   : 344;
+    int raw_num_y   = cfg_b ? cfg_b->adv_s13_num_y   : 396;
+    int raw_title_x = cfg_b ? cfg_b->adv_s13_title_x : 326;
+    int raw_title_y = cfg_b ? cfg_b->adv_s13_title_y : 422;
+    int raw_sub_x   = cfg_b ? cfg_b->adv_s13_sub_x   : 326;
+    int raw_sub_y   = cfg_b ? cfg_b->adv_s13_sub_y   : 456;
+
+    int b_badge_x = ztk_adv_labels_x(raw_badge_x);
+    int b_badge_y = ztk_adv_labels_y(raw_badge_y);
+    int b_num_x   = ztk_adv_labels_x(raw_num_x);
+    int b_num_y   = ztk_adv_labels_y(raw_num_y);
+    int b_title_x = ztk_adv_labels_x(raw_title_x);
+    int b_title_y = ztk_adv_labels_y(raw_title_y);
+    int b_sub_x   = ztk_adv_labels_x(raw_sub_x);
+    int b_sub_y   = ztk_adv_labels_y(raw_sub_y);
 
     /* 1. Stage Badge: IMAGE_ADVSTAGE configured from layout.xml */
     if (stageBadge) {
@@ -1308,7 +1396,7 @@ __declspec(dllexport) void __cdecl ZTK_DrawStage13Banner(void *mapScreen, void *
         char str_num[32];
         ztk_init_string(str_num, "13");
         setFont(graphics, fontMain14);
-        setColor(graphics, &colorWhite);
+        setColor(graphics, &colorStageNum);
         drawStr(graphics, str_num, b_num_x, b_num_y);
         ztk_free_string(str_num);
     }

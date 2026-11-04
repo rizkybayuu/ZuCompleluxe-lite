@@ -1,6 +1,6 @@
-# ZuCompleluxe Lite (v0.6.0.1)
+# ZuCompleluxe Lite (v0.6.0.2)
 
-> **Version:** 0.6.0.1 (Lite Edition)  
+> **Version:** 0.6.0.2 (Lite Edition)  
 > **Target Game:** *Zuma Deluxe* v1.0.0.1 (GameHouse / PopCap / Regional PE Builds)  
 > **Project Scope:** Lightweight Core Engine Framework for Zuma Deluxe Modding  
 > **Developer:** [Rizky Bayuu](https://github.com/rizkybayuu)  
@@ -10,7 +10,7 @@
 
 **ZuCompleluxe Lite** is the official lightweight edition of the ZuCompleluxe reverse-engineering and modding framework for *Zuma Deluxe* (v1.0.0.1). It delivers the core engine enhancements—the pre-launch integrity gatekeeper (`zumadllchecker.dll`), Gauntlet custom map subsystem (`zumacustommap.dll`), developer credits mod (`zumacplxcredit.dll`), developer testing kit (`zumatestingkit.dll`), display driver with F11 borderless fullscreen (`zumadisplay.dll`), and the arbitrary custom resolution engine (`zumareshandler.dll`)—while omitting experimental multi-path, 11-ball color palettes, and animated WebP rendering.
 
-This framework represents the foundational engine layer (**v0.6.0.1**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
+This framework represents the foundational engine layer (**v0.6.0.2**) engineered specifically to power **Zuma Compleluxe**—an upcoming, highly ambitious total conversion mod currently in active development.
 
 > [!NOTE]
 > **Full Edition Status & Availability:**  
