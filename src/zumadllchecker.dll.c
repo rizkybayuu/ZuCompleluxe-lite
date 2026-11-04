@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 #ifndef ZUCOMPLELUXE_VERSION
-#define ZUCOMPLELUXE_VERSION "v0.6.0.3"
+#define ZUCOMPLELUXE_VERSION "v0.6.0.4"
 #endif
 
 #ifndef TARGET_W

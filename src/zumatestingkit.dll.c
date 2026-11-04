@@ -1192,32 +1192,6 @@ static void ztk_draw_text_sandy_glow(void *g, void *font, const char *text, int 
     ztk_draw_text_centered(g, font, text, center_x, y, &coreCol);
 }
 
-static inline int ztk_sx(int x) {
-    void ***app_ptr = (void***)0x0057EF00;
-    if (!app_ptr || !*app_ptr) return x;
-    int app_w = *(int*)((char*)*app_ptr + 0x5C);
-    int app_h = *(int*)((char*)*app_ptr + 0x60);
-    float sw = (float)app_w / 640.0f;
-    float sh = (float)app_h / 480.0f;
-    float s = sw < sh ? sw : sh;
-    int cw = (int)(640.0f * s + 0.5f);
-    int xo = (app_w - cw) / 2;
-    return (int)((float)x * s + 0.5f) + xo;
-}
-
-static inline int ztk_sy(int y) {
-    void ***app_ptr = (void***)0x0057EF00;
-    if (!app_ptr || !*app_ptr) return y;
-    int app_w = *(int*)((char*)*app_ptr + 0x5C);
-    int app_h = *(int*)((char*)*app_ptr + 0x60);
-    float sw = (float)app_w / 640.0f;
-    float sh = (float)app_h / 480.0f;
-    float s = sw < sh ? sw : sh;
-    int ch = (int)(480.0f * s + 0.5f);
-    int yo = (app_h - ch) / 2;
-    return (int)((float)y * s + 0.5f) + yo;
-}
-
 __declspec(dllexport) int __cdecl ZTK_CheckDoor5Hit(void *mapScreen, int mouseX, int mouseY, int vanilla_hit)
 {
     (void)mapScreen;

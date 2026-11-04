@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0.4] - 2026-11-05
+
+### Fixed & Improved
+- **Zero-Warning Zig CC / LLVM Clang Strict Compilation Cleanups (src/zumatestingkit.dll.c)**:
+  - Removed legacy unused inline helper functions ztk_sx and ztk_sy from src/zumatestingkit.dll.c (superseded by dynamic ztk_t5_geom resolution projection), eliminating -Wunused-function compiler warnings when building under Zig CC (python -m ziglang cc).
+  - Audited and verified all 11 sidecar DLLs (Full Edition) and all 7 sidecar DLLs (Lite Edition) across both native 32-bit MinGW GCC and Zig CC toolchains for 100% zero-warning, zero-error compilation parity.
+
 ## [0.6.0.3] - 2026-11-05
 
 ### Fixed & Improved

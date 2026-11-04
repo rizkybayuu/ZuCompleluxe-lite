@@ -1,4 +1,4 @@
-/* zumapriolayer.c - ZuCompleluxe v0.6.0.3 High-Priority Layer & Earthquake Bake Engine
+/* zumapriolayer.c - ZuCompleluxe v0.6.0.4 High-Priority Layer & Earthquake Bake Engine
  *
  * Sprites & Cutouts with priority >= 10 render on top of Frog, Coins, and Bullets.
  * Supports full industry-standard blend modes (Normal, Add, Multiply, Screen, Darken,
@@ -1525,7 +1525,7 @@ BOOL APIENTRY DllMain(HINSTANCE h, DWORD reason, LPVOID r)
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(h);
         init_sites_dynamic();
-        logf_("zumapriolayer.dll loaded (v0.6.0.3 High-Priority Layer & Earthquake Bake Engine active, xml_draw=0x%08X draw_img=0x%08X set_mode=0x%08X)",
+        logf_("zumapriolayer.dll loaded (v0.6.0.4 High-Priority Layer & Earthquake Bake Engine active, xml_draw=0x%08X draw_img=0x%08X set_mode=0x%08X)",
               g_sites.xml_draw, g_sites.draw_image, g_sites.set_draw_mode);
     }
     return TRUE;
