@@ -526,7 +526,7 @@ set "OUT=zumapriolayer.dll"
 set "SRC=src\zumapriolayer.c src\zumapriolayer.def"
 set "EXPORT=ZPL_Init"
 set "XFLAGS="
-set "LIBS=-lm -Wl,--enable-stdcall-fixup"
+set "LIBS=-lm"
 call builder\bootstrap.bat compile_dll
 if errorlevel 1 (
     echo [ERROR] zumapriolayer.dll build failed.

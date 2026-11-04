@@ -391,7 +391,7 @@ set "DLL_STATUS_!OUT!=failed"
 
 if not "!GCC32!"=="" (
     echo [COMPILING] !OUT! with GCC: !GCC32!
-    "!GCC32!" -m32 -O2 -s -shared -Wall -Werror=int-conversion !XFLAGS! -o "!BUILD_TMP!\!OUT!" !SRC! -static !LIBS! -Wl,--kill-at -Wl,--no-insert-timestamp >"!LOG!" 2>&1
+    "!GCC32!" -m32 -O2 -s -shared -Wall -Werror=int-conversion !XFLAGS! -o "!BUILD_TMP!\!OUT!" !SRC! -static !LIBS! -Wl,--kill-at -Wl,--no-insert-timestamp -Wl,--enable-stdcall-fixup >"!LOG!" 2>&1
     if not errorlevel 1 set "DLL_STATUS_!OUT!=built (gcc)"
 ) else if "!ZIG_OK!"=="1" (
     echo [COMPILING] !OUT! with Zig CC
