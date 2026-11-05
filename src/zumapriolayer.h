@@ -1,4 +1,4 @@
-/* zumapriolayer.h - ZuCompleluxe v0.6.0.4 High-Priority Layer & Earthquake Bake Sidecar API
+/* zumapriolayer.h - ZuCompleluxe v0.6.0.5 High-Priority Layer & Earthquake Bake Sidecar API
  *
  * Sprites & Cutouts with priority >= 10 render on top of Frog, Coins, and Bullets.
  * During Stage Completion Earthquake (State 5), all visual elements (background, skulls,

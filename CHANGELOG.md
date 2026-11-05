@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0.5] - 2026-11-05
+
+### Fixed & Improved
+- **DirectDraw 7 System Memory Surface Enforcement (`src/zumareshandler.dll.c`)**:
+  - Dynamically patched `DDImage::ReInit()` (`0x00441B20`) via AOB scanning to replace `DDSCAPS_VIDEOMEMORY` (`0x4000`) with `DDSCAPS_SYSTEMMEMORY` (`0x800`).
+  - Resolves fatal access violation crashes (`C0000005` at `Zuma.exe+0x42375` / `0x00442375`) occurring on Intel HD/UHD Integrated Graphics, laptops, and virtual machines where legacy DirectDraw 7 hardware texture limits (`MaxTextureWidth = 1024`) or driver aperture pitch mismatches caused buffer overflows during pixel blitting of widescreen assets (1200x675).
+  - Surface memory is now allocated strictly through Windows host system memory (`VirtualAlloc`), completely eliminating GPU texture size constraints while preserving maximum rendering performance (60 FPS).
+- **Multi-Module Vectored Exception Handler (VEH) Safe Guard**:
+  - Added real-time crash interception and recovery guards across all sidecar modules (`zumareshandler.dll`, `zumacustommap.dll`, `zumacplxcredit.dll`).
+  - Any out-of-bounds write attempt within `0x00441B70 -> 0x004423B7` in `Zuma.exe` is safely intercepted and cleanly redirected to `0x004423B8` (`DDImage::UnlockSurface()`), unlocking the surface, releasing critical sections, and returning success without aborting the game process.
+
 ## [0.6.0.4] - 2026-11-05
 
 ### Fixed & Improved
