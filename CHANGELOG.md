@@ -28,9 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0.3] - 2026-11-05
 
 ### Fixed & Improved
-- **Toolchain-Agnostic Zig CC Cross-Compilation Compatibility (uilder/bootstrap.bat)**:
+- **Toolchain-Agnostic Zig CC Cross-Compilation Compatibility (builder/bootstrap.bat)**:
   - Isolated the GNU linker-specific argument -Wl,--enable-stdcall-fixup strictly to native 32-bit GCC (!GCC32!).
-  - Purged -Wl,--enable-stdcall-fixup from generic LIBS in uild_lite.bat, resolving fatal error: unsupported linker arg: --enable-stdcall-fixup when compiling zumapriolayer.dll via Zig CC (python -m ziglang cc).
+  - Purged -Wl,--enable-stdcall-fixup from generic LIBS in build_lite.bat, resolving fatal error: unsupported linker arg: --enable-stdcall-fixup when compiling zumapriolayer.dll via Zig CC (python -m ziglang cc).
   - Ensured seamless 100% zero-dependency out-of-the-box build execution on clean machines without external MinGW/GCC toolchains.
 
 ## [0.6.0.2] - 2026-11-04
