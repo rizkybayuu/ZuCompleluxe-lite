@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0.6] - 2026-11-05
+
+### Fixed & Improved
+- **DirectDraw 2D Software Rendering Engine & Clip Rect Hardening (`src/zumareshandler.dll.c`)**:
+  - Clamped root graphics destination dimensions and clipping rectangles in `hk_rootgfx` against the actual surface bounds of `theDestImage`.
+  - Prevents DirectDraw 2D software compositors (`NormalFillRect`, `NormalBlt`, `FillBlack`) from writing past surface allocations (`VirtualAlloc` page boundaries) when running in custom widescreen resolutions (1200x675) with 3D Hardware Acceleration disabled.
+- **Comprehensive 2D Software Blitter Exception Recovery (Full & Lite Editions)**:
+  - Extended Vectored Exception Handling (`ZRES_VehHandler`) to cover all 6 DirectDraw 2D software blitter routines in `DDImage`:
+    - Method 30 (`NormalBlt`, `0x00444460 -> 0x00446663`, recovering at `0x00446664`)
+    - Method 32 (`BltRotated`, `0x00442580 -> 0x00443375`, recovering at `0x00443376`)
+    - Method 33 (`StretchBlt`, `0x00443390 -> 0x00443C64`, recovering at `0x00443C65`)
+    - Method 28 (`NormalFillRect`, `0x00443CC0 -> 0x00444156`, recovering at `0x00444157`)
+    - Method 29 (`NormalDrawLine`, `0x00444170 -> 0x00444444`, recovering at `0x00444445`)
+    - Method 31 (`NormalBltMirror`, `0x00446680 -> 0x00447746`, recovering at `0x00447747`)
+  - Ensures seamless stack frame unwinding (`Esp` realignment) and clean invocation of `DDImage::UnlockSurface()` upon encountering buffer overruns in legacy software rendering pipelines.
+  - Configured all sidecars (`zumacustommap.dll`, `zumaextrapath.dll`, `zumacplxcredit.dll`, `zumawebpbg.dll`, `zumawebpsprite.dll`) to pass through DirectDraw subsystem exceptions directly to the Master ZRES Guard without logging spurious crash dialogs or log entries.
+
 ## [0.6.0.5] - 2026-11-05
 
 ### Fixed & Improved

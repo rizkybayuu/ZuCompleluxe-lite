@@ -387,6 +387,22 @@ static void *FC hk_rootgfx(void *g, void *edx, void *img)
     int xo = ZRES_Api.off[0], yo = ZRES_Api.off[1];
     int cw = W - 2 * xo, ch = H - 2 * yo;
 
+    /* Clamp against actual destination surface dimensions to prevent 2D software blitter overflows */
+    if (img && !IsBadReadPtr(img, 0x10)) {
+        int img_w = *(int *)((char *)img + 4);
+        int img_h = *(int *)((char *)img + 8);
+        if (img_w > 0 && img_h > 0) {
+            if (W > img_w) W = img_w;
+            if (H > img_h) H = img_h;
+            if (cw > img_w) cw = img_w;
+            if (ch > img_h) ch = img_h;
+            if (xo > (img_w - cw) / 2) xo = (img_w - cw) / 2;
+            if (yo > (img_h - ch) / 2) yo = (img_h - ch) / 2;
+            if (xo < 0) xo = 0;
+            if (yo < 0) yo = 0;
+        }
+    }
+
     if (g) {
         *(int *)((char *)g + 0x20) = 0;
         *(int *)((char *)g + 0x24) = 0;
@@ -3590,14 +3606,79 @@ static LONG CALLBACK ZRES_VehHandler(PEXCEPTION_POINTERS ep)
     HMODULE exe = GetModuleHandleA(NULL);
     uintptr_t addr = (uintptr_t)ep->ExceptionRecord->ExceptionAddress;
     uintptr_t base = (uintptr_t)exe;
+    uintptr_t ebp  = (uintptr_t)ep->ContextRecord->Ebp;
 
-    /* Check if crash occurred inside DDImage::ReInit pixel copy loop (0x41B70 - 0x423B7) */
+    /* 1. DDImage::ReInit pixel copy loop (0x41B70 - 0x423B7) */
     if (addr >= base + 0x41B70 && addr <= base + 0x423B7) {
-        LogF("[ZRES-GUARD] Intercepted pixel copy overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
+        LogF("[ZRES-GUARD] Intercepted DDImage::ReInit overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
              (void *)addr, (unsigned long)(addr - base), (void *)ep->ContextRecord->Ecx);
         ep->ContextRecord->Eip = (DWORD)(base + 0x423B8);
         return EXCEPTION_CONTINUE_EXECUTION;
     }
+
+    /* 2. Method 30: DDImage::NormalBlt (0x44460 - 0x46663) */
+    if (addr >= base + 0x44460 && addr <= base + 0x46663) {
+        LogF("[ZRES-GUARD] Intercepted DDImage::NormalBlt overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
+             (void *)addr, (unsigned long)(addr - base), (void *)ep->ContextRecord->Ecx);
+        ep->ContextRecord->Esp = (DWORD)(ebp - 0xE4);
+        ep->ContextRecord->Eip = (DWORD)(base + 0x46664);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    /* 3. Method 32: DDImage::BltRotated (0x42580 - 0x43375) */
+    if (addr >= base + 0x42580 && addr <= base + 0x43375) {
+        LogF("[ZRES-GUARD] Intercepted DDImage::BltRotated overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
+             (void *)addr, (unsigned long)(addr - base), (void *)ep->ContextRecord->Ecx);
+        ep->ContextRecord->Esp = (DWORD)(ebp - 0x44);
+        ep->ContextRecord->Eip = (DWORD)(base + 0x43376);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    /* 4. Method 33: DDImage::StretchBlt (0x43390 - 0x43C64) */
+    if (addr >= base + 0x43390 && addr <= base + 0x43C64) {
+        LogF("[ZRES-GUARD] Intercepted DDImage::StretchBlt overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
+             (void *)addr, (unsigned long)(addr - base), (void *)ep->ContextRecord->Ecx);
+        ep->ContextRecord->Esp = (DWORD)(ebp - 0x54);
+        ep->ContextRecord->Eip = (DWORD)(base + 0x43C65);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    /* 5. Method 28: DDImage::NormalFillRect (0x43CC0 - 0x44156) */
+    if (addr >= base + 0x43CC0 && addr <= base + 0x44156) {
+        LogF("[ZRES-GUARD] Intercepted DDImage::NormalFillRect overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
+             (void *)addr, (unsigned long)(addr - base), (void *)ep->ContextRecord->Ecx);
+        if (!IsBadReadPtr((void *)(ebp - 0x14), 4)) {
+            ep->ContextRecord->Ebx = *(DWORD *)(ebp - 0x14);
+        }
+        ep->ContextRecord->Esp = (DWORD)(ebp - 0x34);
+        ep->ContextRecord->Eip = (DWORD)(base + 0x44157);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    /* 6. Method 29: DDImage::NormalDrawLine (0x44170 - 0x44444) */
+    if (addr >= base + 0x44170 && addr <= base + 0x44444) {
+        LogF("[ZRES-GUARD] Intercepted DDImage::NormalDrawLine overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
+             (void *)addr, (unsigned long)(addr - base), (void *)ep->ContextRecord->Ecx);
+        if (!IsBadReadPtr((void *)(ebp - 0x2C), 4)) {
+            ep->ContextRecord->Ebx = *(DWORD *)(ebp - 0x2C);
+        }
+        ep->ContextRecord->Esp = (DWORD)(ebp - 0x44);
+        ep->ContextRecord->Eip = (DWORD)(base + 0x44445);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    /* 7. Method 31: DDImage::NormalBltMirror (0x46680 - 0x47746) */
+    if (addr >= base + 0x46680 && addr <= base + 0x47746) {
+        LogF("[ZRES-GUARD] Intercepted DDImage::NormalBltMirror overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
+             (void *)addr, (unsigned long)(addr - base), (void *)ep->ContextRecord->Ecx);
+        if (!IsBadReadPtr((void *)(ebp - 0x0C), 4)) {
+            ep->ContextRecord->Ebx = *(DWORD *)(ebp - 0x0C);
+        }
+        ep->ContextRecord->Esp = (DWORD)(ebp - 0x64);
+        ep->ContextRecord->Eip = (DWORD)(base + 0x47747);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
     return EXCEPTION_CONTINUE_SEARCH;
 }
 

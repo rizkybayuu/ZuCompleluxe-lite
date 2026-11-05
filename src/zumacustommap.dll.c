@@ -42,15 +42,12 @@ static LONG CALLBACK veh_(PEXCEPTION_POINTERS ep)
     HMODULE self = (HMODULE)&__ImageBase, exe = GetModuleHandleA(NULL);
     if (mbi.AllocationBase != (void *)self && mbi.AllocationBase != (void *)exe) return EXCEPTION_CONTINUE_SEARCH;
 
-    /* Safe Guard: DDImage::ReInit pixel copy overflow recovery */
+    /* Safe Guard: DirectDraw 2D software blitter overflow pass-through to Master ZRES Guard */
     if (code == 0xC0000005) {
         uintptr_t uaddr = (uintptr_t)addr;
         uintptr_t uexe  = (uintptr_t)exe;
-        if (uaddr >= uexe + 0x41B70 && uaddr <= uexe + 0x423B7) {
-            logf_("[GUARD] Recovered AV in DDImage::ReInit at %p (Zuma.exe+0x%lX, ecx=%p), resuming at UnlockSurface",
-                  addr, (unsigned long)(uaddr - uexe), (void *)ep->ContextRecord->Ecx);
-            ep->ContextRecord->Eip = (DWORD)(uexe + 0x423B8);
-            return EXCEPTION_CONTINUE_EXECUTION;
+        if (uaddr >= uexe + 0x41B70 && uaddr <= uexe + 0x47750) {
+            return EXCEPTION_CONTINUE_SEARCH;
         }
     }
     static LONG n = 0;
