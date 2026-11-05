@@ -3414,6 +3414,26 @@ static void ApplyUIPatches(void) {
         VerifyAndPatchByte((char *)pHoleRotCheck + 5, 0x75, 0xEB, "HoleMgr_ForceRotatedDraw");
     }
 
+    /* 9x. DDImage::ReInit System Memory & Safety Patch:
+     * Prevents fatal C0000005 crash at 0x00442375 on systems with Intel HD Graphics / low VRAM
+     * by forcing DDSCAPS_SYSTEMMEMORY (0x800) instead of DDSCAPS_VIDEOMEMORY (0x4000).
+     */
+    void *pCaps = FindPattern("1B C0 25 00 38 00 00 83 C7 14 05 00 08 00 00");
+    if (pCaps) {
+        char *pTarget = (char *)pCaps + 2;
+        DWORD old;
+        if (VirtualProtect(pTarget, 5, PAGE_EXECUTE_READWRITE, &old)) {
+            pTarget[0] = (char)0x31;
+            pTarget[1] = (char)0xC0;
+            pTarget[2] = (char)0x90;
+            pTarget[3] = (char)0x90;
+            pTarget[4] = (char)0x90;
+            VirtualProtect(pTarget, 5, old, &old);
+            FlushInstructionCache(GetCurrentProcess(), pTarget, 5);
+            LogF("[ZRES] Successfully forced DDSCAPS_SYSTEMMEMORY in DDImage::ReInit at %p", pTarget);
+        }
+    }
+
     LogF("[ZRES] Applied all UI layout patches dynamically for %dx%d (scale=%.2f)", TARGET_W, TARGET_H, scale);
     HookZTKIAT();
 }
@@ -3562,11 +3582,31 @@ static void InstallFileHook(void)
     LogF("[ZRES] Warning: CreateFileA not found in IAT");
 }
 
+static LONG CALLBACK ZRES_VehHandler(PEXCEPTION_POINTERS ep)
+{
+    if (!ep || !ep->ExceptionRecord || !ep->ContextRecord) return EXCEPTION_CONTINUE_SEARCH;
+    if (ep->ExceptionRecord->ExceptionCode != 0xC0000005) return EXCEPTION_CONTINUE_SEARCH;
+
+    HMODULE exe = GetModuleHandleA(NULL);
+    uintptr_t addr = (uintptr_t)ep->ExceptionRecord->ExceptionAddress;
+    uintptr_t base = (uintptr_t)exe;
+
+    /* Check if crash occurred inside DDImage::ReInit pixel copy loop (0x41B70 - 0x423B7) */
+    if (addr >= base + 0x41B70 && addr <= base + 0x423B7) {
+        LogF("[ZRES-GUARD] Intercepted pixel copy overflow at %p (Zuma.exe+0x%lX, ecx=%p). Resuming cleanly at UnlockSurface.",
+             (void *)addr, (unsigned long)(addr - base), (void *)ep->ContextRecord->Ecx);
+        ep->ContextRecord->Eip = (DWORD)(base + 0x423B8);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
 BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID r)
 {
     (void)h; (void)r;
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(h);
+        AddVectoredExceptionHandler(1, ZRES_VehHandler);
         if (!LoadTable()) return TRUE;
         LogF("zumareshandler.dll loaded (Master Resolution Engine active: %dx%d)", TARGET_W, TARGET_H);
         InitResolutionState();
