@@ -126,6 +126,8 @@ for %%F in ("!PY_DIR!python*._pth") do call :PatchPth "%%F"
 set "PY_VER_STR=unknown"
 for /f "tokens=*" %%V in ('"!PYTHON_BIN!" --version 2^>^&1') do set "PY_VER_STR=%%V"
 echo [FOUND] Python Runtime    : "!PYTHON_BIN!" - !PY_VER_STR!
+REM Disable Windows Console QuickEdit mode to prevent freeze on mouse click
+"!PYTHON_BIN!" -c "import ctypes; k=ctypes.windll.kernel32; h=k.GetStdHandle(-10); m=ctypes.c_uint(); k.GetConsoleMode(h, ctypes.byref(m)) and k.SetConsoleMode(h, (m.value & ~0x40) | 0x80)" >nul 2>&1
 "!PYTHON_BIN!" -c "import sys; print('[INFO] Python Mode       : isolated=' + str(sys.flags.isolated) + ', sys.path=' + str(sys.path))"
 exit /b 0
 
@@ -284,8 +286,10 @@ exit /b 0
 :DetectCompiler
 set "GCC32="
 set "ZIG_OK=0"
-set "ZIG_GLOBAL_CACHE_DIR=%CD%\.build\zigcache"
-set "ZIG_LOCAL_CACHE_DIR=%CD%\.build\zigcache"
+
+REM Pre-Flight Disk Space Check & Recursive Lock Cleanup
+"!PYTHON_BIN!" "builder\toolchain_util.py" disk_check
+if errorlevel 1 exit /b 1
 
 REM 1. Probe PATH compilers
 for %%c in (gcc.exe clang.exe) do (
@@ -346,6 +350,15 @@ if "!GCC32!"=="" if "!ZIG_OK!"=="0" (
     echo [ERROR] No 32-bit C compiler could be prepared.
     exit /b 1
 )
+
+REM Toolchain Warm-Up Probe with Live Progress Timer
+if not "!GCC32!"=="" (
+    "!PYTHON_BIN!" "builder\toolchain_util.py" warmup_probe gcc "!BUILD_TMP!" "!GCC32!"
+    if errorlevel 1 exit /b 1
+) else if "!ZIG_OK!"=="1" (
+    "!PYTHON_BIN!" "builder\toolchain_util.py" warmup_probe zig "!BUILD_TMP!" "!PYTHON_BIN!"
+    if errorlevel 1 exit /b 1
+)
 exit /b 0
 
 REM =======================================================================
@@ -389,49 +402,28 @@ set "LOG=!BUILD_TMP!\!OUT!.log"
 del /f /q "!BUILD_TMP!\!OUT!" >nul 2>&1
 set "DLL_STATUS_!OUT!=failed"
 
+set "XFLAGS_ARG="
+if defined XFLAGS set "XFLAGS_ARG=--xflags !XFLAGS!"
+
+set "LIBS_ARG="
+if defined LIBS set "LIBS_ARG=--libs !LIBS!"
+
 if not "!GCC32!"=="" (
-    echo [COMPILING] !OUT! with GCC: !GCC32!
-    "!GCC32!" -m32 -O2 -s -shared -Wall -Werror=int-conversion !XFLAGS! -o "!BUILD_TMP!\!OUT!" !SRC! -static !LIBS! -Wl,--kill-at -Wl,--no-insert-timestamp -Wl,--enable-stdcall-fixup >"!LOG!" 2>&1
+    "!PYTHON_BIN!" "builder\toolchain_util.py" compile_dll gcc "!GCC32!" "!BUILD_TMP!" "!OUT!" "!EXPORT!" !SRC! !XFLAGS_ARG! !LIBS_ARG!
     if not errorlevel 1 set "DLL_STATUS_!OUT!=built (gcc)"
 ) else if "!ZIG_OK!"=="1" (
-    echo [COMPILING] !OUT! with Zig CC
-    "!PYTHON_BIN!" -m ziglang cc -target x86-windows-gnu -O2 -s -shared -Wall -Werror=int-conversion !XFLAGS! -o "!BUILD_TMP!\!OUT!" !SRC! !LIBS! >"!LOG!" 2>&1
+    "!PYTHON_BIN!" "builder\toolchain_util.py" compile_dll zig "!PYTHON_BIN!" "!BUILD_TMP!" "!OUT!" "!EXPORT!" !SRC! !XFLAGS_ARG! !LIBS_ARG!
     if not errorlevel 1 set "DLL_STATUS_!OUT!=built (zig)"
 ) else (
-    echo [ERROR] No compiler available for !OUT! >"!LOG!"
+    echo [ERROR] No compiler available for !OUT!
     exit /b 1
 )
 
-if "!DLL_STATUS_!OUT!"=="failed" (
-    echo [ERROR] Compile failed for !OUT!. Build log follows:
-    echo -------------------------------------------------------
-    type "!LOG!"
-    echo -------------------------------------------------------
-    exit /b 1
-) else (
-    if exist "!LOG!" (
-        for %%A in ("!LOG!") do (
-            if %%~zA gtr 0 (
-                echo [COMPILER WARNINGS] !OUT!:
-                echo -------------------------------------------------------
-                type "!LOG!"
-                echo -------------------------------------------------------
-            )
-        )
-    )
-)
+if "!DLL_STATUS_!OUT!"=="failed" exit /b 1
 
-REM Exact Export Verification via pefile
-"!PYTHON_BIN!" -c "import pefile,sys;p=pefile.PE(sys.argv[1]);n=[e.name.decode() for e in p.DIRECTORY_ENTRY_EXPORT.symbols if e.name];sys.exit(0 if sys.argv[2] in n else 1)" "!BUILD_TMP!\!OUT!" "!EXPORT!"
-if errorlevel 1 (
-    echo [ERROR] Export '!EXPORT!' missing or decorated in !OUT!
-    exit /b 1
-)
-
-copy /y "!BUILD_TMP!\!OUT!" "!TARGET_ZUMA_DIR!\modules\!OUT!" >nul
-for %%S in ("!OUT!") do echo [OK] !OUT! deployed successfully [!DLL_STATUS_%%~S!], export !EXPORT! verified.
+"!PYTHON_BIN!" "builder\toolchain_util.py" deploy_dll "!BUILD_TMP!\!OUT!" "!TARGET_ZUMA_DIR!\modules\!OUT!"
+if errorlevel 1 exit /b 1
 exit /b 0
-
 REM =======================================================================
 REM 5. Build Summary Table
 REM =======================================================================

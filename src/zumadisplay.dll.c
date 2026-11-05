@@ -225,7 +225,11 @@ static void HookPrimarySurface(void *primary) {
     memcpy(s_primary_vt_copy, orig_vt, sizeof(s_primary_vt_copy));
     s_primary_vt_copy[5] = (void *)hk_PrimaryBlt;
     *(void ***)primary = s_primary_vt_copy;
-    LogF("[Display] Hooked PrimarySurface Blt for Fit-To-Screen Fullscreen (orig=%p)", g_real_PrimaryBlt);
+    static int s_logged_hook_primary = 0;
+    if (s_logged_hook_primary < 3) {
+        s_logged_hook_primary++;
+        LogF("[Display] Hooked PrimarySurface Blt for Fit-To-Screen Fullscreen (orig=%p)", g_real_PrimaryBlt);
+    }
 }
 
 static void *FindPattern(const char *pattern) {
@@ -678,12 +682,23 @@ static HWND WINAPI hk_CreateWindowExA(
     if (!g_real_CreateWindowExA) return NULL;
     HWND h = g_real_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     if (h) {
-        g_hGameWnd = h;
-        WNDPROC old_proc = (WNDPROC)GetWindowLongA(h, GWL_WNDPROC);
-        if (old_proc && old_proc != SubclassWndProc) {
-            g_pfnOrigWndProc = old_proc;
-            SetWindowLongA(h, GWL_WNDPROC, (LONG)SubclassWndProc);
-            LogF("[Display] Subclassed game HWND %p via CreateWindowExA hook", h);
+        int is_main = 0;
+        if (!hWndParent && nWidth >= 320) is_main = 1;
+        if (lpWindowName && strstr(lpWindowName, "Zuma")) is_main = 1;
+        if (lpClassName && strcmp(lpClassName, "MainWindow") == 0) is_main = 1;
+
+        if (is_main) {
+            g_hGameWnd = h;
+            WNDPROC old_proc = (WNDPROC)GetWindowLongA(h, GWL_WNDPROC);
+            if (old_proc && old_proc != SubclassWndProc) {
+                g_pfnOrigWndProc = old_proc;
+                SetWindowLongA(h, GWL_WNDPROC, (LONG)SubclassWndProc);
+                static HWND s_last_subclassed_hwnd = NULL;
+                if (h != s_last_subclassed_hwnd) {
+                    s_last_subclassed_hwnd = h;
+                    LogF("[Display] Subclassed game HWND %p via CreateWindowExA hook", h);
+                }
+            }
         }
     }
     return h;
@@ -774,14 +789,22 @@ __declspec(dllexport) void __cdecl ZDISP_OnDDInit(void *dd, HWND hwnd, int win, 
     g_W = w; g_H = h;
     g_hGameWnd = hwnd;
     g_IsFullscreen = (win == 0);
-    LogF("[Display] ZDISP_OnDDInit: dd=%p, hwnd=%p, win=%d, fs=%d, res=%dx%d", dd, hwnd, win, g_IsFullscreen, w, h);
+    static int s_logged_dd_init = 0;
+    if (s_logged_dd_init < 5) {
+        s_logged_dd_init++;
+        LogF("[Display] ZDISP_OnDDInit: dd=%p, hwnd=%p, win=%d, fs=%d, res=%dx%d", dd, hwnd, win, g_IsFullscreen, w, h);
+    }
 
     if (hwnd) {
         WNDPROC old_proc = (WNDPROC)GetWindowLongA(hwnd, GWL_WNDPROC);
         if (old_proc && old_proc != SubclassWndProc) {
             g_pfnOrigWndProc = old_proc;
             SetWindowLongA(hwnd, GWL_WNDPROC, (LONG)SubclassWndProc);
-            LogF("[Display] Subclassed game HWND %p for fullscreen borderless", hwnd);
+            static int s_logged_subclass_dd = 0;
+            if (s_logged_subclass_dd < 3) {
+                s_logged_subclass_dd++;
+                LogF("[Display] Subclassed game HWND %p for fullscreen borderless", hwnd);
+            }
         }
     }
 

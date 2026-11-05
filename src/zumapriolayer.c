@@ -1,4 +1,4 @@
-/* zumapriolayer.c - ZuCompleluxe v0.6.0.5 High-Priority Layer & Earthquake Bake Engine
+/* zumapriolayer.c - ZuCompleluxe v0.6.0.7 High-Priority Layer & Earthquake Bake Engine
  *
  * Sprites & Cutouts with priority >= 10 render on top of Frog, Coins, and Bullets.
  * Supports full industry-standard blend modes (Normal, Add, Multiply, Screen, Darken,
@@ -378,8 +378,10 @@ static void parse_levels_xml_blends(void)
                 snprintf(e->level_id, sizeof(e->level_id), "%s", cur_level);
                 e->pri = pri;
                 e->blend_mode = parse_blend_name(blend_name);
-                logf_("XML-Blend: level='%s' pri=%d blend='%s' -> mode=%d",
-                      e->level_id, e->pri, blend_name[0] ? blend_name : "(default)", e->blend_mode);
+                if (e->blend_mode != 0) {
+                    logf_("XML-Blend: level='%s' pri=%d blend='%s' -> mode=%d",
+                          e->level_id, e->pri, blend_name[0] ? blend_name : "(default)", e->blend_mode);
+                }
             }
         }
     }
@@ -1054,7 +1056,7 @@ int ZPL_API ZPL_HwBlendHook(void *dev) {
     rs(dev, 20, dst_val);
 
     static int s_logged_hw_calls = 0;
-    if (s_logged_hw_calls < 20) {
+    if (s_logged_hw_calls < 2) {
         s_logged_hw_calls++;
         HRESULT hr_pure = validate_device(dev, &passes);
         logf_always("ZPL_HwBlendHook: mode=%d dev=%p rs(19,%u) rs(20,%u) -> ValidateDevice pure hr=0x%08X passes=%u",
@@ -1121,68 +1123,17 @@ typedef HRESULT (__stdcall *fSurfaceLock)(void *dds, RECT *rc, void *desc, DWORD
 typedef HRESULT (__stdcall *fSurfaceUnlock)(void *dds, RECT *rc);
 typedef ULONG   (__stdcall *fRelease)(void *p);
 
+typedef uint8_t (__attribute__((thiscall)) *fDDLockSurface)(void *self);
+typedef uint8_t (__attribute__((thiscall)) *fDDUnlockSurface)(void *self);
+
 static int blend_to_dd_surface(void *dst_img, void *img, const uint32_t *src_bits, void *g, int x, int y, int mode) {
     if (!dst_img || !img || !src_bits || !g) {
         logf_always("blend_to_dd_surface NULL arg: dst_img=%p img=%p src_bits=%p g=%p", dst_img, img, src_bits, g);
         return 0;
     }
-    void *dds = *(void **)((char *)dst_img + 0x48);
-    void *dev = *(void **)((char *)dst_img + 0x1C);
-    if (!dev) {
-        void *d3d = *(void **)((char *)dst_img + 0x44);
-        if (d3d && !IsBadReadPtr(d3d, 16)) {
-            void *helper = *(void **)((char *)d3d + 8);
-            if (helper && !IsBadReadPtr(helper, 32)) {
-                dev = *(void **)((char *)helper + 0x1C);
-            }
-        }
-    }
-    if (!dev) {
-        void **p_app = (void **)0x0057EF00;
-        if (p_app && !IsBadReadPtr(p_app, sizeof(void *)) && *p_app) {
-            char *app = (char *)*p_app;
-            if (!IsBadReadPtr(app + 0x31C, sizeof(void *))) {
-                char *dd_iface = *(char **)(app + 0x31C);
-                if (dd_iface && !IsBadReadPtr(dd_iface + 8, sizeof(void *))) {
-                    char *helper = *(char **)(dd_iface + 8);
-                    if (helper && !IsBadReadPtr(helper + 0x20, sizeof(void *))) {
-                        dev = *(void **)(helper + 0x1C);
-                    }
-                }
-            }
-        }
-    }
-    if (!dev && s_dev) {
-        dev = s_dev;
-    }
 
-    static int s_logged_dd_entry = 0;
-    if (s_logged_dd_entry < 5) {
-        s_logged_dd_entry++;
-        logf_always("blend_to_dd_surface ENTRY: mode=%d dst_img=%p img=%p src_bits=%p dev=%p dds=%p",
-                    mode, dst_img, img, src_bits, dev, dds);
-    }
-
-    void *rt = NULL;
-    HRESULT hr_rt = -1;
-    if (dev && !IsBadReadPtr(dev, 40)) {
-        fGetRenderTarget pfnGetRenderTarget = ((fGetRenderTarget *)(*(void ***)dev))[9];
-        if (pfnGetRenderTarget && !IsBadCodePtr((FARPROC)pfnGetRenderTarget)) {
-            hr_rt = pfnGetRenderTarget(dev, &rt);
-        }
-    }
-    void *target_dds = (hr_rt == 0 && rt) ? rt : dds;
-
-    static int s_logged_dd_rt = 0;
-    if (s_logged_dd_rt < 5) {
-        s_logged_dd_rt++;
-        logf_always("blend_to_dd_surface RT: hr_rt=0x%08X rt=%p target_dds=%p", (unsigned)hr_rt, rt, target_dds);
-    }
-
-    if (!target_dds) {
-        logf_always("blend_to_dd_surface: target_dds is NULL! hr_rt=0x%08X rt=%p dds=%p", (unsigned)hr_rt, rt, dds);
-        return 0;
-    }
+    void *dd_iface = (!IsBadReadPtr((char *)dst_img + 0x44, sizeof(void *))) ? *(void **)((char *)dst_img + 0x44) : NULL;
+    int is_3d = (dd_iface && !IsBadReadPtr((char *)dd_iface + 0x10, 1)) ? (*(uint8_t *)((char *)dd_iface + 0x10) != 0) : 0;
 
     int img_w = *(int *)((char *)img + 4);
     int img_h = *(int *)((char *)img + 8);
@@ -1221,38 +1172,177 @@ static int blend_to_dd_surface(void *dst_img, void *img, const uint32_t *src_bit
     int blit_w = x2 - x1;
     int blit_h = y2 - y1;
 
-    static int s_logged_dd_clip = 0;
-    if (s_logged_dd_clip < 5) {
-        s_logged_dd_clip++;
-        logf_always("blend_to_dd_surface CLIP: draw=(%d,%d) img=%dx%d dst=%dx%d clip=(%d,%d,%d,%d) -> blit=(%d,%d) rect=[%d,%d to %d,%d]",
-                    draw_x, draw_y, img_w, img_h, dst_w, dst_h, clip_x, clip_y, clip_w, clip_h, blit_w, blit_h, x1, y1, x2, y2);
-    }
-
     if (blit_w <= 0 || blit_h <= 0) {
-        if (rt) ((fRelease)(*(void ***)rt)[2])(rt);
         return 1; /* Clipped out completely, success */
     }
 
     int src_start_x = x1 - draw_x;
     int src_start_y = y1 - draw_y;
 
+    /* =========================================================================
+     * PATH A: 2D Software Mode (!is_3d)
+     * Use PopCap DDImage native LockSurface / UnlockSurface.
+     * Zero D3D calls. Operates directly on the locked DirectDraw backbuffer.
+     * ========================================================================= */
+    if (!is_3d) {
+        void **dd_vt = *(void ***)dst_img;
+        if (!dd_vt || IsBadReadPtr(dd_vt, 0x90)) {
+            return 0;
+        }
+        fDDLockSurface pfnDDLock = (fDDLockSurface)dd_vt[34];       /* slot 34 (offset 0x88) */
+        fDDUnlockSurface pfnDDUnlock = (fDDUnlockSurface)dd_vt[35]; /* slot 35 (offset 0x8C) */
+        if (!pfnDDLock || !pfnDDUnlock) {
+            return 0;
+        }
+
+        if (!pfnDDLock(dst_img)) {
+            static int s_logged_2d_lock_fail = 0;
+            if (s_logged_2d_lock_fail < 2) {
+                s_logged_2d_lock_fail++;
+                logf_always("blend_to_dd_surface: 2D LockSurface FAILED dst_img=%p", dst_img);
+            }
+            return 0;
+        }
+
+        ZPL_DDSURFACEDESC2 *desc = (ZPL_DDSURFACEDESC2 *)((char *)dst_img + 0x54);
+        uint8_t *surf_ptr = (uint8_t *)desc->lpSurface;
+        int bpp = desc->ddpfPixelFormat.dwRGBBitCount;
+        LONG pitch = desc->lPitch;
+
+        if (!surf_ptr || pitch <= 0) {
+            pfnDDUnlock(dst_img);
+            return 0;
+        }
+
+        /* Safety bounds check against locked descriptor dimensions */
+        if (x1 + blit_w > (int)desc->dwWidth) blit_w = (int)desc->dwWidth - x1;
+        if (y1 + blit_h > (int)desc->dwHeight) blit_h = (int)desc->dwHeight - y1;
+
+        if (blit_w > 0 && blit_h > 0) {
+            static int s_logged_2d_diag = 0;
+            if (s_logged_2d_diag < 2) {
+                s_logged_2d_diag++;
+                logf_always("blend_to_dd_surface [2D]: mode=%d dim=%ux%u pitch=%ld bpp=%d rect=[%d,%d to %d,%d]",
+                            mode, (unsigned)desc->dwWidth, (unsigned)desc->dwHeight, pitch, bpp, x1, y1, x1 + blit_w, y1 + blit_h);
+            }
+
+            if (bpp == 32) {
+                for (int row = 0; row < blit_h; row++) {
+                    uint32_t *dst_row = (uint32_t *)(surf_ptr + (y1 + row) * pitch) + x1;
+                    const uint32_t *src_row = src_bits + (src_start_y + row) * img_w + src_start_x;
+                    for (int col = 0; col < blit_w; col++) {
+                        dst_row[col] = blend_pixel(mode, dst_row[col], src_row[col]);
+                    }
+                }
+            } else if (bpp == 16) {
+                int is_565 = (desc->ddpfPixelFormat.dwGBitMask == 0x07E0);
+                for (int row = 0; row < blit_h; row++) {
+                    uint16_t *dst_row = (uint16_t *)(surf_ptr + (y1 + row) * pitch) + x1;
+                    const uint32_t *src_row = src_bits + (src_start_y + row) * img_w + src_start_x;
+                    for (int col = 0; col < blit_w; col++) {
+                        uint16_t d16 = dst_row[col];
+                        uint32_t d32;
+                        if (is_565) {
+                            uint32_t r = (d16 >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+                            uint32_t g = (d16 >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
+                            uint32_t b = (d16)       & 0x1F; b = (b << 3) | (b >> 2);
+                            d32 = 0xFF000000 | (r << 16) | (g << 8) | b;
+                        } else {
+                            uint32_t r = (d16 >> 10) & 0x1F; r = (r << 3) | (r >> 2);
+                            uint32_t g = (d16 >> 5)  & 0x1F; g = (g << 3) | (g >> 2);
+                            uint32_t b = (d16)       & 0x1F; b = (b << 3) | (b >> 2);
+                            d32 = 0xFF000000 | (r << 16) | (g << 8) | b;
+                        }
+                        uint32_t blended = blend_pixel(mode, d32, src_row[col]);
+                        uint8_t br = (uint8_t)(blended >> 16);
+                        uint8_t bg = (uint8_t)(blended >> 8);
+                        uint8_t bb = (uint8_t)(blended);
+                        if (is_565) {
+                            dst_row[col] = (uint16_t)(((br >> 3) << 11) | ((bg >> 2) << 5) | (bb >> 3));
+                        } else {
+                            dst_row[col] = (uint16_t)(((br >> 3) << 10) | ((bg >> 3) << 5) | (bb >> 3));
+                        }
+                    }
+                }
+            }
+        }
+
+        pfnDDUnlock(dst_img);
+        return 1;
+    }
+
+    /* =========================================================================
+     * PATH B: 3D Hardware Accelerated Mode (is_3d)
+     * Flush D3D scene, acquire render target, lock DirectDraw surface.
+     * ========================================================================= */
+    void *dds = *(void **)((char *)dst_img + 0x48);
+    void *dev = *(void **)((char *)dst_img + 0x1C);
+    if (!dev && dd_iface && !IsBadReadPtr(dd_iface, 16)) {
+        void *helper = *(void **)((char *)dd_iface + 8);
+        if (helper && !IsBadReadPtr(helper, 32)) {
+            dev = *(void **)((char *)helper + 0x1C);
+        }
+    }
+    if (!dev) {
+        void **p_app = (void **)0x0057EF00;
+        if (p_app && !IsBadReadPtr(p_app, sizeof(void *)) && *p_app) {
+            char *app = (char *)*p_app;
+            if (!IsBadReadPtr(app + 0x31C, sizeof(void *))) {
+                char *app_dd = *(char **)(app + 0x31C);
+                if (app_dd && !IsBadReadPtr(app_dd + 8, sizeof(void *))) {
+                    char *helper = *(char **)(app_dd + 8);
+                    if (helper && !IsBadReadPtr(helper + 0x20, sizeof(void *))) {
+                        dev = *(void **)(helper + 0x1C);
+                    }
+                }
+            }
+        }
+    }
+    if (!dev && s_dev) {
+        dev = s_dev;
+    }
+
+    void *rt = NULL;
+    HRESULT hr_rt = -1;
+    if (dev && !IsBadReadPtr(dev, 40)) {
+        fGetRenderTarget pfnGetRenderTarget = ((fGetRenderTarget *)(*(void ***)dev))[9];
+        if (pfnGetRenderTarget && !IsBadCodePtr((FARPROC)pfnGetRenderTarget)) {
+            hr_rt = pfnGetRenderTarget(dev, &rt);
+        }
+    }
+    void *target_dds = (hr_rt == 0 && rt) ? rt : dds;
+
+    if (!target_dds) {
+        static int s_logged_no_target = 0;
+        if (s_logged_no_target < 2) {
+            s_logged_no_target++;
+            logf_always("blend_to_dd_surface: target_dds is NULL! hr_rt=0x%08X rt=%p dds=%p", (unsigned)hr_rt, rt, dds);
+        }
+        return 0;
+    }
+
     /* 1. Flush D3D scene: EndScene (vtable slot 6) */
     fEndScene pfnEndScene = dev ? ((fEndScene *)(*(void ***)dev))[6] : NULL;
     fBeginScene pfnBeginScene = dev ? ((fBeginScene *)(*(void ***)dev))[5] : NULL;
     if (pfnEndScene) pfnEndScene(dev);
 
-    /* 2. Lock entire surface (RECT = NULL) per Claude Opsi A */
-    ZPL_DDSURFACEDESC2 desc;
-    memset(&desc, 0, sizeof(desc));
-    desc.dwSize = sizeof(desc);
+    /* 2. Lock surface */
+    ZPL_DDSURFACEDESC2 desc3d;
+    memset(&desc3d, 0, sizeof(desc3d));
+    desc3d.dwSize = sizeof(desc3d);
 
     fSurfaceLock pfnLock = ((fSurfaceLock *)(*(void ***)target_dds))[25];
     fSurfaceUnlock pfnUnlock = ((fSurfaceUnlock *)(*(void ***)target_dds))[32];
 
-    HRESULT hr_lock = pfnLock(target_dds, NULL, &desc, 1 /* DDLOCK_WAIT */, NULL);
-    if (hr_lock != 0 || !desc.lpSurface) {
+    HRESULT hr_lock = pfnLock(target_dds, NULL, &desc3d, 1 /* DDLOCK_WAIT */, NULL);
+    if ((hr_lock != 0 || !desc3d.lpSurface) && sizeof(desc3d) != 0x6C) {
+        memset(&desc3d, 0, sizeof(desc3d));
+        desc3d.dwSize = 0x6C; /* fallback to v1 DDSURFACEDESC (108 bytes) */
+        hr_lock = pfnLock(target_dds, NULL, &desc3d, 1 /* DDLOCK_WAIT */, NULL);
+    }
+    if (hr_lock != 0 || !desc3d.lpSurface) {
         static int s_logged_lock_fail = 0;
-        if (s_logged_lock_fail < 5) {
+        if (s_logged_lock_fail < 2) {
             s_logged_lock_fail++;
             logf_always("blend_to_dd_surface: Lock FAILED hr=0x%08X rt=%p target_dds=%p dds=%p", (unsigned)hr_lock, rt, target_dds, dds);
         }
@@ -1261,12 +1351,11 @@ static int blend_to_dd_surface(void *dst_img, void *img, const uint32_t *src_bit
         return 0;
     }
 
-    int bpp = desc.ddpfPixelFormat.dwRGBBitCount;
-    uint8_t *surf_ptr = (uint8_t *)desc.lpSurface;
+    int bpp = desc3d.ddpfPixelFormat.dwRGBBitCount;
+    uint8_t *surf_ptr = (uint8_t *)desc3d.lpSurface;
 
-    /* Safety guard: enforce surface bounds from locked descriptor */
-    if (x1 + blit_w > (int)desc.dwWidth) blit_w = (int)desc.dwWidth - x1;
-    if (y1 + blit_h > (int)desc.dwHeight) blit_h = (int)desc.dwHeight - y1;
+    if (x1 + blit_w > (int)desc3d.dwWidth) blit_w = (int)desc3d.dwWidth - x1;
+    if (y1 + blit_h > (int)desc3d.dwHeight) blit_h = (int)desc3d.dwHeight - y1;
     if (blit_w <= 0 || blit_h <= 0) {
         pfnUnlock(target_dds, NULL);
         if (rt) ((fRelease)(*(void ***)rt)[2])(rt);
@@ -1274,42 +1363,25 @@ static int blend_to_dd_surface(void *dst_img, void *img, const uint32_t *src_bit
         return 1;
     }
 
-    /* Diagnostic log per Claude Perubahan 2 */
-    static int s_logged_diag = 0;
-    if (s_logged_diag < 10) {
-        s_logged_diag++;
-        int samp_r = blit_h / 2;
-        int samp_c = blit_w / 2;
-        uint32_t sample_b = 0;
-        uint32_t sample_s = src_bits[(src_start_y + samp_r) * img_w + (src_start_x + samp_c)];
-        if (bpp == 32) {
-            sample_b = *(uint32_t *)(surf_ptr + (y1 + samp_r) * desc.lPitch + (x1 + samp_c) * 4);
-        } else if (bpp == 16) {
-            sample_b = *(uint16_t *)(surf_ptr + (y1 + samp_r) * desc.lPitch + (x1 + samp_c) * 2);
-        }
-        uint32_t sample_z = blend_pixel(mode, sample_b, sample_s);
-        logf_always("BlendDiag: mode=%d hr_lock=0x%08X dim=%ux%u pitch=%d bpp=%d masks=(R:0x%X, G:0x%X, B:0x%X) rt_is_dds=%d sample(B:0x%08X, S:0x%08X -> Z:0x%08X)",
-                    mode, (unsigned)hr_lock, (unsigned)desc.dwWidth, (unsigned)desc.dwHeight,
-                    (int)desc.lPitch, bpp,
-                    (unsigned)desc.ddpfPixelFormat.dwRBitMask,
-                    (unsigned)desc.ddpfPixelFormat.dwGBitMask,
-                    (unsigned)desc.ddpfPixelFormat.dwBBitMask,
-                    (rt == dds), sample_b, sample_s, sample_z);
+    static int s_logged_3d_diag = 0;
+    if (s_logged_3d_diag < 2) {
+        s_logged_3d_diag++;
+        logf_always("blend_to_dd_surface [3D]: mode=%d dim=%ux%u pitch=%ld bpp=%d rt_is_dds=%d",
+                    mode, (unsigned)desc3d.dwWidth, (unsigned)desc3d.dwHeight, desc3d.lPitch, bpp, (rt == dds));
     }
 
-    /* 3. Blend pixels */
     if (bpp == 32) {
         for (int row = 0; row < blit_h; row++) {
-            uint32_t *dst_row = (uint32_t *)(surf_ptr + (y1 + row) * desc.lPitch) + x1;
+            uint32_t *dst_row = (uint32_t *)(surf_ptr + (y1 + row) * desc3d.lPitch) + x1;
             const uint32_t *src_row = src_bits + (src_start_y + row) * img_w + src_start_x;
             for (int col = 0; col < blit_w; col++) {
                 dst_row[col] = blend_pixel(mode, dst_row[col], src_row[col]);
             }
         }
     } else if (bpp == 16) {
-        int is_565 = (desc.ddpfPixelFormat.dwGBitMask == 0x07E0);
+        int is_565 = (desc3d.ddpfPixelFormat.dwGBitMask == 0x07E0);
         for (int row = 0; row < blit_h; row++) {
-            uint16_t *dst_row = (uint16_t *)(surf_ptr + (y1 + row) * desc.lPitch) + x1;
+            uint16_t *dst_row = (uint16_t *)(surf_ptr + (y1 + row) * desc3d.lPitch) + x1;
             const uint32_t *src_row = src_bits + (src_start_y + row) * img_w + src_start_x;
             for (int col = 0; col < blit_w; col++) {
                 uint16_t d16 = dst_row[col];
@@ -1338,15 +1410,12 @@ static int blend_to_dd_surface(void *dst_img, void *img, const uint32_t *src_bit
         }
     }
 
-    /* 4. Unlock surface */
     pfnUnlock(target_dds, NULL);
 
-    /* Release reference acquired via GetRenderTarget */
     if (rt) {
         ((fRelease)(*(void ***)rt)[2])(rt);
     }
 
-    /* 5. Resume scene */
     if (pfnBeginScene) pfnBeginScene(dev);
 
     return 1;
@@ -1454,42 +1523,29 @@ void ZPL_API ZPL_DrawNode(void *node, void *g, void *img, int x, int y)
         return;
     }
 
+    uintptr_t dst_vt = (!IsBadReadPtr(dst_img, sizeof(void *))) ? *(uintptr_t *)dst_img : 0;
+    int dst_is_dd = (dst_vt == VTBL_DDIMAGE);
+
     uint32_t *src_bits = img_get_bits(img);
-    uint32_t *dst_bits = img_get_bits(dst_img);
+    uint32_t *dst_bits = (!dst_is_dd) ? img_get_bits(dst_img) : NULL;
 
     static int s_logged_drawnode = 0;
-    if (blend_mode > 0 && s_logged_drawnode < 20) {
+    if (blend_mode > 0 && s_logged_drawnode < 2) {
         s_logged_drawnode++;
-        logf_always("ZPL_DrawNode: blend_mode=%d dst_bits=%p src_bits=%p dst_img=%p img=%p x=%d y=%d",
-                    blend_mode, dst_bits, src_bits, dst_img, img, x, y);
+        logf_always("ZPL_DrawNode: blend_mode=%d dst_is_dd=%d dst_bits=%p src_bits=%p dst_img=%p img=%p x=%d y=%d",
+                    blend_mode, dst_is_dd, dst_bits, src_bits, dst_img, img, x, y);
     }
 
-    /* Target is MemoryImage (e.g. Earthquake bake snapshot, or 2D software mode) */
-    if (dst_bits && src_bits) {
+    /* Target is MemoryImage (e.g. Earthquake bake snapshot) */
+    if (!dst_is_dd && dst_bits && src_bits) {
         blend_to_mem_image(dst_img, dst_bits, img, src_bits, g, x, y, blend_mode);
         return;
     }
 
-    /* Target is DDImage (3D Hardware Accelerated Mode) */
-    if (!dst_bits) {
-        /* DirectDraw Surface Lock path for all advanced blend modes (Modes != Normal && != Add) */
-        if (blend_mode != ZPL_BLEND_NORMAL && blend_mode != ZPL_BLEND_ADD) {
-            if (!src_bits) {
-                static int s_logged_nobits = 0;
-                if (s_logged_nobits < 5) {
-                    s_logged_nobits++;
-                    logf_always("ZPL_DrawNode: mode=%d but src_bits is NULL! Falling back.", blend_mode);
-                }
-            } else {
-                int res = blend_to_dd_surface(dst_img, img, src_bits, g, x, y, blend_mode);
-                static int s_logged_dd_res = 0;
-                if (s_logged_dd_res < 5) {
-                    s_logged_dd_res++;
-                    logf_always("ZPL_DrawNode: blend_to_dd_surface returned %d", res);
-                }
-                if (res) return;
-            }
-        }
+    /* Target is DDImage (both 2D software mode and 3D hardware accelerated mode) */
+    if (dst_is_dd && src_bits) {
+        int res = blend_to_dd_surface(dst_img, img, src_bits, g, x, y, blend_mode);
+        if (res) return;
     }
 
     /* Fallback to native DrawImage */
@@ -1525,7 +1581,7 @@ BOOL APIENTRY DllMain(HINSTANCE h, DWORD reason, LPVOID r)
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(h);
         init_sites_dynamic();
-        logf_("zumapriolayer.dll loaded (v0.6.0.5 High-Priority Layer & Earthquake Bake Engine active, xml_draw=0x%08X draw_img=0x%08X set_mode=0x%08X)",
+        logf_("zumapriolayer.dll loaded (v0.6.0.7 High-Priority Layer & Earthquake Bake Engine active, xml_draw=0x%08X draw_img=0x%08X set_mode=0x%08X)",
               g_sites.xml_draw, g_sites.draw_image, g_sites.set_draw_mode);
     }
     return TRUE;

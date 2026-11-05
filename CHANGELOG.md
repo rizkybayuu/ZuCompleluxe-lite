@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0.7] - 2026-11-06
+
+### Fixed & Improved
+- **Dual-Branch DirectDraw & Direct3D Surface Blending Engine (`src/zumapriolayer.c`)**:
+  - Implemented dual-branch rendering architecture in `blend_to_dd_surface` and `ZPL_DrawNode`:
+    - **2D Software Rendering Mode (`mIs3D == 0`)**: Uses PopCap's native `DDImage::LockSurface` (slot 34, `0x0044CCA0`) and `DDImage::UnlockSurface` (slot 35, `0x004419E0`). Blends custom level blend modes (e.g. `spiralc` mode 14 Hard Light, Negation, etc.) directly into the locked DirectDraw backbuffer surface descriptor (`desc.lpSurface`) respecting clipping boundaries.
+    - Eliminates the fatal backbuffer destruction caused by legacy CPU bits retrieval (`img_get_bits(dst_img)`) and subsequent `DDImage::BitsChanged` (`0x0044CD10`) / `DeleteDDSurface` (`0x00442400`), which previously destroyed `mSurface` and induced rapid DirectDraw reinitialization loops (`ZDISP_OnDDInit`) and screen glitching/flickering.
+    - **3D Hardware Accelerated Mode (`mIs3D != 0`)**: Maintains Direct3D7 render target surface locking with `EndScene` / `GetRenderTarget` / `BeginScene`.
+- **Diagnostic Log De-Spamming & Noise Reduction (`src/zumapriolayer.c`, `src/zumareshandler.dll.c`, `src/zumadisplay.dll.c`)**:
+  - `src/zumapriolayer.c`: Filtered `XML-Blend:` logging to only record levels configured with non-normal blend modes (`e->blend_mode != 0`). Reduced hardware hook diagnostic limits (`s_logged_hw_calls`, `s_logged_drawnode`, etc.) to at most 2 entries.
+  - `src/zumareshandler.dll.c`: Capped Gauntlet thumbnail runtime transform logging (`[GAUNT_RUNTIME] GauntThumb:`) to 2 entries. Capped Vectored Exception Handling crash guard reports (`[ZRES-GUARD]`) to at most 3 entries across the entire game lifecycle.
+  - `src/zumadisplay.dll.c`: Filtered window subclassing in `hk_CreateWindowExA` to main game windows only, deduplicating subclass logging to once per unique HWND. Capped `ZDISP_OnDDInit` and `HookPrimarySurface` logs to at most 5 and 3 entries respectively.
+- **Toolchain Standardization & Persistent C-Runtime Cache (`builder/bootstrap.bat`)**:
+  - Removed volatile local cache override (`ZIG_GLOBAL_CACHE_DIR=%CD%\.build\zigcache`), allowing Zig CC to use the persistent `%LOCALAPPDATA%\zig` cache across all builds. Eliminates cold-cache recompilation of 8,700+ C-runtime objects on every run, reducing rebuild time from 15+ minutes down to 2-3 seconds.
+  - Added Windows Console QuickEdit mode disabling via Python ctypes to prevent accidental click-to-pause hangs during compilation.
+  - Added automatic orphan `.lock` cleanup when `zig.exe` is idle and displayed an informative warm-up notice on clean/first-time builds.
+- **Pre-Flight Disk Space Monitor & Intelligent Compiler Diagnostics (`builder/toolchain_util.py`, `builder/bootstrap.bat`)**:
+  - Pre-flight verification of free storage space across cache (`%LOCALAPPDATA%`) and workspace target drives, alerting immediately if free disk is critically low (< 500 MB).
+  - Interactive toolchain C-Runtime warm-up probe with live progress timer, displaying elapsed seconds every 3s during cold-cache setup so the console never appears frozen.
+  - Real-time compile telemetry displaying exact sources, compiler toolchain, elapsed time, and output binary byte size (`[OK] <dll> built in X.Xs (XX,XXX bytes)`).
+  - Automated root-cause error diagnosis on compile failures (identifying disk-full, missing files, or permission restrictions).
+  - Verified deployment engine with process lock detection, providing an immediate diagnostic alert when target sidecar DLLs cannot be overwritten because `Zuma.exe` is running in the background.
+
 ## [0.6.0.6] - 2026-11-05
 
 ### Fixed & Improved
