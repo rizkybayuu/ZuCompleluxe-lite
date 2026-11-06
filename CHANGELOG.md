@@ -10,20 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.1.1] - 2026-11-06
 
 ### Fixed
-- **Dynamic Board & Outscreen 2D Centering Engine (`zumareshandler.dll`)**:
-  - Implemented dynamic `GetBoardCanvasSize` calculation, ensuring gameplay board scales to 16:9 widescreen span (`cw * 4 / 3`) and centers vertically in portrait resolutions (e.g. `900x1800`) or horizontally in ultrawide displays without overflowing buffers or leaving unbordered voids.
-  - Relocated backdrop clip box lower bounds clamping (`cw x ch`) outside backdrop image checks, ensuring universal modal clipping across all screen modes.
-  - Centered in-game Options/Pause dialogs, Dev Dialog 999 (`hk_dialog_virtual_resize`, `hk_setup_dialog_resize`), `StageComplete`, and `Congratulations` / Temple Cleared dialogs to active board canvas boundaries (`bw x bh`), resolving offscreen clipping in portrait resolutions.
-  - Synchronized `SetCells()` and `UpdateScreenOffsets()` parameters (`P->rlim`, `P->blim`, `P->bw`, `P->bh`, `P->dminx..dmaxy`) with `GetBoardCanvasSize()`, ensuring ball despawn culling and dialog dragging operate within valid canvas boundaries.
-- **Backdrop Aspect Ratio Preservation (`patch_customres_assets.py`)**:
-  - Fixed aspect ratio preservation to eliminate horizontal stretching on 4:3 menu and loading screen backdrops while preserving true widescreen spans when wider sources are available.
-  - Capped `generate_menubar` dimensions to active board canvas size, preventing HUD bar overflow in portrait or ultrawide aspect ratios.
+- **Modal Dialog Outscreen Clipping (`zumareshandler.dll`)**:
+  - Implemented `IsMoreGamesActive()` to reliably detect active `MoreGamesScreen` widget states and apply strict 4:3 (`cw x ch`) outscreen clipping borders.
+  - Relocated backdrop clip box bounds clamping (`vis_w/vis_h` bounded by `[cw, W]` and `[ch, H]`) outside backdrop image checks, ensuring robust letterbox/pillarbox outscreen rendering across custom aspect ratios.
+- **Scrolling Nebula Height & Backdrop Aspect Ratio Preservation (`patch_customres_assets.py`)**:
+  - Fixed `nebula1.jpg` procedural sizing to `max(h, round(orig_h * (w / orig_w)))`, ensuring scrolling starfields span full vertical height in portrait resolutions without visual cutoff or tearing.
+  - Preserved natural aspect ratio on backdrops (aspect ratio > 1.35) during image resizing, eliminating horizontal stretching on 4:3 menu backdrops while preserving widescreen spans.
 
 ## [0.6.1] - 2026-11-06
 
 ### Added
-- **Dynamic Image Format Resolution & Dynamic Ball Row Detection (`builder/patch_assets.py`)**:
-  - Integrated `resolve_image_file` and `detect_dynamic_ball_rows` into shared asset patcher infrastructure, ensuring image dimension parity across build pipelines.
+- **Official Handcrafted Extra Spheres Mode (High Quality GIFs) & Community Collaboration (`builder/patch_assets.py`, `build_full.bat`)**:
+  - Integrated official handcrafted 11-ball sprite sheets (`baBallBlack.gif`, `baBallCream.gif`, `baBallCyan.gif`, `baBallNavy.gif`, `baBallOrange.gif`) authored in collaboration with **Jacob / JCB** ([JCB Game Studios on YouTube](https://www.youtube.com/channel/UCBM_XH5JYb8zZi8RMLl6ysg), [JCBGameStudios on GitHub](https://github.com/JCBGameStudios)).
+  - Added build-time sphere mode selection to `build_full.bat`: `--spheres=official` (Official Handcrafted GIFs, default) and `--spheres=legacy` (Algorithmic Palette LUT transformation).
+  - Implemented dynamic sprite sheet row count detection (`detect_dynamic_ball_rows` in `builder/patch_assets.py`) that calculates frame counts from physical image dimensions and alphagrid masks, preventing sprite distortion.
   - Added dedicated collaboration & license acknowledgement in `LICENSE.md` and `README.md`.
   - Added Jacob "JCB" to the in-game developer rolling credits table (`zumacplxcredit.dll`).
 
@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Resolves fatal access violation crashes (`C0000005` at `Zuma.exe+0x42375` / `0x00442375`) occurring on Intel HD/UHD Integrated Graphics, laptops, and virtual machines where legacy DirectDraw 7 hardware texture limits (`MaxTextureWidth = 1024`) or driver aperture pitch mismatches caused buffer overflows during pixel blitting of widescreen assets (1200x675).
   - Surface memory is now allocated strictly through Windows host system memory (`VirtualAlloc`), completely eliminating GPU texture size constraints while preserving maximum rendering performance (60 FPS).
 - **Multi-Module Vectored Exception Handler (VEH) Safe Guard**:
-  - Added real-time crash interception and recovery guards across all sidecar modules (`zumareshandler.dll`, `zumacustommap.dll`, `zumacplxcredit.dll`).
+  - Added real-time crash interception and recovery guards across all sidecar modules (`zumareshandler.dll`, `zumacustommap.dll`, `zumaextrapath.dll`, `zumacplxcredit.dll`, `zumawebpbg.dll`, `zumawebpsprite.dll`).
   - Any out-of-bounds write attempt within `0x00441B70 -> 0x004423B7` in `Zuma.exe` is safely intercepted and cleanly redirected to `0x004423B8` (`DDImage::UnlockSurface()`), unlocking the surface, releasing critical sections, and returning success without aborting the game process.
 
 ## [0.6.0.4] - 2026-11-05
@@ -104,24 +104,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed & Improved
 - **Toolchain-Agnostic Zig CC Cross-Compilation Compatibility (builder/bootstrap.bat)**:
   - Isolated the GNU linker-specific argument -Wl,--enable-stdcall-fixup strictly to native 32-bit GCC (!GCC32!).
-  - Purged -Wl,--enable-stdcall-fixup from generic LIBS in build_lite.bat, resolving fatal error: unsupported linker arg: --enable-stdcall-fixup when compiling zumapriolayer.dll via Zig CC (python -m ziglang cc).
+  - Purged -Wl,--enable-stdcall-fixup from generic LIBS in build_full.bat and build_lite.bat, resolving fatal error: unsupported linker arg: --enable-stdcall-fixup when compiling zumapriolayer.dll via Zig CC (python -m ziglang cc).
   - Ensured seamless 100% zero-dependency out-of-the-box build execution on clean machines without external MinGW/GCC toolchains.
 
 ## [0.6.0.2] - 2026-11-04
 
 ### Fixed & Improved
-- **Adventure Map Secret Stage 13 ("The Void") Typography & Banner Synchronization**:
-  - Dynamically projected Stage 13 banner coordinates (`IMAGE_ADVSTAGE`, stage number `"13"`, temple title `"THE VOID"`, and subtitle `"THE PLACE OF NO ENDING"`) via newly exported `ZRH_AdvLabelsX` and `ZRH_AdvLabelsY` from `zumareshandler.dll`.
-  - Unified Stage 13 typography tags (`<Stage13Badge>`, `<Stage13Num>`, `<Stage13Title>`, `<Stage13Subtitle>`) in `properties/layout.xml` to inherit directly from canonical `<BottomBox>`, `<StageNum>`, `<StageText>`, and `<Subtitle>` coordinates.
-  - Eliminated unprojected coordinate drift that caused Stage 13 text to float over Temple 4's entrance during widescreen resolutions (e.g., 1200x675).
-  - Aligned stage number text color to authentic vanilla cream `0xFBF1B0` (`RGB(251, 241, 176)`).
-- **Target Game Resolution Menu Modernization**:
-  - Replaced legacy SVGA 800x600 option 2 in `build_lite.bat` with `2. Zuma Compleluxe Standard (1200x675)`.
-- **Compiler Warnings & Linker Cleanups**:
-  - Added `-Wl,--enable-stdcall-fixup` to MinGW `ld.exe` linker flags when linking `zumapriolayer.dll` to silence stdcall symbol decoration warnings.
-- **Resource Manifest & Dynamic Redirect**:
-  - Enhanced `RedirectResourceManifest()` in `src/zumareshandler.dll.c` to seamlessly divert vanilla XML loading from `resources.xml` to `resources_extra.xml` whenever present, maintaining strict zero-modification integrity on vanilla `properties/resources.xml`.
-  - Ensured `ensure_layout_xml()` unconditionally updates and synchronizes `properties/layout.xml` in target directories during every build.
+- **Pristine Vanilla `resources.xml` Preservation**:
+  - `properties/resources.xml` is treated as strictly read-only and is never modified or overwritten by `patch_assets.py`.
+  - All additions (11 ball colors, powerup variants, `ADVTEMPLE5`, `ADVDOOR5`, `DIALOG_BUTTON_LOCKED`, `HELP_FRONT_DEV`) are strictly isolated to `properties/resources_extra.xml` (Full Edition).
+  - In Lite Edition, clean vanilla manifest is retained and any stale `resources_extra.xml` is cleanly purged.
+- **Enforced Canonical UI Repatch (`properties/layout.xml`)**:
+  - `ensure_layout_xml()` now unconditionally force-updates `properties/layout.xml` in the target game directory from canonical `assets/properties/layout.xml` to permanently eliminate stale or corrupted layout definitions (such as legacy `space="1200x675"` offsets pushing Main Menu buttons out of view).
+- **Resolution Menu Standardized to Zuma Compleluxe (`build_full.bat` & `build_lite.bat`)**:
+  - Updated interactive resolution menu option 2 to **Zuma Compleluxe Standard (1200x675)**.
+  - Aligned custom resolution default fallback inputs to `1200x675`.
+- **Full Architectural Parity between Full & Lite Editions**:
+  - Aligned `build_lite.bat` structure directly with `build_full.bat`: added non-interactive explicit resolution enforcement (`-w 1200 -h 675`), normalized patching order (`patch_priolayer.py` before `patch_customres.py`), and added `-Wl,--enable-stdcall-fixup` to silence compiler linker warnings on `zumapriolayer.dll`.
+- **Adventure Map Secret Temple 5 & Door 12 Resolution Projection (`zumareshandler.dll` & `zumatestingkit.dll`)**:
+  - Exported `ZRH_AdvTemplesX/Y` and `ZRH_AdvDoorsX/Y` wrappers from `zumareshandler.dll` and resolved dynamically in `zumatestingkit.dll` to project Temple 5, Door 12 hitboxes, and background fog seamlessly on any aspect ratio and resolution.
+- **Dynamic Ball Source Attribute Cloning (`builder/patch_assets.py`)**:
+  - Eliminated hardcoded ball animation rows (47 vs 50); dynamically clones `rows` and `alphagrid` from source vanilla balls in `resources.xml`.
 
 ## [0.6.0.1] - 2026-11-03
 
@@ -210,14 +213,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
   - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
   - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
-- **Asset Synthesizer Palette Cleanliness (`builder/patch_assets.py`)**:
-  - Removed erroneous fallback `trans_val = int(bg_idx)` when synthesizing images without explicit GIF transparency, aligning asset generation cleanly with PopCap vanilla conventions.
+- **2D Software Rendering Powerup Crash & Buffer Overflow (`builder/patch_extracolor.py`)**:
+  - Fixed fatal crash (`C0000005` Access Violation in `Image::GetWidth()` @ `0x00447EA0`) when Bomb powerups spawn or detonate on extra ball colors (Orange, Navy, Cyan, Black, Cream) under software mode (`3D Hardware Acceleration = Off`).
+  - Relocated hardcoded 2D `RotationImage` template caches from `.data` into `.zdata`:
+    - Relocated powerup rotation cache (`0x00533D08`, originally 24 slots with stride 6) to `va_powerup_rot` (44 slots, stride 11) in `.zdata`.
+    - Relocated Bomb Light rotation cache (`0x00533D78`, originally 6 slots) to `va_bomblight_rot` (11 slots) in `.zdata`.
+    - Patched stride calculation in `FUN_00403670` (`0x0040368E`) from `lea eax, [eax+eax*2]; push edi; lea edi, [ecx+eax*2]` (stride 6) to `imul eax, eax, 11; push edi; lea edi, [ecx+eax]` (`6b c0 0b 57 8d 3c 01`, stride 11).
+    - Repointed all lookup sites in `FUN_00403670` (`0x00403698`, `0x004036E5`, `0x004036EF`) and `FUN_00403790` (`0x004037AE`, `0x00403807`, `0x00403812`) to the new 11-slot `.zdata` arrays.
+    - Eliminates memory corruption where extra-color Bomb and Backwards pointers previously overwrote neighboring globals `g_LastCurveBallCount` (`0x00533D94`), `g_CurveFlag` (`0x00533D98`), and `g_FrogTongueImg` (`0x00533D9C`).
+  - Added missing hook at `0x004037B6` in `FUN_00403790` (`push esi; push edi; call vas['light']; nop; nop; nop`), redirecting `<COLOR>_LIGHT` resource queries to `ZEC_GetLightImage` for extra colors 6..10.
+  - Adjusted 2D rotation cache cleanup loop strides in `FUN_00401090` (`0x004010E9`, `0x004010F2`) from `0x18` (6 slots) to `0x2C` (11 slots).
+- **Extra Colors Powerup Visual Glitch & Double-Masking Conflict (`builder/patch_assets.py`)**:
+  - Removed erroneous fallback `trans_val = int(bg_idx)` when generating 30 extra color GIF assets (`baBall*.gif`, `baAccuracy*.gif`, `baBackwards*.gif`, `baSlow*.gif`, `baBomb*.gif`, `baLight*.gif`).
+  - Preserved native PopCap `transparency = None` behavior for ball and powerup textures, eliminating double-masking conflicts against 8-bit grayscale alpha masks (`_ballalpha.gif`, `_baBomb.gif`, `_baLight.gif`) in `MemoryImage::BltMasked`.
+  - Fixes visual glitches where Navy Accuracy and Cream Backwards powerups previously rendered with misaligned gray boxes or disappeared on 2D software surfaces.
 
 ### Changed
 - **Diagnostic Gatekeeper Version Bump (`zumadllchecker.dll`)**:
-  - Synchronized pre-launch diagnostic window title, internal version macro, and telemetry to `v0.5.1.4 Lite`.
+  - Synchronized pre-launch diagnostic window title, internal version macro, and telemetry to `v0.5.1.4`.
 
 ## [0.5.1.3] - 2026-10-24
+
+### Added
+- **Bundled Self-Contained 32-Bit `libwebp` SDK (`builder/libwebp/`)**:
+  - Vendored a lightweight, standalone 32-bit `libwebp` development SDK (`include/webp/{decode.h, demux.h, mux_types.h, types.h}` and `lib/{libwebpdemux.a, libwebpdecoder.a}`, ~554 KB total) directly inside `builder/libwebp/`.
+  - Eliminated external MSYS2/MinGW32 `libwebp` host dependencies so `zumawebpbg.dll` and `zumawebpsprite.dll` compile 100% out-of-the-box on any clean Windows machine using the embedded portable Python + Zig CC (`ziglang cc -target x86-windows-gnu`) toolchain.
 
 - **Granular Extended Layout & Unmapped UI Engine (`docs/UNMAPPED_AND_EXTENDED_LAYOUT_ELEMENTS.md`)**:
   - Exposed full granular control over previously hardcoded UI elements in `properties/layout.xml`:
@@ -231,8 +251,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Repositioned `"CUSTOM MAP"` tag in Gauntlet Mode from X=150 (where it collided with the left pyramid wall) to X=190, Y=260 inside the door recess.
   - Fixed InfoBox text deformation in widescreen by maintaining canonical bounding width (150px) while scaling line spacing (14px * scale), preserving clean word wrapping.
   - Fixed High Scores title and table collision under non-4:3 aspect ratios via dynamic anchoring against header bounds.
+- **Zig CC `libwebp` Probe Short-Circuit (`builder/bootstrap.bat`)**:
+  - Removed a premature `if "!GCC32!"=="" exit /b 0` early-return guard in `:ProbeWebp` that previously forced `WEBP_OK=0` whenever native MinGW32 `gcc.exe` was absent, even when `ZIG_OK=1` was active.
+  - Updated `:ProbeWebp` to prioritize the bundled `builder\libwebp` directory and compile the verification test (`WebPGetDecoderVersion()`) using either `GCC32` or `Zig CC`.
+  - Updated `build_full.bat` to pass `!WEBP_CFLAGS!` and `!WEBP_LIBS!` across both `zumawebpbg.dll` and `zumawebpsprite.dll` compilation targets.
 - **Pure `[RX]` (`0x60000020`) Enforcement on `.zres` Section (`builder/patch_customres.py`, `src/zumareshandler.dll.c`, `builder/verify_pe.py`)**:
-  - Eliminated the `0xE0000060` (`[RWX]`) section characteristic on `.zres` that triggered `[WARN] Section .zres is both WRITABLE and EXECUTABLE (W+X)` during `verify_pe.py --lite`.
+  - Eliminated the `0xE0000060` (`[RWX]`) section characteristic on `.zres` that triggered `[WARN] Section .zres is both WRITABLE and EXECUTABLE (W+X)` during `verify_pe.py`.
   - Relocated the 72-byte mutable `ZTable` synchronization block (`SLOT` at `+0x18`, `TRIED` at `+0x1C`, and dynamic boundary floats/ints) from `.zres` into `.zdata + 0x1800` (`0xC0000040 [RW]`), while retaining read-only metadata (`magic = 0x53455A52`, `ztable_va` at `+0x04`, and `w, h` at `+0x48`) inside `.zres`.
   - Updated `.zres` section characteristics to pure `0x60000020` (`IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ` — `[RX]`).
   - Updated `LoadTable()` in `src/zumareshandler.dll.c` to resolve `ZTable` from `.zdata + 0x1800` first (with backward-compatible fallback to `.zres`).
