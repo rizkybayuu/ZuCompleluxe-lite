@@ -21,8 +21,8 @@
 #define TARGET_H 600
 #endif
 
-#define MIN_TARGET_W 480
-#define MIN_TARGET_H 320
+#define MIN_TARGET_W 320
+#define MIN_TARGET_H 240
 
 #define LW 640
 #define LH 480
@@ -186,8 +186,40 @@ static void UpdateScreenOffsets(void *wm)
     int W = g_W > 0 ? g_W : TARGET_W;
     int H = g_H > 0 ? g_H : TARGET_H;
 
-    if ((board != NULL && help == NULL) || credits != NULL) {
-        /* In-game stage level: fulfill entire screen, top-left aligned at (0, 0) */
+    if (board != NULL && help == NULL) {
+        /* In-game stage level: determine active board dimensions */
+        int bw = W, bh = H;
+        void *level = !IsBadReadPtr(board, 0x100) ? *(void **)((char *)board + 0xF8) : NULL;
+        void *bg = (level && !IsBadReadPtr(level, 0x60)) ? *(void **)((char *)level + 0x4C) : NULL;
+        if (bg && !IsBadReadPtr(bg, 0x10)) {
+            int bg_w = *(int *)((char *)bg + 0x04);
+            int bg_h = *(int *)((char *)bg + 0x08);
+            if (bg_w > 0 && bg_h > 0) {
+                bw = bg_w;
+                bh = bg_h;
+            }
+        }
+
+        /* Center board if screen is wider or taller than board canvas (e.g. Portrait, Ultrawide) */
+        int bxo = (W > bw) ? (W - bw) / 2 : 0;
+        int byo = (H > bh) ? (H - bh) / 2 : 0;
+
+        ZRES_Api.off[0] = bxo;
+        ZRES_Api.off[1] = byo;
+        if (P) {
+            P->rlim  = W - bxo;
+            P->blim  = H - byo;
+            P->negx  = bxo ? -(float)bxo : 0.0f;
+            P->negy  = byo ? -(float)byo : 0.0f;
+            P->dminx = -bxo - 8;
+            P->dmaxx = W - bxo + 8;
+            P->dminy = -byo - 8;
+            P->dmaxy = H - byo + 8;
+            P->bw    = W;
+            P->bh    = H;
+        }
+    } else if (credits != NULL) {
+        /* Credits screen: top-left aligned full span */
         ZRES_Api.off[0] = 0;
         ZRES_Api.off[1] = 0;
         if (P) {
@@ -430,6 +462,22 @@ static int IsWidgetVisibleInWM(void *wm, void *target_w) {
     return 0;
 }
 
+static int IsMoreGamesActive(void *app, void *wm) {
+    if (!app) return 0;
+    void *mg = *(void **)((char *)app + 0x5F8);
+    if (!mg || IsBadReadPtr(mg, 0x60)) return 0;
+    /* In PopCap Widget: offset 0x19 is mVisible, offset 0x20 is mParent */
+    if (*(unsigned char *)((char *)mg + 0x19) == 0) return 0;
+    if (*(void **)((char *)mg + 0x20) == NULL) return 0;
+
+    /* Also verify that MainMenuOverlay (app + 0x5E0) or MainMenu (app + 0x5E8) is active */
+    void *overlay = *(void **)((char *)app + 0x5E0);
+    if (overlay && IsWidgetVisibleInWM(wm, overlay)) return 1;
+    void *mm = *(void **)((char *)app + 0x5E8);
+    if (mm && IsWidgetVisibleInWM(wm, mm)) return 1;
+    return 1;
+}
+
 static void GetActiveBackdropClipBox(int W, int H, int cw, int ch, int *out_clip_xo, int *out_clip_yo, int *out_vis_w, int *out_vis_h) {
     int vis_w = cw;
     int vis_h = ch;
@@ -441,16 +489,29 @@ static void GetActiveBackdropClipBox(int W, int H, int cw, int ch, int *out_clip
     void *app = (app_ptr && *app_ptr) ? *app_ptr : NULL;
     if (app) {
         void *wm      = *(void **)((char *)app + 0x2DC);
+        void *board   = *(void **)((char *)app + 0x5E4);
         void *mm      = *(void **)((char *)app + 0x5E8);
         void *adv     = *(void **)((char *)app + 0x5EC);
         void *gaunt   = *(void **)((char *)app + 0x5F0);
         void *help    = *(void **)((char *)app + 0x5F4);
-        void *mg      = *(void **)((char *)app + 0x5F8);
         void *loading = *(void **)((char *)app + 0x5FC);
 
         /* 1. Modal dialogs: HelpScreen (Instruction) or MoreGamesScreen -> strictly 4:3 cw x ch */
-        if (IsWidgetVisibleInWM(wm, help) || IsWidgetVisibleInWM(wm, mg)) {
+        if (IsWidgetVisibleInWM(wm, help) || IsMoreGamesActive(app, wm)) {
             screen_name = "HelpOrMoreGames";
+        } else if (board && !help && IsWidgetVisibleInWM(wm, board)) {
+            screen_name = "Board";
+            void *level = !IsBadReadPtr(board, 0x100) ? *(void **)((char *)board + 0xF8) : NULL;
+            void *bg = (level && !IsBadReadPtr(level, 0x60)) ? *(void **)((char *)level + 0x4C) : NULL;
+            if (bg && !IsBadReadPtr(bg, 0x10)) {
+                int bg_w = *(int *)((char *)bg + 0x04);
+                int bg_h = *(int *)((char *)bg + 0x08);
+                if (bg_w > 0) vis_w = (bg_w > W) ? W : bg_w;
+                if (bg_h > 0) vis_h = (bg_h > H) ? H : bg_h;
+            } else {
+                vis_w = (W < 1200) ? cw : 1200;
+                vis_h = (H < 675) ? ch : 675;
+            }
         } else if (IsWidgetVisibleInWM(wm, gaunt)) {
             if (g_pImgGauntScreen && *g_pImgGauntScreen) bg_img = *g_pImgGauntScreen;
             screen_name = "Gauntlet";
@@ -492,6 +553,10 @@ static void GetActiveBackdropClipBox(int W, int H, int cw, int ch, int *out_clip
             if (raw_h > 0 && !is_adv) {
                 vis_h = (raw_h > H) ? H : raw_h;
             }
+            if (vis_w < cw) vis_w = cw;
+            if (vis_w > W)  vis_w = W;
+            if (vis_h < ch) vis_h = ch;
+            if (vis_h > H)  vis_h = H;
             if (is_adv && IMG_ADVTEMPLE1 && !IsBadReadPtr(IMG_ADVTEMPLE1, 0x10)) {
                 int t1_w = *(int *)((char *)IMG_ADVTEMPLE1 + 4);
                 if (t1_w > 0 && t1_w < vis_w) {
@@ -930,8 +995,10 @@ static inline int ProjectScreenY(int xml_y, int ref_w, int ref_h, int run_w, int
 }
 
 static inline int SDIM_VAL(int v) {
-    float sw = (float)TARGET_W / 640.0f;
-    float sh = (float)TARGET_H / 480.0f;
+    int W = g_W > 0 ? g_W : TARGET_W;
+    int H = g_H > 0 ? g_H : TARGET_H;
+    float sw = (float)W / 640.0f;
+    float sh = (float)H / 480.0f;
     float scale = sw < sh ? sw : sh;
     return (int)((float)v * scale + 0.5f);
 }
@@ -2177,8 +2244,15 @@ static void THISCALL hk_LevelBgGraphics(void *g, void *img) {
 }
 
 static void THISCALL hk_DrawCongratsTitle(void *board, void *g, int y, void *str) {
-    int W = TARGET_W;
-    int delta_x = (W - 640) / 2;
+    int W = g_W > 0 ? g_W : TARGET_W;
+    int bw = W;
+    void *level = (board && !IsBadReadPtr(board, 0x100)) ? *(void **)((char *)board + 0xF8) : NULL;
+    void *bg = (level && !IsBadReadPtr(level, 0x60)) ? *(void **)((char *)level + 0x4C) : NULL;
+    if (bg && !IsBadReadPtr(bg, 0x10)) {
+        int bg_w = *(int *)((char *)bg + 0x04);
+        if (bg_w > 0) bw = bg_w;
+    }
+    int delta_x = (bw - 640) / 2;
     if (g) *(int *)((char *)g + 0x08) -= delta_x;
     void **vt = *(void ***)board;
     typedef void (THISCALL *fDrawCentered)(void *b, void *gfx, int yy, void *s);
@@ -2190,10 +2264,24 @@ static void THISCALL hk_DrawCongratsTitle(void *board, void *g, int y, void *str
 static void (THISCALL *g_orig_DrawCongratulations)(void *this, void *g) = NULL;
 
 static void THISCALL hk_DrawCongratulations(void *this, void *g) {
-    int W = TARGET_W;
-    int H = TARGET_H;
-    int delta_x = (W - 640) / 2;
-    int delta_y = (H - 480) / 2;
+    int W = g_W > 0 ? g_W : TARGET_W;
+    int H = g_H > 0 ? g_H : TARGET_H;
+    int bw = W, bh = H;
+    void **app_ptr = GetAppPtr();
+    void *app = (app_ptr && *app_ptr) ? *app_ptr : NULL;
+    void *board = app ? *(void **)((char *)app + 0x5E4) : NULL;
+    if (board) {
+        void *level = !IsBadReadPtr(board, 0x100) ? *(void **)((char *)board + 0xF8) : NULL;
+        void *bg = (level && !IsBadReadPtr(level, 0x60)) ? *(void **)((char *)level + 0x4C) : NULL;
+        if (bg && !IsBadReadPtr(bg, 0x10)) {
+            int bg_w = *(int *)((char *)bg + 0x04);
+            int bg_h = *(int *)((char *)bg + 0x08);
+            if (bg_w > 0) bw = bg_w;
+            if (bg_h > 0) bh = bg_h;
+        }
+    }
+    int delta_x = (bw - 640) / 2;
+    int delta_y = (bh - 480) / 2;
 
     if (g) {
         *(int *)((char *)g + 0x08) += delta_x;

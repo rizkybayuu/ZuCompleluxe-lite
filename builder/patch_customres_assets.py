@@ -12,8 +12,8 @@ def generate_resized_images(w, h, game_dir, out_dir=None):
     with open(xml_path, 'r', encoding='utf-8', errors='ignore') as f:
         text = f.read()
 
-    w = max(w, 480)
-    h = max(h, 320)
+    w = max(w, 320)
+    h = max(h, 240)
     scale = min(w / 640.0, h / 480.0)
     print(f"[*] Generating assets for {w}x{h} (Scale = {scale:.4f}) into {target_img_dir}")
 
@@ -129,6 +129,23 @@ def generate_resized_images(w, h, game_dir, out_dir=None):
             if 'nebula1' in rel_name.lower():
                 new_w = w
                 new_h = max(1, round(orig_h * (float(w) / float(orig_w))))
+
+            # Backdrops (loadingscreen, mmscreen, gauntscreen): preserve widescreen range if available
+            is_backdrop = any(k in rel_name.lower() for k in ['mmscreen', 'loadingscreen', 'gauntscreen'])
+            if is_backdrop and c == 1 and r == 1:
+                source_im = im
+                if os.path.exists(out_path):
+                    try:
+                        ex_im = Image.open(out_path)
+                        if ex_im.size[0] / float(ex_im.size[1]) > im.size[0] / float(im.size[1]) + 0.05:
+                            source_im = ex_im
+                    except Exception:
+                        pass
+                src_ar = source_im.size[0] / float(source_im.size[1])
+                if src_ar > 1.34:
+                    new_w = min(w, max(new_w, round(new_h * src_ar)))
+                elif w / float(h) > 1.34:
+                    new_w = min(w, max(new_w, round(new_h * (16.0 / 9.0))))
 
             # Resample
             is_mask = os.path.basename(rel_name).startswith('_')

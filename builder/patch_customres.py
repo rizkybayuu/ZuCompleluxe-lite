@@ -118,8 +118,8 @@ def compute_pe_checksum(data, pe_offset):
     return (checksum + length) & 0xFFFFFFFF
 
 def patch_customres(input_exe, output_exe, width=800, height=600, sigs_path=None, moddir="modules"):
-    MIN_W = 480
-    MIN_H = 320
+    MIN_W = 320
+    MIN_H = 240
     if width < MIN_W or height < MIN_H:
         print(f"[!] WARNING: Target resolution {width}x{height} is below minimum allowed ({MIN_W}x{MIN_H}).")
         print(f"[!] Strictly clamping resolution to {max(width, MIN_W)}x{max(height, MIN_H)}.")

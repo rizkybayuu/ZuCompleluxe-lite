@@ -271,9 +271,9 @@ if "!NON_INTERACTIVE!"=="0" if not defined CLI_CUSTOM_W if not defined CLI_CUSTO
         set "CUSTOM_W=1200"
         set "CUSTOM_H=675"
     ) else if "!RES_CHOICE!"=="3" (
-        set /p "CUSTOM_W=Enter width  [min 480, default=1200]: "
+        set /p "CUSTOM_W=Enter width  [min 320, default=1200]: "
         if "!CUSTOM_W!"=="" set "CUSTOM_W=1200"
-        set /p "CUSTOM_H=Enter height [min 320, default=675]: "
+        set /p "CUSTOM_H=Enter height [min 240, default=675]: "
         if "!CUSTOM_H!"=="" set "CUSTOM_H=675"
     ) else (
         set "CUSTOM_W=640"
@@ -281,14 +281,14 @@ if "!NON_INTERACTIVE!"=="0" if not defined CLI_CUSTOM_W if not defined CLI_CUSTO
     )
 )
 
-REM Enforce strict minimum resolution limit: 480x320
-if !CUSTOM_W! LSS 480 (
-    echo [WARNING] Requested width !CUSTOM_W! is below minimum allowed ^(480x320^). Clamping to 480.
-    set "CUSTOM_W=480"
+REM Enforce strict minimum resolution limit: 320x240
+if !CUSTOM_W! LSS 320 (
+    echo [WARNING] Requested width !CUSTOM_W! is below minimum allowed ^(320x240^). Clamping to 320.
+    set "CUSTOM_W=320"
 )
-if !CUSTOM_H! LSS 320 (
-    echo [WARNING] Requested height !CUSTOM_H! is below minimum allowed ^(480x320^). Clamping to 320.
-    set "CUSTOM_H=320"
+if !CUSTOM_H! LSS 240 (
+    echo [WARNING] Requested height !CUSTOM_H! is below minimum allowed ^(320x240^). Clamping to 240.
+    set "CUSTOM_H=240"
 )
 
 set "CUSTOM_RES=0"
