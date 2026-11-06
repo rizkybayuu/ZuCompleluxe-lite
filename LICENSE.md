@@ -77,7 +77,7 @@ SOFTWARE.
 ## 6. Official Collaboration & Extra Spheres Asset Licensing
 
 - **Collaborator**: **JCB** (also known as **Jacob** / **JCB Game Studios**).
-  - **YouTube Channel**: [JCB Game Studios (YouTube)](https://www.youtube.com/@JCBGameStudios)
+  - **YouTube Channel**: [JCB Game Studios (YouTube)](https://www.youtube.com/channel/UCBM_XH5JYb8zZi8RMLl6ysg)
   - **GitHub**: [JCBGameStudios (GitHub)](https://github.com/JCBGameStudios)
     > *Note on GitHub availability*: The developer's GitHub profile may return an HTTP 404 status for public or unauthenticated visitors due to platform-level regional/sanctions restrictions affecting developers in the Russian Federation. However, Jacob actively collaborates on project repositories and accepts private repository collaboration invitations.
 - **Contributions**: Handcrafted official extra sphere assets (11-ball color set: Black, Cream, Cyan, Navy, Orange sprite sheets) created specifically for *Zuma Compleluxe*.

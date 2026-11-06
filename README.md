@@ -32,7 +32,7 @@ Modifications are isolated cleanly from vanilla game files:
 Unlike the optional feature sidecars, `modules\zumadllchecker.dll` is a **strictly binding dependency**:
 - **Hard Gatekeeper Enforcement in `.zldr` (`0x0058C000`)**: Before loading any optional feature modules or executing game code, `.zldr` enforces `modules\zumadllchecker.dll`. If `zumadllchecker.dll` is missing or fails to load, `Zuma.exe` displays a modal error dialog and immediately terminates via `ExitProcess(1)`.
 - **Dynamic PE Version Metadata Extraction**: Reads `ProductName`, `CompanyName`, `FileVersion`, `SpecialBuild`, and `FileName` dynamically from `Zuma.exe`'s Win32 PE Version Resource (`VS_FIXEDFILEINFO` and `\VarFileInfo\Translation`) with zero hardcoded game strings.
-- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.6.0.1 Lite`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), aspect ratio, resolution, and real-time presence checks for all 7 sidecars in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
+- **Classic Adaptive Diagnostic Dialog**: Displays game metadata, patch version (`ZuCompleluxe v0.6.1 Lite`), developer link (**Rizky Bayuu** -> `https://github.com/rizkybayuu`), license (`MIT License`), aspect ratio, resolution, and real-time presence checks for all 7 sidecars in `modules\`, adapting automatically to Windows Light/Dark mode (`AppsUseLightTheme` + DWM Immersive Dark Mode).
 
 ### 3. 100% Independent & Optional Feature Sidecars (Zero-Dependency Graceful Degradation)
 Every feature sidecar DLL in ZuCompleluxe Lite is completely optional and independent:
@@ -68,7 +68,7 @@ ZuCompleluxe replaces static address patching with **Dynamic AOB (Array of Bytes
   - Completely eliminates cursor movement lag and top-right ghost cursor artifacts in fullscreen.
 - **Pre-Launch Module & Dependency Checker (`zumadllchecker.dll`)**:
   - Mandatory gatekeeper dialog executed prior to engine initialization.
-  - Dynamically queries PE version resources alongside `ZuCompleluxe v0.6.0.1 Lite` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
+  - Dynamically queries PE version resources alongside `ZuCompleluxe v0.6.1 Lite` metadata, `MIT License` notice, and an interactive hyperlink to [Rizky Bayuu](https://github.com/rizkybayuu).
   - Verifies presence and health of all sidecars in `modules\` with interactive checkbox toggles.
 - **1-Click Direct Installation Folder Patcher (`build_lite.bat`)**:
   - Opens a modern Windows Explorer folder selection dialog (`builder/select_folder.ps1`) or accepts CLI arguments (`build_lite.bat /yes -d "<path>" -w 800 -h 600`).
@@ -228,7 +228,7 @@ The builder pipeline automatically handles the entire installation process:
 1. Open your *Zuma Deluxe* game folder.
 2. Launch **`Zuma.exe`**.
 3. The **ZuCompleluxe Pre-Launch Gatekeeper** (`zumadllchecker.dll`) dialog will appear:
-   - It displays detected game metadata, patch version (`ZuCompleluxe v0.6.0.1 Lite`), and the real-time presence of all modules in `modules\`.
+   - It displays detected game metadata, patch version (`ZuCompleluxe v0.6.1 Lite`), and the real-time presence of all modules in `modules\`.
    - Click **Run** to start the game!
 
 ---
@@ -301,6 +301,14 @@ To enable the built-in **`DevTester`** profile (unlocking all 12 Adventure stage
 
 ---
 
-## License
+## License & Legal Disclaimer
 
-This project is licensed under the [MIT License](LICENSE.md).
+- **Trademarks & Copyrights**: *Zuma* and *Zuma Deluxe* are registered trademarks and copyrights of **PopCap Games, Inc.** (a subsidiary of **Electronic Arts Inc.**). The retail edition analyzed in this project originates from the **GameHouse, Inc.** distribution channel.
+- **Non-Commercial Research**: This repository is an independent reverse engineering and software preservation project conducted strictly for educational and interoperability purposes under statutory exemptions (e.g., 17 U.S.C. § 1201(f)). It is not affiliated with or endorsed by PopCap Games, Electronic Arts, or GameHouse.
+- **No Assets Distributed**: This repository does not distribute any proprietary game assets (such as `.pak` archives, audio tracks, or retail executables). Users must legally own an authentic retail copy of *Zuma Deluxe* (v1.0.0.1) to apply the patches.
+- **Source License**: All original code, scripts in `builder/`, and sidecar libraries in this repository are authored by [Rizky Bayuu](https://github.com/rizkybayuu) and licensed under the [MIT License](LICENSE.md).
+- **Official Collaboration & Extra Spheres Credits**:
+  - **Collaborator**: Special thanks to **JCB** (also known as **Jacob** / [JCB Game Studios](https://www.youtube.com/channel/UCBM_XH5JYb8zZi8RMLl6ysg) on YouTube, [JCBGameStudios](https://github.com/JCBGameStudios) on GitHub) for collaborating with the project and creating the official handcrafted 5 extra sphere assets (Black, Cream, Cyan, Navy, Orange) specifically designed for *Zuma Compleluxe*.
+  - *Note on GitHub availability*: The developer's GitHub profile may return HTTP 404 for public visitors due to regional/sanctions restrictions affecting developers in the Russian Federation, but Jacob actively collaborates on project repositories and accepts private repository collaboration invitations.
+  - *Asset Licensing*: By mutual agreement between Jacob and Rizky Bayuu, the extra sphere assets follow the project's non-commercial MIT License / open collaboration policy.
+
