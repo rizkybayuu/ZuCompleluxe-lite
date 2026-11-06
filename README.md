@@ -304,7 +304,7 @@ To enable the built-in **`DevTester`** profile (unlocking all 12 Adventure stage
 ## License & Legal Disclaimer
 
 - **Trademarks & Copyrights**: *Zuma* and *Zuma Deluxe* are registered trademarks and copyrights of **PopCap Games, Inc.** (a subsidiary of **Electronic Arts Inc.**). The retail edition analyzed in this project originates from the **GameHouse, Inc.** distribution channel.
-- **Non-Commercial Research**: This repository is an independent reverse engineering and software preservation project conducted strictly for educational and interoperability purposes under statutory exemptions (e.g., 17 U.S.C. § 1201(f)). It is not affiliated with or endorsed by PopCap Games, Electronic Arts, or GameHouse.
+- **Non-Commercial Research**: This repository is an independent reverse engineering and software preservation project conducted strictly for educational and interoperability purposes under statutory exemptions (e.g., 17 U.S.C. Section 1201(f)). It is not affiliated with or endorsed by PopCap Games, Electronic Arts, or GameHouse.
 - **No Assets Distributed**: This repository does not distribute any proprietary game assets (such as `.pak` archives, audio tracks, or retail executables). Users must legally own an authentic retail copy of *Zuma Deluxe* (v1.0.0.1) to apply the patches.
 - **Source License**: All original code, scripts in `builder/`, and sidecar libraries in this repository are authored by [Rizky Bayuu](https://github.com/rizkybayuu) and licensed under the [MIT License](LICENSE.md).
 - **Official Collaboration & Extra Spheres Credits**:

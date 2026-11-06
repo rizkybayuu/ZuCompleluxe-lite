@@ -16,7 +16,7 @@ This repository and its contents are created strictly for **non-commercial, educ
 
 1. **Software Interoperability**: Extending legacy 32-bit Win32 game engine capabilities to interoperate with modern graphic formats (WebP demuxing) and expanded level definition paradigms (multi-curve pathing).
 2. **Software Preservation & Compatibility**: Documenting the internal memory layouts, function call conventions, and binary structure of early-2000s legacy game engines on modern operating systems (Windows 10 and Windows 11).
-3. **Clean-Room Engineering & Reverse Engineering Protections**: Conducted under statutory provisions recognizing reverse engineering for interoperability, including Title 17 U.S.C. § 1201(f) (Reverse Engineering exemption under the Digital Millennium Copyright Act) and Directive 2009/24/EC of the European Parliament on the legal protection of computer programs.
+3. **Clean-Room Engineering & Reverse Engineering Protections**: Conducted under statutory provisions recognizing reverse engineering for interoperability, including Title 17 U.S.C. Section 1201(f) (Reverse Engineering exemption under the Digital Millennium Copyright Act) and Directive 2009/24/EC of the European Parliament on the legal protection of computer programs.
 
 ---
 
