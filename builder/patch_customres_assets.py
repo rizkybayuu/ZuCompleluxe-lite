@@ -130,22 +130,10 @@ def generate_resized_images(w, h, game_dir, out_dir=None):
                 new_w = w
                 new_h = max(1, round(orig_h * (float(w) / float(orig_w))))
 
-            # Backdrops (loadingscreen, mmscreen, gauntscreen): preserve widescreen range if available
-            is_backdrop = any(k in rel_name.lower() for k in ['mmscreen', 'loadingscreen', 'gauntscreen'])
-            if is_backdrop and c == 1 and r == 1:
-                source_im = im
-                if os.path.exists(out_path):
-                    try:
-                        ex_im = Image.open(out_path)
-                        if ex_im.size[0] / float(ex_im.size[1]) > im.size[0] / float(im.size[1]) + 0.05:
-                            source_im = ex_im
-                    except Exception:
-                        pass
-                src_ar = source_im.size[0] / float(source_im.size[1])
-                if src_ar > 1.34:
-                    new_w = min(w, max(new_w, round(new_h * src_ar)))
-                elif w / float(h) > 1.34:
-                    new_w = min(w, max(new_w, round(new_h * (16.0 / 9.0))))
+            # If the source image is already widescreen (aspect ratio > 1.35), preserve its natural aspect ratio
+            src_ar = orig_w / float(orig_h)
+            if src_ar > 1.35 and c == 1 and r == 1:
+                new_w = min(w, max(1, round(new_h * src_ar)))
 
             # Resample
             is_mask = os.path.basename(rel_name).startswith('_')
@@ -207,11 +195,13 @@ def generate_resized_images(w, h, game_dir, out_dir=None):
             ensure_master_assets(assets_media)
             v_rgb = np.array(Image.open(v_mb_jpg).convert('RGB'))
             v_mask = np.array(Image.open(v_mb_gif).convert('L'))
-            out_rgb, out_mask = generate_menubar(v_rgb, v_mask, w, h, assets_media)
+            board_w = min(w, (round(640 * scale) * 4 + 1) // 3)
+            board_h = min(h, round(480 * scale))
+            out_rgb, out_mask = generate_menubar(v_rgb, v_mask, board_w, board_h, assets_media)
             save_custom_menubar(out_rgb, out_mask,
                                 os.path.join(target_img_dir, 'menubar.jpg'),
                                 os.path.join(target_img_dir, '_menubar.gif'))
-            print(f"[+] Procedurally reconstructed seamless menubar ({w}x{h}) into {target_img_dir}")
+            print(f"[+] Procedurally reconstructed seamless menubar ({board_w}x{board_h}) into {target_img_dir}")
         else:
             print(f"[!] Warning: Menubar reference files not found in {img_dir}")
     except Exception as e:

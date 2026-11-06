@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.1.1] - 2026-11-06
+
+### Fixed
+- **Dynamic Board & Outscreen 2D Centering Engine (`zumareshandler.dll`)**:
+  - Implemented dynamic `GetBoardCanvasSize` calculation, ensuring gameplay board scales to 16:9 widescreen span (`cw * 4 / 3`) and centers vertically in portrait resolutions (e.g. `900x1800`) or horizontally in ultrawide displays without overflowing buffers or leaving unbordered voids.
+  - Relocated backdrop clip box lower bounds clamping (`cw x ch`) outside backdrop image checks, ensuring universal modal clipping across all screen modes.
+  - Centered in-game Options/Pause dialogs, Dev Dialog 999 (`hk_dialog_virtual_resize`, `hk_setup_dialog_resize`), `StageComplete`, and `Congratulations` / Temple Cleared dialogs to active board canvas boundaries (`bw x bh`), resolving offscreen clipping in portrait resolutions.
+  - Synchronized `SetCells()` and `UpdateScreenOffsets()` parameters (`P->rlim`, `P->blim`, `P->bw`, `P->bh`, `P->dminx..dmaxy`) with `GetBoardCanvasSize()`, ensuring ball despawn culling and dialog dragging operate within valid canvas boundaries.
+- **Backdrop Aspect Ratio Preservation (`patch_customres_assets.py`)**:
+  - Fixed aspect ratio preservation to eliminate horizontal stretching on 4:3 menu and loading screen backdrops while preserving true widescreen spans when wider sources are available.
+  - Capped `generate_menubar` dimensions to active board canvas size, preventing HUD bar overflow in portrait or ultrawide aspect ratios.
+
 ## [0.6.1] - 2026-11-06
 
 ### Added
