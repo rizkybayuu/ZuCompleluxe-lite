@@ -23,9 +23,58 @@ def _fmt_ball(id_, path, alphagrid, rows, alias=None):
         s += f' alias="{alias}"'
     return s + ' />'
 
-# (warna ekstra, warna vanilla sumber) - SATU sumber kebenaran
+# (extra color, source vanilla color) - single source of truth
 EXTRA_COLOR_SOURCES = [('ORANGE','BLUE'), ('NAVY','YELLOW'), ('CYAN','RED'),
                        ('BLACK','GREEN'), ('CREAM','WHITE')]
+
+POPCAP_IMG_EXTS = ('.jpg', '.png', '.gif')
+
+def resolve_image_file(img_dir, base_name):
+    """Finds the actual image file in img_dir following PopCap's extension priority (.jpg -> .png -> .gif)."""
+    if not os.path.isdir(img_dir) or not base_name:
+        return None
+    root, ext = os.path.splitext(base_name)
+    if ext:
+        p = os.path.join(img_dir, base_name)
+        return p if os.path.isfile(p) else None
+    for cand_ext in POPCAP_IMG_EXTS:
+        for name_variant in (root, root.lower()):
+            p = os.path.join(img_dir, name_variant + cand_ext)
+            if os.path.isfile(p):
+                return p
+    target_lower = {root.lower() + e for e in POPCAP_IMG_EXTS}
+    try:
+        for f in os.listdir(img_dir):
+            if f.lower() in target_lower:
+                return os.path.join(img_dir, f)
+    except Exception:
+        pass
+    return None
+
+def detect_dynamic_ball_rows(img_dir, ball_path_attr, alphagrid_attr, fallback_rows):
+    """Dynamically computes sprite sheet row count from actual image and alphagrid dimensions."""
+    img_file = resolve_image_file(img_dir, ball_path_attr)
+    if not img_file:
+        return str(fallback_rows)
+    try:
+        with Image.open(img_file) as im:
+            img_w, img_h = im.size
+        frame_h = img_w
+        if alphagrid_attr:
+            alpha_file = resolve_image_file(img_dir, alphagrid_attr)
+            if alpha_file:
+                with Image.open(alpha_file) as im_a:
+                    _, alpha_h = im_a.size
+                    if alpha_h > 0:
+                        frame_h = alpha_h
+        if frame_h > 0 and img_h >= frame_h:
+            if img_h % frame_h != 0:
+                print(f"  [WARN] {os.path.basename(img_file)} height ({img_h}) is not a multiple of frame height ({frame_h})!")
+            return str(img_h // frame_h)
+    except Exception as e:
+        print(f"  [WARN] Failed to inspect dimensions of {img_file}: {e}")
+    return str(fallback_rows)
+
 
 
 def load_tables():
@@ -82,7 +131,7 @@ def transform_fallback_affine(rgb_arr, dst_color):
         ro, go, bo = r, g, b
     return np.stack([ro, go, bo], axis=-1).astype(np.uint8)
 
-def patch_images(zuma_dir, tables, is_lite=False):
+def patch_images(zuma_dir, tables, is_lite=False, sphere_mode='official'):
     img_dir = os.path.join(zuma_dir, 'images')
     if not os.path.isdir(img_dir):
         print(f"[WARN] Images directory not found: {img_dir}")
@@ -129,6 +178,14 @@ def patch_images(zuma_dir, tables, is_lite=False):
             for s_idx, tbl_key, dst_col in dot_map_keys:
                 s_slice = arr_c[:, s_idx*w_dot : (s_idx+1)*w_dot, :3]
                 lut = tables.get(tbl_key, {})
+                lut_keys = []
+                lut_vals = []
+                for k_str, v_val in lut.items():
+                    parts = [int(x) for x in k_str.split(',')]
+                    lut_keys.append(parts)
+                    lut_vals.append(v_val)
+                lut_keys_arr = np.array(lut_keys) if lut_keys else None
+
                 out_dot = np.zeros_like(s_slice)
                 for y in range(h):
                     for x in range(w_dot):
@@ -136,6 +193,13 @@ def patch_images(zuma_dir, tables, is_lite=False):
                         sk = f"{st[0]},{st[1]},{st[2]}"
                         if sk in lut:
                             out_dot[y, x] = lut[sk]
+                        elif lut_keys_arr is not None and len(lut_keys_arr) > 0:
+                            dists = np.sum((lut_keys_arr - st.astype(int))**2, axis=1)
+                            best_idx = np.argmin(dists)
+                            if dists[best_idx] <= 2500:
+                                out_dot[y, x] = lut_vals[best_idx]
+                            else:
+                                out_dot[y, x] = transform_fallback_affine(st[None, :], dst_col)[0]
                         else:
                             out_dot[y, x] = transform_fallback_affine(st[None, :], dst_col)[0]
                 new_dots.append(out_dot)
@@ -143,18 +207,49 @@ def patch_images(zuma_dir, tables, is_lite=False):
             dotz_new_rgb = np.hstack([arr_c[:, :6*w_dot, :3]] + new_dots)
             dotz_new_rgba = np.dstack([dotz_new_rgb, np.full((h, w_dot * 11), 255, dtype=np.uint8)])
             out_im = Image.fromarray(dotz_new_rgba, mode='RGBA')
-            out_gif = out_im.convert('P', palette=Image.ADAPTIVE, colors=256)
+            out_gif = out_im.convert('P', palette=Image.ADAPTIVE, colors=256, dither=Image.Dither.NONE)
             out_gif.save(dotz_extra_path, format='GIF')
-            print(f"  [OK] Generated baDotz_extra.gif ({w_dot*11}x{h}, 11 dots)")
+            print(f"  [OK] Generated baDotz_extra.gif ({w_dot*11}x{h}, 11 dots, clean no-dither)")
 
     # 2. In Full Edition, generate 30 extra color files (Orange, Navy, Cyan, Black, Cream)
     if not is_lite:
         pairs = [(src.capitalize(), col.capitalize()) for col, src in EXTRA_COLOR_SOURCES]
         types = ['Accuracy', 'Backwards', 'Ball', 'Bomb', 'Light', 'Slow']
+        src_media = os.path.join(SCRIPT_DIR, '..', 'assets', 'media')
 
         print(f"[ASSET] Patching extra color images into: {img_dir}")
         for src_col, dst_col in pairs:
             for t in types:
+                target_base = f'ba{t}{dst_col}'
+
+                # Sphere asset selection: official handcrafted GIF vs legacy algorithmic GIF
+                if t == 'Ball':
+                    # Clean up any leftover JPG/PNG balls so PopCap loads the GIF
+                    for cand_ext in ('.jpg', '.png'):
+                        custom_ball = os.path.join(img_dir, target_base + cand_ext)
+                        if os.path.isfile(custom_ball):
+                            try:
+                                os.remove(custom_ball)
+                                print(f"  [CLEANUP] Removed {os.path.basename(custom_ball)}")
+                            except Exception:
+                                pass
+
+                    if sphere_mode == 'official':
+                        custom_src = None
+                        if os.path.isdir(src_media):
+                            for cand_ext in POPCAP_IMG_EXTS:
+                                cand_path = os.path.join(src_media, target_base + cand_ext)
+                                if os.path.isfile(cand_path):
+                                    custom_src = cand_path
+                                    break
+                        if custom_src:
+                            dst_file = os.path.join(img_dir, os.path.basename(custom_src))
+                            shutil.copyfile(custom_src, dst_file)
+                            with Image.open(custom_src) as im_c:
+                                w, h = im_c.size
+                            print(f"  [OK] {os.path.basename(custom_src)} ({w}x{h}, official handcrafted asset deployed)")
+                            continue
+
                 src_name = f'ba{t}{src_col}.gif'
                 dst_name = f'ba{t}{dst_col}.gif'
                 src_path = os.path.join(img_dir, src_name)
@@ -165,30 +260,67 @@ def patch_images(zuma_dir, tables, is_lite=False):
                     
                 im_s = Image.open(src_path)
                 w, h = im_s.size
-                bg_idx = np.array(im_s)[0, 0]
                 
                 table_key = f'ba{t}_{src_col}_to_{dst_col}'
                 lut = tables.get(table_key, {})
-                
                 pal_s = np.array(im_s.getpalette()).reshape(-1, 3)
                 new_pal = pal_s.copy()
-                
-                for idx in range(len(pal_s)):
-                    sk = f"{pal_s[idx, 0]},{pal_s[idx, 1]},{pal_s[idx, 2]}"
-                    if sk in lut:
-                        new_pal[idx] = lut[sk]
+
+                if t == 'Ball':
+                    # Strictly 100% identical to initial method from git commit
+                    for idx in range(len(pal_s)):
+                        sk = f"{pal_s[idx, 0]},{pal_s[idx, 1]},{pal_s[idx, 2]}"
+                        if sk in lut:
+                            new_pal[idx] = lut[sk]
+                        else:
+                            single_rgb = pal_s[idx:idx+1, :]
+                            new_pal[idx] = transform_fallback_affine(single_rgb, dst_col)[0]
+                            
+                    im_gen = im_s.copy()
+                    im_gen.putpalette(new_pal.flatten().tolist())
+                    trans_val = im_s.info.get('transparency')
+                    if trans_val is not None:
+                        im_gen.save(dst_path, format='GIF', transparency=trans_val)
                     else:
-                        single_rgb = pal_s[idx:idx+1, :]
-                        new_pal[idx] = transform_fallback_affine(single_rgb, dst_col)[0]
-                        
-                im_gen = im_s.copy()
-                im_gen.putpalette(new_pal.flatten().tolist())
-                trans_val = im_s.info.get('transparency')
-                if trans_val is not None:
-                    im_gen.save(dst_path, format='GIF', transparency=trans_val)
+                        im_gen.save(dst_path, format='GIF')
+                    print(f"  [OK] {dst_name} ({w}x{h}, legacy algorithmic generation)")
                 else:
-                    im_gen.save(dst_path, format='GIF')
-                print(f"  [OK] {dst_name} ({w}x{h})")
+                    # Powerup sprites: protect transparent colorkey background (bg_idx)
+                    # so borders remain clean without dithering/noise artifacts
+                    bg_idx = np.array(im_s)[0, 0]
+                    lut_keys = []
+                    lut_vals = []
+                    for k_str, v_val in lut.items():
+                        parts = [int(x) for x in k_str.split(',')]
+                        lut_keys.append(parts)
+                        lut_vals.append(v_val)
+                    lut_keys_arr = np.array(lut_keys) if lut_keys else None
+
+                    for idx in range(len(pal_s)):
+                        if idx == bg_idx:
+                            continue  # Keep transparent colorkey background intact
+                        c = pal_s[idx]
+                        sk = f"{c[0]},{c[1]},{c[2]}"
+                        if sk in lut:
+                            new_pal[idx] = lut[sk]
+                        elif lut_keys_arr is not None and len(lut_keys_arr) > 0:
+                            dists = np.sum((lut_keys_arr - c.astype(int))**2, axis=1)
+                            best_idx = np.argmin(dists)
+                            if dists[best_idx] <= 2500:
+                                new_pal[idx] = lut_vals[best_idx]
+                            else:
+                                new_pal[idx] = transform_fallback_affine(c[None, :], dst_col)[0]
+                        else:
+                            new_pal[idx] = transform_fallback_affine(c[None, :], dst_col)[0]
+                            
+                    im_gen = im_s.copy()
+                    im_gen.putpalette(new_pal.flatten().tolist())
+                    trans_val = im_s.info.get('transparency')
+                    if trans_val is not None:
+                        im_gen.save(dst_path, format='GIF', transparency=trans_val)
+                    else:
+                        im_gen.save(dst_path, format='GIF', transparency=int(bg_idx))
+                    print(f"  [OK] {dst_name} ({w}x{h})")
 
 
 def patch_resources_file(zuma_dir, is_lite=False):
@@ -215,15 +347,19 @@ def patch_resources_file(zuma_dir, is_lite=False):
     # Sanity check: verify image height % rows == 0
     img_dir = os.path.join(zuma_dir, 'images')
     if os.path.isdir(img_dir):
-        check_items = [('White', int(white['rows']))] + [(col.capitalize(), int(src_attrs[src]['rows'])) for col, src in EXTRA_COLOR_SOURCES]
-        for col_name, r_val in check_items:
-            gif_file = os.path.join(img_dir, f'baBall{col_name}.gif')
-            if os.path.isfile(gif_file):
+        check_items = [('White', 'baBallWhite', white['alphagrid'], int(white['rows']))] + [
+            (col.capitalize(), f'baBall{col.capitalize()}', src_attrs[src]['alphagrid'],
+             int(detect_dynamic_ball_rows(img_dir, f'baBall{col.capitalize()}', src_attrs[src]['alphagrid'], src_attrs[src]['rows'])))
+            for col, src in EXTRA_COLOR_SOURCES
+        ]
+        for col_name, ball_base, alpha_attr, r_val in check_items:
+            img_file = resolve_image_file(img_dir, ball_base)
+            if img_file and os.path.isfile(img_file):
                 try:
-                    with Image.open(gif_file) as im_chk:
+                    with Image.open(img_file) as im_chk:
                         _, chk_h = im_chk.size
                         if r_val > 0 and chk_h % r_val != 0:
-                            print(f"[WARN] Sanity check: {gif_file} height {chk_h} is not divisible by rows {r_val}")
+                            print(f"[WARN] Sanity check: {img_file} height {chk_h} is not divisible by rows {r_val}")
                 except Exception:
                     pass
 
@@ -284,9 +420,11 @@ def patch_resources_file(zuma_dir, is_lite=False):
     if not is_lite:
         extra_ball_lines = [_fmt_ball('WHITE_BALL', white['path'], white['alphagrid'], white['rows'])]
         for col, src in EXTRA_COLOR_SOURCES:
+            ball_path = f'baBall{col.capitalize()}'
+            dyn_rows = detect_dynamic_ball_rows(img_dir, ball_path, src_attrs[src]['alphagrid'], src_attrs[src]['rows'])
             extra_ball_lines.append(
-                _fmt_ball(f'{col}_BALL', f'baBall{col.capitalize()}',
-                          src_attrs[src]['alphagrid'], src_attrs[src]['rows'],
+                _fmt_ball(f'{col}_BALL', ball_path,
+                          src_attrs[src]['alphagrid'], dyn_rows,
                           'BALL_END' if col == 'CREAM' else None)
             )
         extra_balls = '\n'.join(extra_ball_lines)
@@ -863,12 +1001,21 @@ if __name__ == '__main__':
         sys.exit(1)
         
     is_lite = '--lite' in flags or os.path.basename(os.path.abspath('.')).lower().endswith('-lite')
+    
+    # Sphere set mode: official (default) vs legacy (algorithmic color transformation)
+    sphere_mode = 'official'
+    for f in flags:
+        if f.startswith('--spheres='):
+            sphere_mode = f.split('=', 1)[1].strip().lower()
+        elif f == '--legacy-spheres':
+            sphere_mode = 'legacy'
+
     tbls = load_tables()
     
     clean_modules_bak(z_dir)
+    patch_images(z_dir, tbls, is_lite=is_lite, sphere_mode=sphere_mode)
     patch_resources_file(z_dir, is_lite=is_lite)
     ensure_layout_xml(z_dir)
-    patch_images(z_dir, tbls, is_lite=is_lite)
     patch_dialog_button(z_dir, tbls)
     patch_temple5_media(z_dir)
     patch_dev_media(z_dir)

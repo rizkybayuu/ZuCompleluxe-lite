@@ -315,37 +315,76 @@ static void EnsureGraphicsFns(void) {
 static void DrawOutscreenBorders(void *g, int W, int H, int xo, int yo, int cw, int ch) {
     void *img = InitOutscreenImage();
     EnsureGraphicsFns();
-    if (!img || !g_pfnDrawImage) return;
+    if (!g || !img || !g_pfnDrawImage) return;
 
+    /* Save original clip rect */
+    int orig_clip[4];
+    memcpy(orig_clip, (char *)g + 0x10, 16);
+
+    /* Left border (0..xo) */
     if (xo > 0) {
+        *(int *)((char *)g + 0x10) = 0;
+        *(int *)((char *)g + 0x14) = 0;
+        *(int *)((char *)g + 0x18) = xo;
+        *(int *)((char *)g + 0x1C) = H;
         for (int x = 0; x < xo; x += 160) {
             for (int y = 0; y < H; y += 160) {
                 g_pfnDrawImage(g, img, x, y);
             }
         }
     }
+
+    /* Right border (xo+cw .. W) */
     if (W > xo + cw) {
+        int rw = W - (xo + cw);
+        *(int *)((char *)g + 0x10) = xo + cw;
+        *(int *)((char *)g + 0x14) = 0;
+        *(int *)((char *)g + 0x18) = rw;
+        *(int *)((char *)g + 0x1C) = H;
         for (int x = xo + cw; x < W; x += 160) {
             for (int y = 0; y < H; y += 160) {
                 g_pfnDrawImage(g, img, x, y);
             }
         }
     }
+
+    /* Top border (xo .. xo+cw, 0 .. yo) */
     if (yo > 0) {
+        *(int *)((char *)g + 0x10) = xo;
+        *(int *)((char *)g + 0x14) = 0;
+        *(int *)((char *)g + 0x18) = cw;
+        *(int *)((char *)g + 0x1C) = yo;
         for (int y = 0; y < yo; y += 160) {
             for (int x = xo; x < xo + cw; x += 160) {
                 g_pfnDrawImage(g, img, x, y);
             }
         }
     }
+
+    /* Bottom border (xo .. xo+cw, yo+ch .. H) */
     if (H > yo + ch) {
+        int bh = H - (yo + ch);
+        *(int *)((char *)g + 0x10) = xo;
+        *(int *)((char *)g + 0x14) = yo + ch;
+        *(int *)((char *)g + 0x18) = cw;
+        *(int *)((char *)g + 0x1C) = bh;
         for (int y = yo + ch; y < H; y += 160) {
             for (int x = xo; x < xo + cw; x += 160) {
                 g_pfnDrawImage(g, img, x, y);
             }
         }
     }
+
+    /* Restore original clip rect */
+    memcpy((char *)g + 0x10, orig_clip, 16);
 }
+
+static void **g_pImgLoadingScreen = NULL; /* DAT_00547f1c (IMAGE_LOADING_SCREEN) */
+static void **g_pImgMMBack        = NULL; /* DAT_00547e20 (IMAGE_MM_BACK) */
+static void **g_pImgGauntScreen   = NULL; /* DAT_00547ee8 (IMAGE_GAUNTSCREEN) */
+static void **g_pImgAdvBack       = NULL; /* DAT_00547f4c (IMAGE_ADVBACK) */
+static void **g_pImgAdvTemple1    = NULL; /* DAT_00547f20 (IMAGE_ADVTEMPLE1) */
+#define IMG_ADVTEMPLE1  (g_pImgAdvTemple1 ? *g_pImgAdvTemple1 : NULL)
 
 /* H1b: DDInterface::Init (3 call sites) */
 static int FC hk_ddinit(void *dd, void *edx, HWND h, int win)
@@ -377,6 +416,118 @@ static int FC hk_ddinit(void *dd, void *edx, HWND h, int win)
     return r;
 }
 
+static int IsWidgetVisibleInWM(void *wm, void *target_w) {
+    if (!wm || !target_w) return 0;
+    unsigned *sent = *(unsigned **)((char *)wm + 0x34);
+    if (!sent) return 0;
+    int guard = 0;
+    for (unsigned *nd = (unsigned *)sent[0]; nd && nd != sent && guard < 64; nd = (unsigned *)nd[0], guard++) {
+        char *w = *(char **)(nd + 2);
+        if (w == (char *)target_w) {
+            return (w[0x19] != 0); /* mVisible */
+        }
+    }
+    return 0;
+}
+
+static void GetActiveBackdropClipBox(int W, int H, int cw, int ch, int *out_clip_xo, int *out_clip_yo, int *out_vis_w, int *out_vis_h) {
+    int vis_w = cw;
+    int vis_h = ch;
+    void *bg_img = NULL;
+    int is_adv = 0;
+    const char *screen_name = "Default";
+
+    void **app_ptr = GetAppPtr();
+    void *app = (app_ptr && *app_ptr) ? *app_ptr : NULL;
+    if (app) {
+        void *wm      = *(void **)((char *)app + 0x2DC);
+        void *mm      = *(void **)((char *)app + 0x5E8);
+        void *adv     = *(void **)((char *)app + 0x5EC);
+        void *gaunt   = *(void **)((char *)app + 0x5F0);
+        void *help    = *(void **)((char *)app + 0x5F4);
+        void *mg      = *(void **)((char *)app + 0x5F8);
+        void *loading = *(void **)((char *)app + 0x5FC);
+
+        /* 1. Modal dialogs: HelpScreen (Instruction) or MoreGamesScreen -> strictly 4:3 cw x ch */
+        if (IsWidgetVisibleInWM(wm, help) || IsWidgetVisibleInWM(wm, mg)) {
+            screen_name = "HelpOrMoreGames";
+        } else if (IsWidgetVisibleInWM(wm, gaunt)) {
+            if (g_pImgGauntScreen && *g_pImgGauntScreen) bg_img = *g_pImgGauntScreen;
+            screen_name = "Gauntlet";
+        } else if (IsWidgetVisibleInWM(wm, adv)) {
+            if (g_pImgAdvBack && *g_pImgAdvBack) bg_img = *g_pImgAdvBack;
+            is_adv = 1;
+            screen_name = "Adventure";
+        } else if (IsWidgetVisibleInWM(wm, mm)) {
+            if (g_pImgMMBack && *g_pImgMMBack) bg_img = *g_pImgMMBack;
+            screen_name = "MainMenu";
+        } else if (IsWidgetVisibleInWM(wm, loading) || (loading && !mm && !adv && !gaunt)) {
+            if (g_pImgLoadingScreen && *g_pImgLoadingScreen) bg_img = *g_pImgLoadingScreen;
+            screen_name = "LoadingScreen";
+        } else {
+            /* Fallback heuristic during transitions before widgets are linked */
+            if (loading && g_pImgLoadingScreen && *g_pImgLoadingScreen) {
+                bg_img = *g_pImgLoadingScreen;
+                screen_name = "LoadingScreen";
+            } else if (mm && g_pImgMMBack && *g_pImgMMBack) {
+                bg_img = *g_pImgMMBack;
+                screen_name = "MainMenu";
+            } else if (gaunt && g_pImgGauntScreen && *g_pImgGauntScreen) {
+                bg_img = *g_pImgGauntScreen;
+                screen_name = "Gauntlet";
+            } else if (adv && g_pImgAdvBack && *g_pImgAdvBack) {
+                bg_img = *g_pImgAdvBack;
+                is_adv = 1;
+                screen_name = "Adventure";
+            }
+        }
+
+        int raw_w = 0, raw_h = 0;
+        if (bg_img && !IsBadReadPtr(bg_img, 0x10)) {
+            raw_w = *(int *)((char *)bg_img + 4);
+            raw_h = *(int *)((char *)bg_img + 8);
+            if (raw_w > 0) {
+                vis_w = (raw_w > W) ? W : raw_w;
+            }
+            if (raw_h > 0 && !is_adv) {
+                vis_h = (raw_h > H) ? H : raw_h;
+            }
+            if (is_adv && IMG_ADVTEMPLE1 && !IsBadReadPtr(IMG_ADVTEMPLE1, 0x10)) {
+                int t1_w = *(int *)((char *)IMG_ADVTEMPLE1 + 4);
+                if (t1_w > 0 && t1_w < vis_w) {
+                    vis_w = t1_w;
+                }
+            }
+        }
+
+        int cxo = (W - vis_w) / 2;
+        int cyo = (H - vis_h) / 2;
+        if (cxo < 0) cxo = 0;
+        if (cyo < 0) cyo = 0;
+
+        static const char *s_last_screen = NULL;
+        static void *s_last_bg = NULL;
+        static int s_last_vis_w = 0;
+        if (bg_img != s_last_bg || vis_w != s_last_vis_w || screen_name != s_last_screen) {
+            s_last_bg = bg_img;
+            s_last_vis_w = vis_w;
+            s_last_screen = screen_name;
+            LogF("[ZRES_BACKDROP] Screen=%s bg_img=%p (%dx%d) -> vis=%dx%d clip_xo=%d clip_yo=%d outscreen_L=%d outscreen_R=%d",
+                 screen_name, bg_img, raw_w, raw_h, vis_w, vis_h, cxo, cyo, cxo, W - (cxo + vis_w));
+        }
+
+        if (out_clip_xo) *out_clip_xo = cxo;
+        if (out_clip_yo) *out_clip_yo = cyo;
+        if (out_vis_w)   *out_vis_w   = vis_w;
+        if (out_vis_h)   *out_vis_h   = vis_h;
+    } else {
+        if (out_clip_xo) *out_clip_xo = (W - cw) / 2;
+        if (out_clip_yo) *out_clip_yo = (H - ch) / 2;
+        if (out_vis_w)   *out_vis_w   = cw;
+        if (out_vis_h)   *out_vis_h   = ch;
+    }
+}
+
 /* H5: ctor Graphics root in DrawScreen */
 static void *FC hk_rootgfx(void *g, void *edx, void *img)
 {
@@ -403,22 +554,41 @@ static void *FC hk_rootgfx(void *g, void *edx, void *img)
         }
     }
 
-    if (g) {
-        *(int *)((char *)g + 0x20) = 0;
-        *(int *)((char *)g + 0x24) = 0;
-        *(int *)((char *)g + 0x28) = 0;
-        *(int *)((char *)g + 0x2C) = 255;
-        FillBlack((unsigned char *)g, 0, 0, W, H);
-    }
-
     if (xo > 0 || yo > 0) {
-        DrawOutscreenBorders(g, W, H, xo, yo, cw, ch);
+        int clip_xo = xo, clip_yo = yo, vis_w = cw, vis_h = ch;
+        GetActiveBackdropClipBox(W, H, cw, ch, &clip_xo, &clip_yo, &vis_w, &vis_h);
+        if (clip_xo + vis_w > W) vis_w = W - clip_xo;
+        if (clip_yo + vis_h > H) vis_h = H - clip_yo;
+
+        /* Fill ONLY letterbox margins outside visible backdrop canvas (never wipe active game canvas!) */
+        if (g) {
+            *(int *)((char *)g + 0x20) = 0;
+            *(int *)((char *)g + 0x24) = 0;
+            *(int *)((char *)g + 0x28) = 0;
+            *(int *)((char *)g + 0x2C) = 255;
+            if (clip_xo > 0) {
+                FillBlack((unsigned char *)g, 0, 0, clip_xo, H);
+            }
+            if (W > clip_xo + vis_w) {
+                FillBlack((unsigned char *)g, clip_xo + vis_w, 0, W - (clip_xo + vis_w), H);
+            }
+            if (clip_yo > 0) {
+                FillBlack((unsigned char *)g, clip_xo, 0, vis_w, clip_yo);
+            }
+            if (H > clip_yo + vis_h) {
+                FillBlack((unsigned char *)g, clip_xo, clip_yo + vis_h, vis_w, H - (clip_yo + vis_h));
+            }
+        }
+
+        if (clip_xo > 0 || clip_yo > 0) {
+            DrawOutscreenBorders(g, W, H, clip_xo, clip_yo, vis_w, vis_h);
+        }
         *(int *)((char *)g + 0x08) += xo;
         *(int *)((char *)g + 0x0C) += yo;
-        *(int *)((char *)g + 0x10) = xo;
-        *(int *)((char *)g + 0x14) = yo;
-        *(int *)((char *)g + 0x18) = cw;
-        *(int *)((char *)g + 0x1C) = ch;
+        *(int *)((char *)g + 0x10) = clip_xo;
+        *(int *)((char *)g + 0x14) = clip_yo;
+        *(int *)((char *)g + 0x18) = vis_w;
+        *(int *)((char *)g + 0x1C) = vis_h;
     } else if (g) {
         /* Fullscreen board span without offset: ensure clip rect spans full W x H */
         *(int *)((char *)g + 0x08) = 0;
@@ -440,7 +610,22 @@ static int Unclip(void *wm, Saved *sv, int max)
     if (!sent) return 0;
     for (nd = (unsigned *)sent[0]; nd && nd != sent && guard < 64; nd = (unsigned *)nd[0], guard++) {
         char *w = *(char **)(nd + 2);
-        if (w && w[0x1C] && n < max) { sv[n].w = w; sv[n].off = 0x1C; sv[n].old = w[0x1C]; w[0x1C] = 0; n++; }
+        if (!w) continue;
+        /* 1. Pastikan semua widget yang visible (w[0x19]) ditandai dirty (w[0x18] = 1)
+              agar tidak ada layar (seperti LoadingScreen saat kursor tidak hover di Click to Play)
+              yang dilewati oleh DrawScreen! */
+        if (w[0x19]) {
+            w[0x18] = 1;
+        }
+        /* 2. Matikan sementara mClip (w[0x1B]) agar WidgetManager tidak memotong paksa
+              root widget ke 900x675 (cw x ch) saat backdrop > 900px */
+        if (w[0x1B] && n < max) {
+            sv[n].w = w; sv[n].off = 0x1B; sv[n].old = w[0x1B]; w[0x1B] = 0; n++;
+        }
+        /* 3. Matikan sementara mHasTransparencies (w[0x1C]) agar menggambar langsung ke root_gfx */
+        if (w[0x1C] && n < max) {
+            sv[n].w = w; sv[n].off = 0x1C; sv[n].old = w[0x1C]; w[0x1C] = 0; n++;
+        }
     }
     return n;
 }
@@ -482,11 +667,11 @@ static unsigned char FC hk_drawscreen(void *wm, void *edx)
         }
     }
 
-    Saved sv[16];
+    Saved sv[64];
     int n = 0, i;
     unsigned char r;
     (void)edx;
-    n = Unclip(wm, sv, 16);
+    n = Unclip(wm, sv, 64);
     r = ((fDrawScreen)P->drawscreen)(wm, 0);
     for (i = 0; i < n; i++) sv[i].w[sv[i].off] = sv[i].old;
 
@@ -891,7 +1076,7 @@ static fColorCtor        g_pfnColorCtor = NULL;
 static fTranslate        g_pfnTranslate = NULL;
 static fWidgetResize     g_pfnWidgetResize = NULL;
 
-static void **g_pImgAdvTemple1  = NULL;
+/* g_pImgAdvTemple1 defined above */
 static void **g_pImgAdvTemple2  = NULL;
 static void **g_pImgAdvTemple2V = NULL;
 static void **g_pImgAdvTemple3  = NULL;
@@ -907,7 +1092,7 @@ static void **g_pImgAdvMiddle   = NULL;
 #define TranslateG(g, dx, dy)                do { if (g_pfnTranslate) g_pfnTranslate((g), (dx), (dy)); } while(0)
 #define WidgetResize(w, x, y, width, height) do { if (g_pfnWidgetResize) g_pfnWidgetResize((w), (x), (y), (width), (height)); } while(0)
 
-#define IMG_ADVTEMPLE1  (g_pImgAdvTemple1  ? *g_pImgAdvTemple1  : NULL)
+/* IMG_ADVTEMPLE1 defined above */
 #define IMG_ADVTEMPLE2  (g_pImgAdvTemple2  ? *g_pImgAdvTemple2  : NULL)
 #define IMG_ADVTEMPLE2V (g_pImgAdvTemple2V ? *g_pImgAdvTemple2V : NULL)
 #define IMG_ADVTEMPLE3  (g_pImgAdvTemple3  ? *g_pImgAdvTemple3  : NULL)
@@ -974,16 +1159,61 @@ static void PopulateGauntletDoors(void *this) {
     }
 }
 
+static void DrawCenteredScreenBackdrop(void *g, void *img, int base_x, int base_y, int center_y) {
+    if (!g || !img) return;
+    EnsureGraphicsFns();
+    if (!g_pfnDrawImage) return;
+
+    int W = g_W > 0 ? g_W : TARGET_W;
+    int H = g_H > 0 ? g_H : TARGET_H;
+    int xo = 0, yo = 0, cw = W, ch = H;
+    Offsets(W, H, &xo, &yo, &cw, &ch);
+
+    int img_w = *(int *)((char *)img + 4);
+    int img_h = *(int *)((char *)img + 8);
+    int dx = base_x;
+    int dy = base_y;
+    if (img_w > 0) {
+        dx += ((W - img_w) / 2) - xo;
+    }
+    if (center_y && img_h > 0) {
+        dy += ((H - img_h) / 2) - yo;
+    }
+    static void *s_last_drawn = NULL;
+    if (img != s_last_drawn) {
+        s_last_drawn = img;
+        LogF("[ZRES_BACKDROP] DrawCentered: img=%p (%dx%d) local_draw=(%d,%d)",
+             img, img_w, img_h, dx, dy);
+    }
+    g_pfnDrawImage(g, img, dx, dy);
+}
+
+
+
+static void THISCALL hk_DrawLoadingScreenBack(void *g, void *img, int x, int y) {
+    (void)x; (void)y;
+    DrawCenteredScreenBackdrop(g, img, 0, 0, 1);
+}
+
+static void THISCALL hk_DrawMainMenuBack(void *g, void *img, int x, int y) {
+    (void)x; (void)y;
+    DrawCenteredScreenBackdrop(g, img, 0, 0, 1);
+}
+
+static void THISCALL hk_DrawGauntletScreenBack(void *g, void *img, int x, int y) {
+    (void)x; (void)y;
+    DrawCenteredScreenBackdrop(g, img, 0, 0, 1);
+}
+
 /* Adventure Background (advback.jpg) Draw Hook */
 static void THISCALL hk_DrawAdventureBack(void *g, void *img, int x, int y) {
-    int rx = AdvTemplesX(g_layout.adv_back_x);
-    int ry = AdvTemplesY(g_layout.adv_back_y);
+    (void)x; (void)y;
     static int s_logged_back = 0;
     if (!s_logged_back) {
         s_logged_back = 1;
-        LogF("[ADV_RUNTIME] AdvBack: x=%d y=%d", rx, ry);
+        LogF("[ADV_RUNTIME] AdvBack: x=%d y=%d", AdvTemplesX(g_layout.adv_back_x), AdvTemplesY(g_layout.adv_back_y));
     }
-    DrawImg(g, img, rx, ry);
+    DrawCenteredScreenBackdrop(g, img, AdvTemplesX(g_layout.adv_back_x), AdvTemplesY(g_layout.adv_back_y), 0);
 }
 
 /* Temple Draw Sidecar Hooks */
@@ -1002,6 +1232,11 @@ static void THISCALL hk_adv_draw_temple1(void *this, void *g) {
         LogF("[ADV_RUNTIME] Temple5: x=%d y=%d", AdvTemplesX(g_layout.adv_temple5_x), AdvTemplesY(g_layout.adv_temple5_y));
         LogF("[ADV_RUNTIME] Middle: x=%d y=%d", AdvTemplesX(g_layout.adv_middle_x), AdvTemplesY(g_layout.adv_middle_y));
     }
+    int W = g_W > 0 ? g_W : TARGET_W;
+    int H = g_H > 0 ? g_H : TARGET_H;
+    int xo = 0, yo = 0, cw = W, ch = H;
+    Offsets(W, H, &xo, &yo, &cw, &ch);
+
     if (IMG_ADVTEMPLE1)
         DrawImg(g, IMG_ADVTEMPLE1, AdvTemplesX(g_layout.adv_temple1_x), AdvTemplesY(g_layout.adv_temple1_y));
     DrawDoors(this, g, 0, 3);
@@ -1009,6 +1244,11 @@ static void THISCALL hk_adv_draw_temple1(void *this, void *g) {
 
 static void THISCALL hk_adv_draw_temple2(void *this, void *g) {
     PopulateAdventureDoors(this);
+    int W = g_W > 0 ? g_W : TARGET_W;
+    int H = g_H > 0 ? g_H : TARGET_H;
+    int xo = 0, yo = 0, cw = W, ch = H;
+    Offsets(W, H, &xo, &yo, &cw, &ch);
+
     int unlock = *(int *)((char *)this + 0x1D4);
     int stage  = *(int *)((char *)this + 0x64);
     if (unlock != 2) {
@@ -1038,6 +1278,11 @@ static void THISCALL hk_adv_draw_temple2(void *this, void *g) {
 
 static void THISCALL hk_adv_draw_temple3(void *this, void *g) {
     PopulateAdventureDoors(this);
+    int W = g_W > 0 ? g_W : TARGET_W;
+    int H = g_H > 0 ? g_H : TARGET_H;
+    int xo = 0, yo = 0, cw = W, ch = H;
+    Offsets(W, H, &xo, &yo, &cw, &ch);
+
     int unlock = *(int *)((char *)this + 0x1D4);
     int stage  = *(int *)((char *)this + 0x64);
     if (unlock != 3) {
@@ -1067,6 +1312,11 @@ static void THISCALL hk_adv_draw_temple3(void *this, void *g) {
 
 static void THISCALL hk_adv_draw_temple4(void *this, void *g) {
     PopulateAdventureDoors(this);
+    int W = g_W > 0 ? g_W : TARGET_W;
+    int H = g_H > 0 ? g_H : TARGET_H;
+    int xo = 0, yo = 0, cw = W, ch = H;
+    Offsets(W, H, &xo, &yo, &cw, &ch);
+
     int unlock = *(int *)((char *)this + 0x1D4);
     int stage  = *(int *)((char *)this + 0x64);
     if (unlock != 4) {
@@ -2181,6 +2431,12 @@ static void ApplyUIPatches(void) {
         }
     }
 
+    void *pLoadBackCall = FindPattern("A1 ?? ?? ?? ?? 8B 1D ?? ?? ?? ?? 6A 00 6A 00 50 8B CE E8");
+    if (pLoadBackCall) {
+        g_pImgLoadingScreen = *(void ***)((char *)pLoadBackCall + 1);
+        VerifyAndPatchCall((char *)pLoadBackCall + 18, (void *)0x44D470, (void *)hk_DrawLoadingScreenBack, "LoadingScreenBackDrawImage");
+    }
+
     /* 2. MainMenu (5 buttons) - Pure Local Coordinates via Space Project */
     int b1_x = ProjectLocalX(g_layout.mm_btn1_x, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
     int b1_y = ProjectLocalY(g_layout.mm_btn1_y, g_layout.mm_space_w, g_layout.mm_space_h, TARGET_W, TARGET_H);
@@ -2322,6 +2578,12 @@ static void ApplyUIPatches(void) {
     void *pWelcomeCenter = FindPattern("80 02 00 00 2B C8 8B C1 99");
     if (pWelcomeCenter) VerifyAndPatchDword(pWelcomeCenter, 640, content_w, "MainMenuWelcomeCenter");
 
+    void *pMMBackCall = FindPattern("A1 ?? ?? ?? ?? 6A 00 6A 00 50 8B CE E8 ?? ?? ?? ?? 8B 1D");
+    if (pMMBackCall) {
+        g_pImgMMBack = *(void ***)((char *)pMMBackCall + 1);
+        VerifyAndPatchCall((char *)pMMBackCall + 12, (void *)0x44D470, (void *)hk_DrawMainMenuBack, "MainMenuBackDrawImage");
+    }
+
     /* 6. AdventureScreen: VTable Resize hook + 4 Temple Call hooks + Draw Text & Plate */
     void *fnAdvResize = FindPattern("55 8B EC 8B 45 14 53 8B 5D 08 56 57 8B 7D 0C 8B F1 8B 4D 10 50 51 57 53 8B CE E8 ?? ?? ?? ?? 8B 46 24");
     if (fnAdvResize) {
@@ -2336,7 +2598,11 @@ static void ApplyUIPatches(void) {
     }
 
     void *pAdvBackCall = FindPattern("A1 4C 7F 54 00 6A 00 6A 00 50 8B CE E8");
+    if (!pAdvBackCall) {
+        pAdvBackCall = FindPattern("A1 ?? ?? ?? ?? 6A 00 6A 00 50 8B CE E8 ?? ?? ?? ?? 8B 0D");
+    }
     if (pAdvBackCall) {
+        g_pImgAdvBack = *(void ***)((char *)pAdvBackCall + 1);
         VerifyAndPatchCall((char *)pAdvBackCall + 12, (void *)0x44D470, (void *)hk_DrawAdventureBack, "AdvBackDrawImage");
     }
 
@@ -2500,7 +2766,14 @@ static void ApplyUIPatches(void) {
         }
     }
 
+    void *pGauntBackCall = FindPattern("8B 0D ?? ?? ?? ?? 6A 00 6A 00 51 8B CE E8 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 6A 00 6A 00 52 8B CE E8");
+    if (pGauntBackCall) {
+        g_pImgGauntScreen = *(void ***)((char *)pGauntBackCall + 2);
+        VerifyAndPatchCall((char *)pGauntBackCall + 13, (void *)0x44D470, (void *)hk_DrawGauntletScreenBack, "GauntScreenBackDrawImage");
+    }
+
     void *pGauntDoorFrameY = FindPattern("DC 00 00 00 68 AA 00 00 00");
+    if (!pGauntDoorFrameY) pGauntDoorFrameY = FindPattern("DC 00 00 00 68 ?? ?? ?? ??");
     if (pGauntDoorFrameY) {
         DWORD val_df_y = GauntLabelsY(g_layout.gaunt_door_frame_y);
         DWORD val_df_x = GauntLabelsX(g_layout.gaunt_door_frame_x);
@@ -3521,6 +3794,17 @@ typedef HANDLE (WINAPI *fCreateFileA)(
 );
 static fCreateFileA g_real_CreateFileA = NULL;
 
+static int IsKeyAsset(const char *name) {
+    if (!name) return 0;
+    return (strstr(name, "loadingscreen") != NULL ||
+            strstr(name, "mmscreen") != NULL ||
+            strstr(name, "gauntscreen") != NULL ||
+            strstr(name, "advback") != NULL ||
+            strstr(name, "advtemple") != NULL ||
+            strstr(name, "advmiddle") != NULL ||
+            strstr(name, "outscreen") != NULL);
+}
+
 static HANDLE WINAPI hk_CreateFileA(
     LPCSTR lpFileName,
     DWORD dwDesiredAccess,
@@ -3548,10 +3832,16 @@ static HANDLE WINAPI hk_CreateFileA(
         if (p) {
             DWORD attr = GetFileAttributesA(p);
             if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+                if (IsKeyAsset(lpFileName)) {
+                    LogF("[ZRES_FILE] REDIRECTED: '%s' -> '%s'", lpFileName, p);
+                }
                 return g_real_CreateFileA(p, dwDesiredAccess, dwShareMode,
                                          lpSecurityAttributes, dwCreationDisposition,
                                          dwFlagsAndAttributes, hTemplateFile);
             }
+        }
+        if (IsKeyAsset(lpFileName)) {
+            LogF("[ZRES_FILE] FALLBACK: '%s' (not in imagescustomres)", lpFileName);
         }
     }
     return g_real_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode,

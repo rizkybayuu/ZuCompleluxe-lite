@@ -216,7 +216,7 @@ typedef struct {
     int spacing;       /* +0x08 */
 } ZccCreditEntry;
 
-#define ZCC_CREDITS_TOTAL 42
+#define ZCC_CREDITS_TOTAL 44
 static ZccCreditEntry g_extended_credits[ZCC_CREDITS_TOTAL];
 static int g_credits_inited = 0;
 static void *g_credits_screen = NULL;
@@ -392,12 +392,22 @@ EXPORT void * __cdecl ZCC_GetCreditsTable(void)
         /* Entry 40: Name "Rizky Bayuu \"Lamp?x\"" -> NativeAlienExtended16 (FONT_NAME / BROWNTITLE) */
         g_extended_credits[40].font = (g_p_font_name && *g_p_font_name) ? *g_p_font_name : NULL;
         g_extended_credits[40].text = "Rizky Bayuu \"Lamp?x\"";
-        g_extended_credits[40].spacing = 35;
+        g_extended_credits[40].spacing = 25;
 
-        /* Entry 41: GitHub Button -> FONT_DIALOG (style like "Whatever" button) */
-        g_extended_credits[41].font = (g_p_font_dialog && *g_p_font_dialog) ? *g_p_font_dialog : NULL;
-        g_extended_credits[41].text = "GitHub";
-        g_extended_credits[41].spacing = 60; /* Added spacing so GitHub button completely scrolls off before loop reset */
+        /* Entry 41: Role "5 Extra Spheres Mod" -> NativeAlienExtended18 (FONT_HEADER / TITLE) */
+        g_extended_credits[41].font = (g_p_font_header && *g_p_font_header) ? *g_p_font_header : NULL;
+        g_extended_credits[41].text = "5 Extra Spheres Mod";
+        g_extended_credits[41].spacing = 0;
+
+        /* Entry 42: Name "Jacob \"JCB\"" -> NativeAlienExtended16 (FONT_NAME / BROWNTITLE) */
+        g_extended_credits[42].font = (g_p_font_name && *g_p_font_name) ? *g_p_font_name : NULL;
+        g_extended_credits[42].text = "Jacob \"JCB\"";
+        g_extended_credits[42].spacing = 35;
+
+        /* Entry 43: GitHub Button -> FONT_DIALOG (style like "Whatever" button) */
+        g_extended_credits[43].font = (g_p_font_dialog && *g_p_font_dialog) ? *g_p_font_dialog : NULL;
+        g_extended_credits[43].text = "GitHub";
+        g_extended_credits[43].spacing = 60;
 
         g_credits_inited = 1;
         logf_("Extended credits table initialized (total entries: %d)", ZCC_CREDITS_TOTAL);

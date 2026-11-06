@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.1] - 2026-11-06
+
+### Added
+- **Dynamic Image Format Resolution & Dynamic Ball Row Detection (`builder/patch_assets.py`)**:
+  - Integrated `resolve_image_file` and `detect_dynamic_ball_rows` into shared asset patcher infrastructure, ensuring image dimension parity across build pipelines.
+  - Added dedicated collaboration & license acknowledgement in `LICENSE.md` and `README.md`.
+  - Added Jacob "JCB" to the in-game developer rolling credits table (`zumacplxcredit.dll`).
+
+### Fixed & Improved
+- **Dynamic Widescreen Backdrop Auto-Centering & Outscreen Clipping (`src/zumareshandler.dll.c`)**:
+  - Dynamically centers custom wide backdrops (e.g. 1057x675 or 1200x675 full widescreen) for `loadingscreen.jpg`, `mmscreen.jpg`, and `gauntscreen.jpg`.
+  - Auto-shrinks `outscreen.jpg` brick borders proportionally: if the backdrop fills the full widescreen width, outscreen border margins shrink to 0 px.
+  - Clears `Widget::mClip` (`w[0x1B] = 0`) in `Unclip()`, resolving the black void / clipping boundary on the right edge of stretched backdrops.
+- **LoadingScreen Idle Hover Black Screen Bug Fix (`src/zumareshandler.dll.c`)**:
+  - Removed full-screen black backbuffer clear (`FillBlack(g, 0, 0, W, H)`) in Graphics constructor hook, replacing it with targeted margin-only fills.
+  - Automatically marks active widgets dirty in `Unclip()` (`if (w[0x19]) w[0x18] = 1;`), ensuring PopCap's dirty-rectangle invalidation loop redraws the screen even when the mouse cursor is stationary and not hovering over "CLICK HERE TO PLAY!".
+- **Adventure Screen Composite Structure Restoration (`src/zumareshandler.dll.c`)**:
+  - Completely removed individual sprite layer offsets (`AdvLayerOffsetX`), restoring all temple sprites (`IMG_ADVTEMPLE1..4`, `IMG_ADVMIDDLE`, `IMG_ADVTEMPLE2V`, `IMG_ADVTEMPLE3V`) to their native relative coordinates (`AdvTemplesX`, `AdvTemplesY`).
+  - Anchors Adventure screen backdrop clipping to `IMG_ADVTEMPLE1` width, preventing temple destruction and misalignment.
+- **Diagnostic Logging Enhancement (`src/zumareshandler.dll.c`)**:
+  - Added structured diagnostic logging to `zumatest.log` for asset redirection (`[ZRES_FILE] REDIRECTED / FALLBACK`) and backdrop geometry (`[ZRES_BACKDROP] Screen=... DrawCentered: ...`).
+
 ## [0.6.0.7] - 2026-11-06
 
 ### Fixed & Improved

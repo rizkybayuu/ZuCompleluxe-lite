@@ -71,3 +71,14 @@ SOFTWARE.
 
 - **BASS Audio Library**: `bass.dll` is proprietary software copyrighted by **Ian Luck / Un4seen Developments**. It is not licensed under the MIT license and must be provided via the user's authentic *Zuma Deluxe* retail copy.
 - **Decompiled Code Reference**: Files `Zuma.exe.c`, `Zuma.exe.h`, and `bass.dll.c` consist of static pseudocode generated via disassembly and decompilation tools for local analysis, symbol cross-referencing, and verification of hook offsets. They are derived from proprietary binaries, are excluded from the MIT license, and are not intended to be compiled into a standalone commercial substitute.
+
+---
+
+## 6. Official Collaboration & Extra Spheres Asset Licensing
+
+- **Collaborator**: **JCB** (also known as **Jacob** / **JCB Game Studios**).
+  - **YouTube Channel**: [JCB Game Studios (YouTube)](https://www.youtube.com/@JCBGameStudios)
+  - **GitHub**: [JCBGameStudios (GitHub)](https://github.com/JCBGameStudios)
+    > *Note on GitHub availability*: The developer's GitHub profile may return an HTTP 404 status for public or unauthenticated visitors due to platform-level regional/sanctions restrictions affecting developers in the Russian Federation. However, Jacob actively collaborates on project repositories and accepts private repository collaboration invitations.
+- **Contributions**: Handcrafted official extra sphere assets (11-ball color set: Black, Cream, Cyan, Navy, Orange sprite sheets) created specifically for *Zuma Compleluxe*.
+- **License & Rights Agreement**: By explicit mutual agreement between Jacob (JCB) and Rizky Bayuu (ZuCompleluxe Project Lead), these contributed graphical assets are officially integrated into the project under the project's overall governance and terms (MIT License for non-commercial community modding, interoperability research, and preservation). All distribution terms remain aligned with the project's non-commercial licensing model.
