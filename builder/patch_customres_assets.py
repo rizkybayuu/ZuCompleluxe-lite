@@ -5,12 +5,18 @@ def generate_resized_images(w, h, game_dir, out_dir=None):
     if not out_dir:
         out_dir = game_dir
     xml_path = os.path.join(game_dir, 'properties', 'resources.xml')
+    extra_xml_path = os.path.join(game_dir, 'properties', 'resources_extra.xml')
     img_dir = os.path.join(game_dir, 'images')
     target_img_dir = os.path.join(out_dir, 'imagescustomres')
     os.makedirs(target_img_dir, exist_ok=True)
 
+    if not os.path.exists(xml_path):
+        return
     with open(xml_path, 'r', encoding='utf-8', errors='ignore') as f:
         text = f.read()
+    if os.path.exists(extra_xml_path):
+        with open(extra_xml_path, 'r', encoding='utf-8', errors='ignore') as f:
+            text += "\n" + f.read()
 
     w = max(w, 320)
     h = max(h, 240)
@@ -43,7 +49,7 @@ def generate_resized_images(w, h, game_dir, out_dir=None):
                     if not name: continue
                     # Gameplay assets, cursors, and tutorial detail assets must never be resized:
                     lower_name = name.lower()
-                    if 'ball' in lower_name or 'tut_title' in lower_name or 'cursor' in lower_name or 'tut_mouse' in lower_name or 'advtemple5_tut' in lower_name or lower_name in (
+                    if 'ball' in lower_name or 'tut_title' in lower_name or 'cursor' in lower_name or 'tut_mouse' in lower_name or lower_name in (
                         '_ballalpha', 'ballalpha', '_ballshadow', 'smallfrogonpad', 'hatchback',
                         'tongue', 'eyeblink', 'hole', 'pitcover', 'coin', 'gauge', 'gaugegreen', 'toadlives'
                     ):

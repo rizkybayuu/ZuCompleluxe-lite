@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.1.2] - 2026-11-06
+
+### Fixed
+- **InGameHUD Full-Screen Span & Board Canvas Decoupling (`zumareshandler.dll`)**:
+  - Fully reverted `GetBoardCanvasSize()` capping that previously caused `inGameHUD` and in-game `Board` elements to be framed with outscreen brick textures and offset shifts (`bxo/byo`).
+  - Restored in-game stage level coordinates to Top-Left `(0, 0)` spanning full screen width and height (`TARGET_W x TARGET_H`).
+  - Excluded in-game `board` from `GetActiveBackdropClipBox()`, guaranteeing zero `outscreen.jpg` brick borders appear during active gameplay while preserving letterbox/pillarbox borders for menus and modal dialogs.
+  - Restored full-screen canvas projection across all inGameHUD components (`menubar`, `lives_x`, `stage_cx`, `score_rx`, `zuma_x`, `menu_x`, `AdvLevelBanner`, `LivesBanner`, and stage completion frog waypoints).
+  - Restored starfield spawn/wrap kill boundaries (`s_star_max_y = (float)TARGET_H;`) to prevent premature star despawning in space levels.
+- **Portrait Scrolling Nebula Vertical Coverage (`patch_customres_assets.py`)**:
+  - Updated `nebula1.jpg` procedural generation formula to `max(h, round(orig_h * (float(w) / float(orig_w))))`, ensuring the scrolling background spans at least full screen height `H` in Portrait resolutions (e.g. `900x1800`) to eliminate vertical cutoff and visual tearing.
+- **Procedural Menubar Full Span Reconstruction (`patch_customres_assets.py`)**:
+  - Restored `generate_menubar` call to use full resolution dimensions `(w, h)` instead of capped board canvas dimensions.
+- **DevTester Assets Scaler & Manifest Synchronization (`patch_customres_assets.py`)**:
+  - Fixed `patch_customres_assets.py` ignoring custom tags defined in `properties/resources_extra.xml` (`IMAGE_ADVTEMPLE5`, `IMAGE_ADVDOOR5`, `IMAGE_HELP_FRONT_DEV`, `IMAGE_HELP_BACK_DEV`, `IMAGE_TUT_TEMPLE5`), eliminating stale oversized assets in custom resolutions.
+  - Removed `'advtemple5_tut'` skip filter, allowing tutorial preview graphics to scale proportionally with active screen resolution.
+- **DevTester Help Screen & Map Screen Coordinate Synchronization (`zumatestingkit.dll`, `layout.xml`)**:
+  - Fully synchronized `ZTK_DrawHelpScreen` with `<DevHelpScreen>` in `layout.xml` via dynamic struct config (`cfg->dev_help_title_x/y`, `cfg->dev_help_subtitle_x/y`, `cfg->help_dev_temple5_x/y`, `cfg->dev_help_demo_balls_x/y/spacing`, `cfg->dev_help_demo_mouse_x/y`, `cfg->dev_help_demo_click_x/y`, `cfg->dev_help_demo_clear_x/y`).
+  - Dynamically scaled ball spacing (`raw_ball_sp * s`) and centered 5 balls and middle-click explosion demo animations cleanly.
+  - Fixed Temple 5 and Door 5 alignment in `MapScreen` across portrait and non-standard aspect ratios.
+
 ## [0.6.1.1] - 2026-11-06
 
 ### Fixed

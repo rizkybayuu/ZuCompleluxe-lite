@@ -1786,15 +1786,17 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
      * HEADER: "DEVELOPER MODE" adaptively centered (cx = scr_w / 2)
      * Effect: Sandy Grain Glow (Aztec sand granular texture)
      * ========================================================================= */
-    int title_y = cfg ? cfg->dev_help_title_y : 28;
-    int subtitle_y = cfg ? cfg->dev_help_subtitle_y : 78;
+    int title_x = D_LX((cfg && cfg->dev_help_title_x) ? cfg->dev_help_title_x : 320);
+    int title_y = D_LY((cfg && cfg->dev_help_title_y) ? cfg->dev_help_title_y : 28);
+    int sub_x   = D_LX((cfg && cfg->dev_help_subtitle_x) ? cfg->dev_help_subtitle_x : 320);
+    int subtitle_y = D_LY((cfg && cfg->dev_help_subtitle_y) ? cfg->dev_help_subtitle_y : 78);
 
     if (fontTitle) {
-        ztk_draw_text_sandy_glow(graphics, fontTitle, "DEVELOPER MODE", cx, D_LY(title_y));
+        ztk_draw_text_sandy_glow(graphics, fontTitle, "DEVELOPER MODE", title_x, title_y);
     }
     if (fontBody) {
         ztk_draw_text_centered(graphics, fontBody,
-            "Special Testing Profile  -  Unrestricted Game Access", cx, D_LY(subtitle_y), &colGold);
+            "Special Testing Profile  -  Unrestricted Game Access", sub_x, subtitle_y, &colGold);
     }
 
     /* =========================================================================
@@ -1805,10 +1807,10 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
         ztk_draw_text_centered(graphics, fontHeading, "ADVENTURE MODE", col1_cx, D_LY(adv_hdr_y), &colYellow);
     }
 
-    /* Temple 5 preview graphic with glowing green door (190x75, centered at col1_cx) */
+    /* Temple 5 preview graphic with glowing green door */
     if (imgTutTemple5) {
-        int temple_x = (cfg && cfg->help_dev_temple5_x != 225 && cfg->help_dev_temple5_x != 0) ? D_LX(cfg->help_dev_temple5_x) : (col1_cx - 190 / 2);
-        int temple_y = (cfg && cfg->help_dev_temple5_y != 114 && cfg->help_dev_temple5_y != 0) ? D_LY(cfg->help_dev_temple5_y) : D_LY(114);
+        int temple_x = D_LX((cfg && cfg->help_dev_temple5_x) ? cfg->help_dev_temple5_x : 67);
+        int temple_y = D_LY((cfg && cfg->help_dev_temple5_y) ? cfg->help_dev_temple5_y : 114);
         drawImage(graphics, imgTutTemple5, temple_x, temple_y);
     }
 
@@ -1875,10 +1877,11 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     int cycle = update_cnt % 180;
     int is_clicking = (cycle >= 100 && cycle <= 145);
 
-    /* 5 Zuma balls spaced 32px apart centered at col2_cx */
-    int ball_spacing = cfg ? cfg->dev_help_demo_balls_spacing : 32;
-    int ball_center_x = col2_cx;
-    int base_ball_x = ball_center_x - (5 * ball_spacing) / 2;
+    /* 5 Zuma balls centered at demo_balls_x */
+    int raw_ball_sp = (cfg && cfg->dev_help_demo_balls_spacing) ? cfg->dev_help_demo_balls_spacing : 32;
+    int ball_spacing = (s < 1.0f) ? (int)(raw_ball_sp * s + 0.5f) : raw_ball_sp;
+    int ball_center_x = (cfg && cfg->dev_help_demo_balls_x) ? D_LX(cfg->dev_help_demo_balls_x) : col2_cx;
+    int base_ball_x = ball_center_x - (4 * ball_spacing) / 2 - 16;
     int ball_x[5] = {
         base_ball_x,
         base_ball_x + ball_spacing,
@@ -1886,7 +1889,7 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
         base_ball_x + ball_spacing * 3,
         base_ball_x + ball_spacing * 4
     };
-    int ball_y = D_LY(cfg ? cfg->dev_help_demo_balls_y : 295);
+    int ball_y = D_LY((cfg && cfg->dev_help_demo_balls_y) ? cfg->dev_help_demo_balls_y : 295);
 
     /* Clockwise ball rotation with slow cadence */
     __attribute__((unused)) int ball_cel = (50 - ((update_cnt / 3) % 50)) % 50;
@@ -1943,20 +1946,23 @@ __declspec(dllexport) int __cdecl ZTK_DrawHelpScreen(void *helpScreen, void *gra
     } else {
         /* PHASE 3: Balls fully cleared (Clear!) */
         if (fontBody) {
-            int clear_y = cfg ? cfg->dev_help_demo_clear_y : 303;
-            ztk_draw_text_centered(graphics, fontBody, "STAGE CLEARED!", ball_center_x, D_LY(clear_y), &colGold);
+            int clear_x = (cfg && cfg->dev_help_demo_clear_x) ? D_LX(cfg->dev_help_demo_clear_x) : ball_center_x;
+            int clear_y = D_LY((cfg && cfg->dev_help_demo_clear_y) ? cfg->dev_help_demo_clear_y : 303);
+            ztk_draw_text_centered(graphics, fontBody, "STAGE CLEARED!", clear_x, clear_y, &colGold);
         }
     }
 
     /* Mouse animation icon centered beneath 5 balls (Sprite tut_mouse_m unscaled 40x29) */
     if (imgTutMouseM) {
         int cel = is_clicking ? 1 : 0;
-        int mouse_x = (cfg && cfg->help_dev_mouse_m_x != 465 && cfg->help_dev_mouse_m_x != 0) ? D_LX(cfg->help_dev_mouse_m_x) : (ball_center_x + 30);
-        int mouse_y = (cfg && cfg->help_dev_mouse_m_y != 145 && cfg->help_dev_mouse_m_y != 0) ? D_LY(cfg->help_dev_mouse_m_y) : D_LY(350);
+        int mouse_x = (cfg && cfg->dev_help_demo_mouse_x) ? D_LX(cfg->dev_help_demo_mouse_x) : (ball_center_x + 30);
+        int mouse_y = D_LY((cfg && cfg->dev_help_demo_mouse_y) ? cfg->dev_help_demo_mouse_y : 350);
+        int click_x = (cfg && cfg->dev_help_demo_click_x) ? D_LX(cfg->dev_help_demo_click_x) : (mouse_x - 50);
+        int click_y = D_LY((cfg && cfg->dev_help_demo_click_y) ? cfg->dev_help_demo_click_y : 362);
 
         /* Animation status label above mouse: Arial CLICK! when middle button is pressed */
         if (is_clicking && fontPlain) {
-            ztk_draw_text_centered(graphics, fontPlain, "CLICK!", ball_center_x - 20, mouse_y + 12, &colWhite);
+            ztk_draw_text_centered(graphics, fontPlain, "CLICK!", click_x, click_y, &colWhite);
         }
 
         drawImageCel(graphics, imgTutMouseM, mouse_x, mouse_y, cel);
